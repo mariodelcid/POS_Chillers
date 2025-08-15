@@ -47,7 +47,6 @@ const items = [
   { name: 'Boba Coffee', category: 'BOBAS', priceCents: 499 },
   { name: 'Boba Strawberry', category: 'BOBAS', priceCents: 499 },
   { name: 'Boba Taro', category: 'BOBAS', priceCents: 499 },
-  { name: 'BobaTiger Milk', category: 'BOBAS', priceCents: 499 },
 ];
 
 async function main() {
