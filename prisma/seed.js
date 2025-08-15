@@ -18,6 +18,8 @@ const items = [
   { name: 'Vaso Nieve 1 Scoop', category: 'SNACKS', priceCents: 249 },
   { name: 'Vaso Nieve 2 Scoops', category: 'SNACKS', priceCents: 499 },
   { name: 'Queso Extra', category: 'SNACKS', priceCents: 25 },
+  { name: 'Toppings', category: 'SNACKS', priceCents: 50 },
+  { name: 'Discount', category: 'SNACKS', priceCents: -50 },
 
   // CHAMOYADAS (light yellow background) - $6.99
   { name: 'Chamoyada de Tamarindo', category: 'CHAMOYADAS', priceCents: 699 },
@@ -32,7 +34,7 @@ const items = [
   { name: 'Mango Peach Dragonfruit', category: 'REFRESHERS', priceCents: 499 },
   { name: 'Red Bull Preparado', category: 'REFRESHERS', priceCents: 499 },
   { name: 'Strawberry Acai', category: 'REFRESHERS', priceCents: 499 },
-  { name: 'Taro', category: 'REFRESHERS', priceCents: 499 },
+  { name: 'Limonada', category: 'REFRESHERS', priceCents: 499 },
 
   // MILK SHAKES (light red background)
   { name: 'Cookies and Cream', category: 'MILK SHAKES', priceCents: 699 },
@@ -46,11 +48,6 @@ const items = [
   { name: 'Boba Strawberry', category: 'BOBAS', priceCents: 499 },
   { name: 'Boba Taro', category: 'BOBAS', priceCents: 499 },
   { name: 'BobaTiger Milk', category: 'BOBAS', priceCents: 499 },
-  { name: 'Tiger Milk', category: 'BOBAS', priceCents: 499 },
-
-  // UTILITIES (appear last)
-  { name: 'Toppings', category: 'SNACKS', priceCents: 50 },
-  { name: 'Discount', category: 'SNACKS', priceCents: -50 },
 ];
 
 async function main() {
