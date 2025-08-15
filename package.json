@@ -11,7 +11,8 @@
     "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
     "build": "npx prisma generate && vite build",
     "start": "node start.js",
-    "postinstall": "npx prisma generate"
+    "postinstall": "npx prisma generate",
+    "seed": "node prisma/seed.js"
   },
   "dependencies": {
     "@prisma/client": "^5.16.2",
