@@ -39,7 +39,6 @@ const items = [
   // MILK SHAKES (light red background)
   { name: 'Cookies and Cream', category: 'MILK SHAKES', priceCents: 699 },
   { name: 'Caramel Frappuccino', category: 'MILK SHAKES', priceCents: 699 },
-  { name: 'Taro', category: 'MILK SHAKES', priceCents: 699 },
   { name: 'Malteada de Fresa', category: 'MILK SHAKES', priceCents: 699 },
   { name: 'Malteada Vainilla', category: 'MILK SHAKES', priceCents: 699 },
   { name: 'Malteada Chocolate', category: 'MILK SHAKES', priceCents: 699 },

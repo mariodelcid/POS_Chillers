@@ -1,0 +1,5 @@
+[33m06cfd47[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m Remove plain Malteada, keep flavored malteadas, rename Frappuchino De Taro to Taro
+[33m99fb0b1[m Remove malteada items and rename Frappuchino De Taro to Taro
+[33mcc53fd0[m Update malteada items: add Fresa, Vainilla, and Chocolate flavors
+[33m1523dbd[m Configure for Railway deployment: PostgreSQL schema, updated scripts, and proper .gitignore
+[33ma7200bd[m Initial commit: Complete POS system with Compras tracking and enhanced daily summary
