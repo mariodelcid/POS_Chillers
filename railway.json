@@ -13,7 +13,7 @@
           "cmds": ["npm run build"]
         },
         "start": {
-          "cmd": "npm run railway-start"
+          "cmd": "npm start"
         }
       }
     }

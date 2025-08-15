@@ -9,8 +9,9 @@
     "dev:server": "nodemon server/index.js",
     "dev:client": "vite",
     "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
-    "build": "vite build",
-    "start": "node start.js"
+    "build": "npx prisma generate && vite build",
+    "start": "node start.js",
+    "postinstall": "npx prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^5.16.2",
