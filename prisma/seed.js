@@ -34,7 +34,6 @@ const items = [
   { name: 'Mango Peach Dragonfruit', category: 'REFRESHERS', priceCents: 499 },
   { name: 'Red Bull Preparado', category: 'REFRESHERS', priceCents: 499 },
   { name: 'Strawberry Acai', category: 'REFRESHERS', priceCents: 499 },
-  { name: 'Limonada', category: 'REFRESHERS', priceCents: 499 },
 
   // MILK SHAKES (light red background)
   { name: 'Cookies and Cream', category: 'MILK SHAKES', priceCents: 699 },
