@@ -5,11 +5,31 @@ function centsToUSD(cents) {
 }
 
 function formatDateTime(dateString) {
-  return new Date(dateString).toLocaleString();
+  // Convert UTC to local timezone for display
+  const date = new Date(dateString);
+  return date.toLocaleString();
 }
 
 function formatDate(dateString) {
-  return new Date(dateString).toLocaleDateString();
+  // Convert UTC to local timezone for display
+  const date = new Date(dateString);
+  return date.toLocaleDateString();
+}
+
+// Helper function to get today's date in local timezone
+function getTodayLocal() {
+  const now = new Date();
+  return now.toISOString().split('T')[0];
+}
+
+// Helper function to check if a date is today in local timezone
+function isToday(dateString) {
+  const today = new Date();
+  const date = new Date(dateString);
+  
+  return date.getDate() === today.getDate() &&
+         date.getMonth() === today.getMonth() &&
+         date.getFullYear() === today.getFullYear();
 }
 
 export default function Sales() {
@@ -68,7 +88,7 @@ export default function Sales() {
   };
 
   // Get today's date in YYYY-MM-DD format for max attribute
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayLocal();
 
   // Calculate daily summaries
   const dailySummary = useMemo(() => {
@@ -76,14 +96,18 @@ export default function Sales() {
     
     // Process sales
     sales.forEach((sale) => {
-      const date = formatDate(sale.createdAt);
+      // Convert UTC date to local timezone for grouping
+      const localDate = new Date(sale.createdAt);
+      const date = localDate.toLocaleDateString();
+      
       if (!dailyTotals.has(date)) {
         dailyTotals.set(date, { 
           cash: 0, 
           credit: 0, 
           totalSales: 0,
           purchases: 0,
-          netCash: 0
+          netCash: 0,
+          isToday: false
         });
       }
       const dayData = dailyTotals.get(date);
@@ -93,18 +117,27 @@ export default function Sales() {
         dayData.credit += sale.totalCents;
       }
       dayData.totalSales += 1;
+      
+      // Mark if this is today
+      if (isToday(sale.createdAt)) {
+        dayData.isToday = true;
+      }
     });
 
     // Process purchases
     purchases.forEach((purchase) => {
-      const date = formatDate(purchase.createdAt);
+      // Convert UTC date to local timezone for grouping
+      const localDate = new Date(purchase.createdAt);
+      const date = localDate.toLocaleDateString();
+      
       if (!dailyTotals.has(date)) {
         dailyTotals.set(date, { 
           cash: 0, 
           credit: 0, 
           totalSales: 0,
           purchases: 0,
-          netCash: 0
+          netCash: 0,
+          isToday: false
         });
       }
       const dayData = dailyTotals.get(date);
@@ -118,7 +151,12 @@ export default function Sales() {
         total: data.cash + data.credit,
         netCash: data.cash - data.purchases
       }))
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
+      .sort((a, b) => {
+        // Sort by date, with today first
+        if (a.isToday) return -1;
+        if (b.isToday) return 1;
+        return new Date(b.date) - new Date(a.date);
+      });
   }, [sales, purchases]);
 
   // Calculate item summaries
@@ -226,11 +264,23 @@ export default function Sales() {
           </div>
         )}
         
+        {/* Timezone Info */}
+        <div style={{ 
+          fontSize: '0.8em', 
+          color: '#6b7280', 
+          backgroundColor: '#f3f4f6',
+          padding: '4px 8px',
+          borderRadius: '4px',
+          marginLeft: 'auto'
+        }}>
+          Timezone: {Intl.DateTimeFormat().resolvedOptions().timeZone}
+        </div>
+        
         {/* Quick Date Presets */}
         <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
           <button
             onClick={() => {
-              const today = new Date().toISOString().split('T')[0];
+              const today = getTodayLocal();
               setStartDate(today);
               setEndDate(today);
             }}
@@ -388,10 +438,30 @@ export default function Sales() {
           ) : (
             <div style={{ display: 'grid', gap: 12 }}>
               {dailySummary.map((day) => (
-                <div key={day.date} style={{ border: '1px solid #ddd', borderRadius: 8, padding: 16 }}>
+                <div key={day.date} style={{ 
+                  border: '1px solid #ddd', 
+                  borderRadius: 8, 
+                  padding: 16,
+                  backgroundColor: day.isToday ? '#f0f9ff' : 'white',
+                  borderLeft: day.isToday ? '4px solid #2563eb' : '1px solid #ddd'
+                }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto auto auto auto', gap: 12, alignItems: 'center' }}>
                     <div>
                       <strong>{day.date}</strong>
+                      {day.isToday && (
+                        <div style={{ 
+                          fontSize: '0.8em', 
+                          color: '#2563eb', 
+                          fontWeight: 600,
+                          backgroundColor: '#dbeafe',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          display: 'inline-block',
+                          marginLeft: '8px'
+                        }}>
+                          TODAY
+                        </div>
+                      )}
                       <div style={{ fontSize: '0.9em', opacity: 0.7 }}>{day.totalSales} transactions</div>
                     </div>
                     <div style={{ textAlign: 'center' }}>
