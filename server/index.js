@@ -87,18 +87,126 @@ app.put('/api/packaging/:id', async (req, res) => {
 });
 
 // Get sales history
-app.get('/api/sales', async (_req, res) => {
-  const sales = await prisma.sale.findMany({
-    include: {
-      items: {
-        include: {
-          item: true,
+app.get('/api/sales', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    let whereClause = {};
+    
+    // Add date filtering if provided
+    if (startDate || endDate) {
+      whereClause.createdAt = {};
+      if (startDate) {
+        whereClause.createdAt.gte = new Date(startDate);
+      }
+      if (endDate) {
+        // Set end date to end of day
+        const endDateTime = new Date(endDate);
+        endDateTime.setHours(23, 59, 59, 999);
+        whereClause.createdAt.lte = endDateTime;
+      }
+    }
+
+    const sales = await prisma.sale.findMany({
+      where: whereClause,
+      include: {
+        items: {
+          include: {
+            item: true,
+          },
         },
       },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
-  res.json(sales);
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(sales);
+  } catch (error) {
+    console.error('Error fetching sales:', error);
+    res.status(500).json({ error: 'Failed to fetch sales' });
+  }
+});
+
+// Get sales statistics for date range
+app.get('/api/sales/stats', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    let whereClause = {};
+    
+    // Add date filtering if provided
+    if (startDate || endDate) {
+      whereClause.createdAt = {};
+      if (startDate) {
+        whereClause.createdAt.gte = new Date(startDate);
+      }
+      if (endDate) {
+        // Set end date to end of day
+        const endDateTime = new Date(endDate);
+        endDateTime.setHours(23, 59, 59, 999);
+        whereClause.createdAt.lte = endDateTime;
+      }
+    }
+
+    const [sales, purchases] = await Promise.all([
+      prisma.sale.findMany({
+        where: whereClause,
+        include: {
+          items: {
+            include: {
+              item: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.purchase.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+      })
+    ]);
+
+    // Calculate statistics
+    const totalSales = sales.reduce((sum, sale) => sum + sale.totalCents, 0);
+    const cashSales = sales.filter(s => s.paymentMethod === 'cash').reduce((sum, sale) => sum + sale.totalCents, 0);
+    const creditSales = sales.filter(s => s.paymentMethod === 'credit').reduce((sum, sale) => sum + sale.totalCents, 0);
+    const totalPurchases = purchases.reduce((sum, purchase) => sum + purchase.amountCents, 0);
+    const netCash = cashSales - totalPurchases;
+    const totalTransactions = sales.length;
+
+    // Top selling items
+    const itemStats = {};
+    sales.forEach(sale => {
+      sale.items.forEach(item => {
+        const itemName = item.item.name;
+        if (!itemStats[itemName]) {
+          itemStats[itemName] = { quantity: 0, revenue: 0, category: item.item.category };
+        }
+        itemStats[itemName].quantity += item.quantity;
+        itemStats[itemName].revenue += item.lineTotalCents;
+      });
+    });
+
+    const topItems = Object.entries(itemStats)
+      .map(([name, stats]) => ({ name, ...stats }))
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 10);
+
+    res.json({
+      summary: {
+        totalSales,
+        cashSales,
+        creditSales,
+        totalPurchases,
+        netCash,
+        totalTransactions
+      },
+      topItems,
+      sales,
+      purchases
+    });
+  } catch (error) {
+    console.error('Error fetching sales stats:', error);
+    res.status(500).json({ error: 'Failed to fetch sales statistics' });
+  }
 });
 
 // Create sale
@@ -196,11 +304,35 @@ app.post('/api/sales', async (req, res) => {
 });
 
 // Get purchases history
-app.get('/api/purchases', async (_req, res) => {
-  const purchases = await prisma.purchase.findMany({
-    orderBy: { createdAt: 'desc' },
-  });
-  res.json(purchases);
+app.get('/api/purchases', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    let whereClause = {};
+    
+    // Add date filtering if provided
+    if (startDate || endDate) {
+      whereClause.createdAt = {};
+      if (startDate) {
+        whereClause.createdAt.gte = new Date(startDate);
+      }
+      if (endDate) {
+        // Set end date to end of day
+        const endDateTime = new Date(endDate);
+        endDateTime.setHours(23, 59, 59, 999);
+        whereClause.createdAt.lte = endDateTime;
+      }
+    }
+
+    const purchases = await prisma.purchase.findMany({
+      where: whereClause,
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(purchases);
+  } catch (error) {
+    console.error('Error fetching purchases:', error);
+    res.status(500).json({ error: 'Failed to fetch purchases' });
+  }
 });
 
 // Create purchase

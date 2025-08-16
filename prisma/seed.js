@@ -45,7 +45,6 @@ const items = [
   // BOBAS (light pink background) - $4.99
   { name: 'Boba Coffee', category: 'BOBAS', priceCents: 499 },
   { name: 'Boba Strawberry', category: 'BOBAS', priceCents: 499 },
-  { name: 'Boba Taro', category: 'BOBAS', priceCents: 499 },
   { name: 'Boba Customized', category: 'BOBAS', priceCents: 499 },
 ];
 

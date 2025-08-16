@@ -17,22 +17,58 @@ export default function Sales() {
   const [purchases, setPurchases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('summary'); // 'summary', 'items', 'transactions'
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
+  // Function to fetch data with date filters
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      
+      const [salesResponse, purchasesResponse] = await Promise.all([
+        fetch(`/api/sales?${params.toString()}`),
+        fetch(`/api/purchases?${params.toString()}`)
+      ]);
+      
+      const [salesData, purchasesData] = await Promise.all([
+        salesResponse.json(),
+        purchasesResponse.json()
+      ]);
+      
+      setSales(salesData);
+      setPurchases(purchasesData);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch data when component mounts or date filters change
   useEffect(() => {
-    Promise.all([
-      fetch('/api/sales').then(r => r.json()),
-      fetch('/api/purchases').then(r => r.json())
-    ])
-      .then(([salesData, purchasesData]) => {
-        setSales(salesData);
-        setPurchases(purchasesData);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setLoading(false);
-      });
-  }, []);
+    fetchData();
+  }, [startDate, endDate]);
+
+  // Handle date filter changes
+  const handleDateChange = (type, value) => {
+    if (type === 'start') {
+      setStartDate(value);
+    } else {
+      setEndDate(value);
+    }
+  };
+
+  // Reset date filters
+  const resetFilters = () => {
+    setStartDate('');
+    setEndDate('');
+  };
+
+  // Get today's date in YYYY-MM-DD format for max attribute
+  const today = new Date().toISOString().split('T')[0];
 
   // Calculate daily summaries
   const dailySummary = useMemo(() => {
@@ -115,6 +151,206 @@ export default function Sales() {
   return (
     <div style={{ padding: 16 }}>
       <h3 style={{ marginTop: 0 }}>Sales Reports</h3>
+      
+      {/* Date Filters */}
+      <div style={{ 
+        display: 'flex', 
+        gap: 16, 
+        marginBottom: 24, 
+        padding: '16px', 
+        backgroundColor: '#f8fafc', 
+        borderRadius: '8px',
+        alignItems: 'center',
+        flexWrap: 'wrap'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label htmlFor="startDate" style={{ fontWeight: 600, fontSize: '0.9em' }}>From:</label>
+          <input
+            id="startDate"
+            type="date"
+            value={startDate}
+            onChange={(e) => handleDateChange('start', e.target.value)}
+            max={today}
+            style={{
+              padding: '8px 12px',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              fontSize: '0.9em'
+            }}
+          />
+        </div>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label htmlFor="endDate" style={{ fontWeight: 600, fontSize: '0.9em' }}>To:</label>
+          <input
+            id="endDate"
+            type="date"
+            value={endDate}
+            onChange={(e) => handleDateChange('end', e.target.value)}
+            max={today}
+            min={startDate}
+            style={{
+              padding: '8px 12px',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              fontSize: '0.9em'
+            }}
+          />
+        </div>
+        
+        <button
+          onClick={resetFilters}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: '#6b7280',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '0.9em'
+          }}
+        >
+          Reset Filters
+        </button>
+        
+        {(startDate || endDate) && (
+          <div style={{ 
+            fontSize: '0.9em', 
+            color: '#059669', 
+            fontWeight: 600,
+            backgroundColor: '#d1fae5',
+            padding: '4px 12px',
+            borderRadius: '6px'
+          }}>
+            Filtered by date range
+          </div>
+        )}
+        
+        {/* Quick Date Presets */}
+        <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+          <button
+            onClick={() => {
+              const today = new Date().toISOString().split('T')[0];
+              setStartDate(today);
+              setEndDate(today);
+            }}
+            style={{
+              padding: '6px 12px',
+              backgroundColor: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '0.8em'
+            }}
+          >
+            Today
+          </button>
+          <button
+            onClick={() => {
+              const yesterday = new Date();
+              yesterday.setDate(yesterday.getDate() - 1);
+              const yesterdayStr = yesterday.toISOString().split('T')[0];
+              setStartDate(yesterdayStr);
+              setEndDate(yesterdayStr);
+            }}
+            style={{
+              padding: '6px 12px',
+              backgroundColor: '#8b5cf6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '0.8em'
+            }}
+          >
+            Yesterday
+          </button>
+          <button
+            onClick={() => {
+              const now = new Date();
+              const startOfWeek = new Date(now);
+              startOfWeek.setDate(now.getDate() - now.getDay());
+              const endOfWeek = new Date(now);
+              endOfWeek.setDate(now.getDate() + (6 - now.getDay()));
+              
+              setStartDate(startOfWeek.toISOString().split('T')[0]);
+              setEndDate(endOfWeek.toISOString().split('T')[0]);
+            }}
+            style={{
+              padding: '6px 12px',
+              backgroundColor: '#10b981',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '0.8em'
+            }}
+          >
+            This Week
+          </button>
+          <button
+            onClick={() => {
+              const now = new Date();
+              const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+              const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+              
+              setStartDate(startOfMonth.toISOString().split('T')[0]);
+              setEndDate(endOfMonth.toISOString().split('T')[0]);
+            }}
+            style={{
+              padding: '6px 12px',
+              backgroundColor: '#f59e0b',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '0.8em'
+            }}
+          >
+            This Month
+          </button>
+        </div>
+      </div>
+      
+      {/* Filtered Data Summary */}
+      {(startDate || endDate) && (
+        <div style={{ 
+          marginBottom: 24, 
+          padding: '16px', 
+          backgroundColor: '#eff6ff', 
+          borderRadius: '8px',
+          border: '1px solid #dbeafe'
+        }}>
+          <h4 style={{ margin: '0 0 12px 0', color: '#1e40af' }}>Filtered Data Summary</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.9em', color: '#6b7280', marginBottom: '4px' }}>Date Range</div>
+              <div style={{ fontWeight: 600, color: '#1e40af' }}>
+                {startDate && endDate ? `${startDate} to ${endDate}` : startDate ? `From ${startDate}` : `Until ${endDate}`}
+              </div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.9em', color: '#6b7280', marginBottom: '4px' }}>Total Sales</div>
+              <div style={{ fontWeight: 600, color: '#059669' }}>
+                {centsToUSD(sales.reduce((sum, sale) => sum + sale.totalCents, 0))}
+              </div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.9em', color: '#6b7280', marginBottom: '4px' }}>Transactions</div>
+              <div style={{ fontWeight: 600, color: '#7c3aed' }}>
+                {sales.length}
+              </div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.9em', color: '#6b7280', marginBottom: '4px' }}>Total Purchases</div>
+              <div style={{ fontWeight: 600, color: '#dc2626' }}>
+                {centsToUSD(purchases.reduce((sum, purchase) => sum + purchase.amountCents, 0))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Tab Navigation */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 24, borderBottom: '1px solid #eee' }}>
