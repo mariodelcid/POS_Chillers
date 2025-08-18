@@ -356,15 +356,15 @@ export default function POS() {
         </div>
       </div>
 
-      {/* Right Side - Cart and Checkout (Fixed) */}
-      <div style={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        backgroundColor: '#f8fafc',
-        padding: '20px',
-        height: '100%',
-        overflow: 'hidden'
-      }}>
+             {/* Right Side - Cart and Checkout (Fixed) */}
+       <div style={{ 
+         display: 'flex', 
+         flexDirection: 'column', 
+         backgroundColor: '#f8fafc',
+         padding: '20px',
+         height: '100%',
+         overflow: 'auto'
+       }}>
         {/* Header */}
         <div style={{ 
           display: 'flex', 
@@ -394,16 +394,18 @@ export default function POS() {
           </button>
         </div>
 
-        {/* Cart Items */}
-        <div style={{ 
-          flex: 1, 
-          overflow: 'auto',
-          backgroundColor: '#ffffff',
-          borderRadius: '12px',
-          padding: '16px',
-          marginBottom: '20px',
-          border: '1px solid #e5e7eb'
-        }}>
+                 {/* Cart Items */}
+         <div style={{ 
+           flex: 1, 
+           overflow: 'auto',
+           backgroundColor: '#ffffff',
+           borderRadius: '12px',
+           padding: '16px',
+           marginBottom: '20px',
+           border: '1px solid #e5e7eb',
+           minHeight: '200px',
+           maxHeight: '400px'
+         }}>
           {cart.length === 0 ? (
             <div style={{ 
               textAlign: 'center', 
