@@ -183,25 +183,59 @@ export default function POS() {
     }
   }
 
-  const handleClockIn = () => {
+  const handleClockIn = async () => {
     if (employeeName.trim()) {
-      // Here you would typically send this to your backend
-      console.log(`Employee ${employeeName} clocked in at ${new Date().toLocaleString()}`);
-      alert(`Employee ${employeeName} clocked in successfully!`);
-      setEmployeeName('');
-      setShowClockIn(false);
+      try {
+        const response = await fetch('/api/time-entries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            employeeName: employeeName.trim(),
+            type: 'clock_in',
+            timestamp: new Date().toISOString()
+          }),
+        });
+        
+        if (response.ok) {
+          alert(`Employee ${employeeName} clocked in successfully!`);
+          setEmployeeName('');
+          setShowClockIn(false);
+        } else {
+          alert('Failed to clock in. Please try again.');
+        }
+      } catch (error) {
+        console.error('Clock in error:', error);
+        alert('Failed to clock in. Please try again.');
+      }
     } else {
       alert('Please enter employee name');
     }
   };
 
-  const handleClockOut = () => {
+  const handleClockOut = async () => {
     if (employeeName.trim()) {
-      // Here you would typically send this to your backend
-      console.log(`Employee ${employeeName} clocked out at ${new Date().toLocaleString()}`);
-      alert(`Employee ${employeeName} clocked out successfully!`);
-      setEmployeeName('');
-      setShowClockOut(false);
+      try {
+        const response = await fetch('/api/time-entries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            employeeName: employeeName.trim(),
+            type: 'clock_out',
+            timestamp: new Date().toISOString()
+          }),
+        });
+        
+        if (response.ok) {
+          alert(`Employee ${employeeName} clocked out successfully!`);
+          setEmployeeName('');
+          setShowClockOut(false);
+        } else {
+          alert('Failed to clock out. Please try again.');
+        }
+      } catch (error) {
+        console.error('Clock out error:', error);
+        alert('Failed to clock out. Please try again.');
+      }
     } else {
       alert('Please enter employee name');
     }

@@ -61,4 +61,13 @@ model Purchase {
   createdAt   DateTime @default(now())
 }
 
+model TimeEntry {
+  id           Int      @id @default(autoincrement())
+  employeeName String
+  type         String   // 'clock_in' or 'clock_out'
+  timestamp    DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 

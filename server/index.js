@@ -366,6 +366,71 @@ app.post('/api/purchases', async (req, res) => {
   }
 });
 
+// Get time entries
+app.get('/api/time-entries', async (req, res) => {
+  try {
+    const { startDate, endDate, employeeName } = req.query;
+    
+    let whereClause = {};
+    
+    // Add date filtering if provided
+    if (startDate || endDate) {
+      whereClause.timestamp = {};
+      if (startDate) {
+        whereClause.timestamp.gte = new Date(startDate);
+      }
+      if (endDate) {
+        // Set end date to end of day
+        const endDateTime = new Date(endDate);
+        endDateTime.setHours(23, 59, 59, 999);
+        whereClause.timestamp.lte = endDateTime;
+      }
+    }
+
+    // Add employee filtering if provided
+    if (employeeName) {
+      whereClause.employeeName = employeeName;
+    }
+
+    const timeEntries = await prisma.timeEntry.findMany({
+      where: whereClause,
+      orderBy: { timestamp: 'desc' },
+    });
+    res.json(timeEntries);
+  } catch (error) {
+    console.error('Error fetching time entries:', error);
+    res.status(500).json({ error: 'Failed to fetch time entries' });
+  }
+});
+
+// Create time entry
+app.post('/api/time-entries', async (req, res) => {
+  try {
+    const { employeeName, type, timestamp } = req.body;
+    
+    if (!employeeName || !type || !timestamp) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    if (!['clock_in', 'clock_out'].includes(type)) {
+      return res.status(400).json({ error: 'Invalid type. Must be clock_in or clock_out' });
+    }
+
+    const timeEntry = await prisma.timeEntry.create({
+      data: {
+        employeeName: employeeName.trim(),
+        type,
+        timestamp: new Date(timestamp),
+      },
+    });
+
+    res.json({ ok: true, timeEntryId: timeEntry.id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Serve frontend
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
