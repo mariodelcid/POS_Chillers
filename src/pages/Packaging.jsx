@@ -6,6 +6,8 @@ export default function Inventory() {
   const [showClockIn, setShowClockIn] = useState(false);
   const [showClockOut, setShowClockOut] = useState(false);
   const [employeeName, setEmployeeName] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editValue, setEditValue] = useState('');
 
   useEffect(() => {
     fetchPackaging();
@@ -66,6 +68,43 @@ export default function Inventory() {
       }
     } catch (error) {
       console.error('Error updating stock:', error);
+    }
+  };
+
+  const startEditing = (item) => {
+    setEditingId(item.id);
+    setEditValue(item.stock.toString());
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditValue('');
+  };
+
+  const saveEdit = async (id) => {
+    try {
+      const stock = parseInt(editValue);
+      if (isNaN(stock) || stock < 0) {
+        alert('Please enter a valid stock number');
+        return;
+      }
+
+      const response = await fetch(`/api/packaging/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stock }),
+      });
+
+      if (response.ok) {
+        await fetchPackaging(); // Refresh the list
+        setEditingId(null);
+        setEditValue('');
+      } else {
+        alert('Failed to update stock');
+      }
+    } catch (error) {
+      console.error('Error updating stock:', error);
+      alert('Failed to update stock');
     }
   };
 
@@ -303,38 +342,80 @@ export default function Inventory() {
                 </div>
               )}
             </div>
-            <div style={{ fontWeight: 600, color: item.stock < 50 ? '#dc2626' : item.stock < 100 ? '#f59e0b' : '#059669' }}>
-              {item.name === 'elote' ? `${(item.stock / 480).toFixed(2)} boxes` : item.stock}
+            
+            <div style={{ textAlign: 'center' }}>
+              {editingId === item.id ? (
+                <input
+                  type="number"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  style={{
+                    width: '80px',
+                    padding: '4px 8px',
+                    border: '1px solid #ddd',
+                    borderRadius: 4,
+                    textAlign: 'center'
+                  }}
+                  min="0"
+                />
+              ) : (
+                <span style={{
+                  fontWeight: 600,
+                  color: item.stock < 50 ? '#dc2626' : item.stock < 100 ? '#f59e0b' : '#059669'
+                }}>
+                  {item.name === 'elote' ? `${(item.stock / 480).toFixed(2)} boxes` : item.stock}
+                </span>
+              )}
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                onClick={() => updateStock(item.id, item.stock - 1)}
-                style={{
-                  padding: '4px 8px',
-                  backgroundColor: '#dc2626',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '0.8em'
-                }}
-              >
-                -1
-              </button>
-              <button
-                onClick={() => updateStock(item.id, item.stock + 1)}
-                style={{
-                  padding: '4px 8px',
-                  backgroundColor: '#059669',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '0.8em'
-                }}
-              >
-                +1
-              </button>
+            
+            <div style={{ textAlign: 'center' }}>
+              {editingId === item.id ? (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => saveEdit(item.id)}
+                    style={{
+                      padding: '4px 8px',
+                      background: '#059669',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                      fontSize: '0.8em'
+                    }}
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={cancelEditing}
+                    style={{
+                      padding: '4px 8px',
+                      background: '#6b7280',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                      fontSize: '0.8em'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => startEditing(item)}
+                  style={{
+                    padding: '6px 12px',
+                    background: '#2563eb',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    fontSize: '0.8em'
+                  }}
+                >
+                  Edit Stock
+                </button>
+              )}
             </div>
           </div>
         ))}
