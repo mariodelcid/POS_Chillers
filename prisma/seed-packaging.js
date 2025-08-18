@@ -16,7 +16,7 @@ const packagingMaterials = [
   { name: 'takis', stock: 100 },
   { name: 'tostitos', stock: 100 },
   { name: 'nievecup', stock: 250 },
-  { name: 'elote', stock: 460 }, // 460 ounces per box
+  { name: 'elote', stock: 480 }, // 480 ounces per box
 ];
 
 // Item to packaging mapping

@@ -299,12 +299,12 @@ export default function Inventory() {
               <div style={{ fontWeight: 600 }}>{item.name}</div>
               {item.name === 'elote' && (
                 <div style={{ fontSize: '0.8em', color: '#6b7280' }}>
-                  Box: 460 oz | Elote Chico: -8 oz | Elote Grande: -14 oz
+                  Box: 480 oz | Elote Chico: -8 oz | Elote Grande: -14 oz
                 </div>
               )}
             </div>
             <div style={{ fontWeight: 600, color: item.stock < 50 ? '#dc2626' : item.stock < 100 ? '#f59e0b' : '#059669' }}>
-              {item.name === 'elote' ? `${item.stock} oz` : item.stock}
+              {item.name === 'elote' ? `${(item.stock / 480).toFixed(2)} boxes` : item.stock}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button
