@@ -6,7 +6,7 @@ console.log('🚀 Starting Chillers POS...');
 try {
   console.log('🔧 Setting up database...');
   execSync('npx prisma generate', { stdio: 'inherit' });
-  execSync('npx prisma db push', { stdio: 'inherit' });
+  execSync('npx prisma db push --force-reset', { stdio: 'inherit' });
   execSync('node prisma/seed.js', { stdio: 'inherit' });
   execSync('node prisma/seed-packaging.js', { stdio: 'inherit' });
   console.log('✅ Database ready!');
