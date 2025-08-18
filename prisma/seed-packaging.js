@@ -47,7 +47,6 @@ const itemPackagingMapping = [
   { itemName: 'Caramel Frappuccino', packaging: '20clear' },
   { itemName: 'Cookies and Cream', packaging: '20clear' },
   { itemName: 'Malteada Chocolate', packaging: '20clear' },
-  { itemName: 'Malteada Taro', packaging: '20clear' }, // renamed from Malteada Customized
   { itemName: 'Malteada de Taro', packaging: '20clear' }, // new item
   { itemName: 'Malteada de Fresa', packaging: '20clear' },
   { itemName: 'Malteada Vainilla', packaging: '20clear' },

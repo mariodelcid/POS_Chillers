@@ -42,7 +42,6 @@ const items = [
   { name: 'Malteada de Fresa', category: 'MILK SHAKES', priceCents: 699 },
   { name: 'Malteada Vainilla', category: 'MILK SHAKES', priceCents: 699 },
   { name: 'Malteada Chocolate', category: 'MILK SHAKES', priceCents: 699 },
-  { name: 'Malteada Taro', category: 'MILK SHAKES', priceCents: 699 },
   { name: 'Malteada de Taro', category: 'MILK SHAKES', priceCents: 699 },
 
   // BOBAS (light pink background) - $4.99
