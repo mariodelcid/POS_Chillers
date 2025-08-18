@@ -1,26 +1,22 @@
 import React from 'react';
-import { createRoot } from 'react-dom/client';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import App from './pages/App.jsx';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import POS from './pages/POS.jsx';
+import Inventory from './pages/Packaging.jsx';
 import Sales from './pages/Sales.jsx';
-import Packaging from './pages/Packaging.jsx';
+import App from './pages/App.jsx';
 
-const router = createBrowserRouter([
-  {
-    path: '/',
-    element: <App />,
-    children: [
-      { index: true, element: <POS /> },
-      { path: 'sales', element: <Sales /> },
-      { path: 'packaging', element: <Packaging /> },
-    ],
-  },
-]);
-
-createRoot(document.getElementById('root')).render(
+ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <RouterProvider router={router} />
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<App />}>
+          <Route index element={<POS />} />
+          <Route path="packaging" element={<Inventory />} />
+          <Route path="sales" element={<Sales />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   </React.StrictMode>
 );
 

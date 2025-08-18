@@ -283,6 +283,15 @@ app.post('/api/sales', async (req, res) => {
           const current = packagingUsage.get(dbItem.packaging) || 0;
           packagingUsage.set(dbItem.packaging, current + line.quantity);
         }
+
+        // Track elote inventory (ounces)
+        if (dbItem.name === 'Elote Chico') {
+          const current = packagingUsage.get('elote') || 0;
+          packagingUsage.set('elote', current + (line.quantity * 8)); // 8 oz per elote chico
+        } else if (dbItem.name === 'Elote Grande') {
+          const current = packagingUsage.get('elote') || 0;
+          packagingUsage.set('elote', current + (line.quantity * 14)); // 14 oz per elote grande
+        }
       }
 
       // Decrement packaging stock

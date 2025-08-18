@@ -10,7 +10,7 @@ export default function App() {
           POS
         </NavLink>
         <NavLink to="/packaging" style={{ textDecoration: 'none' }}>
-          Packaging
+          Inventory
         </NavLink>
         <NavLink to="/sales" style={{ textDecoration: 'none' }}>
           Sales
