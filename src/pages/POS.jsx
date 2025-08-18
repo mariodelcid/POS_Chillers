@@ -13,6 +13,9 @@ export default function POS() {
   const [message, setMessage] = useState('');
   const [purchaseAmount, setPurchaseAmount] = useState('');
   const [showPurchaseInput, setShowPurchaseInput] = useState(false);
+  const [showClockIn, setShowClockIn] = useState(false);
+  const [showClockOut, setShowClockOut] = useState(false);
+  const [employeeName, setEmployeeName] = useState('');
 
   useEffect(() => {
     fetch('/api/items').then((r) => r.json()).then(setItems);
@@ -179,6 +182,30 @@ export default function POS() {
       setSubmitting(false);
     }
   }
+
+  const handleClockIn = () => {
+    if (employeeName.trim()) {
+      // Here you would typically send this to your backend
+      console.log(`Employee ${employeeName} clocked in at ${new Date().toLocaleString()}`);
+      alert(`Employee ${employeeName} clocked in successfully!`);
+      setEmployeeName('');
+      setShowClockIn(false);
+    } else {
+      alert('Please enter employee name');
+    }
+  };
+
+  const handleClockOut = () => {
+    if (employeeName.trim()) {
+      // Here you would typically send this to your backend
+      console.log(`Employee ${employeeName} clocked out at ${new Date().toLocaleString()}`);
+      alert(`Employee ${employeeName} clocked out successfully!`);
+      setEmployeeName('');
+      setShowClockOut(false);
+    } else {
+      alert('Please enter employee name');
+    }
+  };
 
   // Quick tender buttons for common amounts
   const quickTenderAmounts = [5, 10, 20, 50, 100];
@@ -711,6 +738,189 @@ export default function POS() {
             {message}
           </div>
         )}
+
+        {/* Clock In/Out Section */}
+        <div style={{ 
+          marginTop: '24px', 
+          padding: '16px', 
+          backgroundColor: '#f8fafc', 
+          borderRadius: '8px',
+          border: '1px solid #e5e7eb'
+        }}>
+          <h4 style={{ margin: '0 0 16px 0' }}>Employee Time Tracking</h4>
+          
+          <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+            <button
+              onClick={() => setShowClockIn(true)}
+              style={{
+                padding: '12px 24px',
+                backgroundColor: '#059669',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: 600
+              }}
+            >
+              Clock In
+            </button>
+            
+            <button
+              onClick={() => setShowClockOut(true)}
+              style={{
+                padding: '12px 24px',
+                backgroundColor: '#dc2626',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: 600
+              }}
+            >
+              Clock Out
+            </button>
+          </div>
+
+          {/* Clock In Modal */}
+          {showClockIn && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000
+            }}>
+              <div style={{
+                backgroundColor: 'white',
+                padding: '24px',
+                borderRadius: '8px',
+                minWidth: '300px'
+              }}>
+                <h4 style={{ margin: '0 0 16px 0' }}>Clock In</h4>
+                <input
+                  type="text"
+                  placeholder="Enter employee name"
+                  value={employeeName}
+                  onChange={(e) => setEmployeeName(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    marginBottom: '16px'
+                  }}
+                  onKeyPress={(e) => e.key === 'Enter' && handleClockIn()}
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={handleClockIn}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: '#059669',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Clock In
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowClockIn(false);
+                      setEmployeeName('');
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: '#6b7280',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Clock Out Modal */}
+          {showClockOut && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000
+            }}>
+              <div style={{
+                backgroundColor: 'white',
+                padding: '24px',
+                borderRadius: '8px',
+                minWidth: '300px'
+              }}>
+                <h4 style={{ margin: '0 0 16px 0' }}>Clock Out</h4>
+                <input
+                  type="text"
+                  placeholder="Enter employee name"
+                  value={employeeName}
+                  onChange={(e) => setEmployeeName(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    marginBottom: '16px'
+                  }}
+                  onKeyPress={(e) => e.key === 'Enter' && handleClockOut()}
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={handleClockOut}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: '#dc2626',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Clock Out
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowClockOut(false);
+                      setEmployeeName('');
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: '#6b7280',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
