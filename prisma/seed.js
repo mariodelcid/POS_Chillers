@@ -31,6 +31,7 @@ const items = [
   { name: 'Coco Rosa', category: 'REFRESHERS', priceCents: 499 },
   { name: 'Horchata Canela', category: 'REFRESHERS', priceCents: 499 },
   { name: 'Horchata Fresa', category: 'REFRESHERS', priceCents: 499 },
+  { name: 'Limonada', category: 'REFRESHERS', priceCents: 499 },
   { name: 'Mango Peach Dragonfruit', category: 'REFRESHERS', priceCents: 499 },
   { name: 'Red Bull Preparado', category: 'REFRESHERS', priceCents: 499 },
   { name: 'Strawberry Acai', category: 'REFRESHERS', priceCents: 499 },
@@ -41,11 +42,15 @@ const items = [
   { name: 'Malteada de Fresa', category: 'MILK SHAKES', priceCents: 699 },
   { name: 'Malteada Vainilla', category: 'MILK SHAKES', priceCents: 699 },
   { name: 'Malteada Chocolate', category: 'MILK SHAKES', priceCents: 699 },
+  { name: 'Malteada Taro', category: 'MILK SHAKES', priceCents: 699 },
+  { name: 'Malteada de Taro', category: 'MILK SHAKES', priceCents: 699 },
 
   // BOBAS (light pink background) - $4.99
   { name: 'Boba Coffee', category: 'BOBAS', priceCents: 499 },
   { name: 'Boba Strawberry', category: 'BOBAS', priceCents: 499 },
   { name: 'Boba Customized', category: 'BOBAS', priceCents: 499 },
+  { name: 'Boba Taro', category: 'BOBAS', priceCents: 499 },
+  { name: 'Tiger Milk', category: 'BOBAS', priceCents: 499 },
 ];
 
 async function main() {
