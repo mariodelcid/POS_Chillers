@@ -123,20 +123,73 @@ export default function POS() {
     audio.play().catch(e => console.log('Audio play failed:', e));
   }
 
-  // Square payment handling functions (temporarily disabled)
+  // Square payment handling functions
   const handleCreditSelection = () => {
     setPaymentMethod('credit');
-    // Temporarily disabled Square integration
-    alert('Square integration coming soon! For now, please use Cash payment method.');
+    setShowSquareModal(true);
+    setSquarePaymentComplete(false);
   };
 
   const processSquarePayment = async () => {
-    // Temporarily disabled
-    alert('Square integration coming soon!');
+    setSquareProcessing(true);
+    
+    try {
+      // Initialize Square Web Payments SDK
+      if (!window.Square) {
+        throw new Error('Square Web Payments SDK not loaded');
+      }
+      
+      const payments = window.Square.payments({
+        applicationId: 'sq0idp-PbznJFG3brzaUpfhFZD3mg',
+        locationId: 'L8DKM2PC7Q1HE'
+      });
+      
+      // Create card payment method
+      const card = await payments.card();
+      await card.attach('#card-container');
+      
+      // Get payment method
+      const paymentMethod = await card.createPaymentMethod();
+      
+      // Process payment with backend
+      const response = await fetch('/api/square-payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amountCents: totalCents,
+          sourceId: paymentMethod.result.paymentMethod.id,
+          idempotencyKey: `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setSquareProcessing(false);
+        setSquarePaymentComplete(true);
+        
+        // After 2 seconds, close modal and return to payment selection
+        setTimeout(() => {
+          setShowSquareModal(false);
+          setSquarePaymentComplete(false);
+          // Keep credit selected but allow operator to click Complete
+        }, 2000);
+      } else {
+        throw new Error(result.error || 'Payment failed');
+      }
+    } catch (error) {
+      console.error('Square payment error:', error);
+      alert(`Payment failed: ${error.message}`);
+      setSquareProcessing(false);
+    }
   };
 
   const cancelSquarePayment = () => {
-    // Temporarily disabled
+    setShowSquareModal(false);
+    setSquareProcessing(false);
+    setSquarePaymentComplete(false);
     setPaymentMethod('cash'); // Reset to cash if cancelled
   };
 

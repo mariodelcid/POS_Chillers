@@ -365,6 +365,66 @@ app.post('/api/purchases', async (req, res) => {
   }
 });
 
+// Square payment endpoint
+app.post('/api/square-payment', async (req, res) => {
+  try {
+    const { amountCents, sourceId, idempotencyKey } = req.body;
+    
+    if (!amountCents || !sourceId || !idempotencyKey) {
+      return res.status(400).json({ error: 'Amount, source ID, and idempotency key are required' });
+    }
+    
+    // Convert cents to dollars for Square API
+    const amount = Math.round(amountCents / 100);
+    
+    const paymentRequest = {
+      sourceId: sourceId,
+      idempotencyKey: idempotencyKey,
+      amountMoney: {
+        amount: amount,
+        currency: 'USD'
+      },
+      locationId: 'L8DKM2PC7Q1HE'
+    };
+    
+    // Call Square API directly using fetch
+    const response = await fetch('https://connect.squareup.com/v2/payments', {
+      method: 'POST',
+      headers: {
+        'Square-Version': '2024-12-18',
+        'Authorization': 'Bearer EAAAlz7uE-Cnaqdwc_hnoxdWGLKETLuC7egOgYtWZy-dC0qkJqd_mdqsQ1d5PuH7',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(paymentRequest)
+    });
+    
+    const result = await response.json();
+    
+    if (response.ok && result.payment && result.payment.status === 'COMPLETED') {
+      res.json({ 
+        success: true, 
+        paymentId: result.payment.id,
+        status: result.payment.status,
+        amount: result.payment.amountMoney.amount
+      });
+    } else {
+      console.error('Square API error:', result);
+      res.status(400).json({ 
+        success: false, 
+        error: 'Payment failed', 
+        details: result.errors || 'Unknown error'
+      });
+    }
+  } catch (error) {
+    console.error('Square payment error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Payment processing failed',
+      details: error.message 
+    });
+  }
+});
+
 // Get time entries
 app.get('/api/time-entries', async (req, res) => {
   try {
