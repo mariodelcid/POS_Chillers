@@ -142,25 +142,15 @@ export default function POS() {
         locationId: 'L8DKM2PC7Q1HE'
       });
       
-      // Create a payment request with the amount
-      const paymentRequest = {
-        countryCode: 'US',
-        currencyCode: 'USD',
-        total: {
-          amount: totalCents,
-          label: 'Total'
-        }
-      };
-      
-      // Try using the payment request method instead
-      const paymentRequest = {
-        countryCode: 'US',
-        currencyCode: 'USD',
-        total: {
-          amount: totalCents,
-          label: 'Total'
-        }
-      };
+             // Create a payment request with the amount
+       const paymentRequest = {
+         countryCode: 'US',
+         currencyCode: 'USD',
+         total: {
+           amount: totalCents,
+           label: 'Total'
+         }
+       };
       
       console.log('Creating payment request:', paymentRequest);
       
