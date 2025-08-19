@@ -280,7 +280,7 @@ export default function POS() {
             animation: 'scaleIn 0.5s ease-out'
           }}>
                          <div style={{
-               fontSize: '240px',
+               fontSize: '360px',
                fontWeight: '900',
                marginBottom: '20px',
                textShadow: '0 0 30px rgba(255, 255, 255, 0.5)',
