@@ -132,8 +132,8 @@ export default function POS() {
       }
       
       const payments = window.Square.payments({
-        applicationId: process.env.REACT_APP_SQUARE_APPLICATION_ID || 'sq0idp-PbznJFG3brzaUpfhFZD3mg',
-        locationId: process.env.REACT_APP_SQUARE_LOCATION_ID || 'L8DKM2PC7Q1HE'
+        applicationId: 'sq0idp-PbznJFG3brzaUpfhFZD3mg',
+        locationId: 'L8DKM2PC7Q1HE'
       });
       
       // Create a payment request with the amount
