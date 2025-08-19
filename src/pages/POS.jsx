@@ -279,13 +279,13 @@ export default function POS() {
             color: '#ffffff',
             animation: 'scaleIn 0.5s ease-out'
           }}>
-            <div style={{
-              fontSize: '120px',
-              fontWeight: '900',
-              marginBottom: '20px',
-              textShadow: '0 0 30px rgba(255, 255, 255, 0.5)',
-              color: '#22c55e'
-            }}>
+                         <div style={{
+               fontSize: '240px',
+               fontWeight: '900',
+               marginBottom: '20px',
+               textShadow: '0 0 30px rgba(255, 255, 255, 0.5)',
+               color: '#22c55e'
+             }}>
               {celebrationAmount}
             </div>
             <div style={{
