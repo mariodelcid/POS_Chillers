@@ -18,6 +18,9 @@ export default function POS() {
   const [employeeName, setEmployeeName] = useState('');
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationAmount, setCelebrationAmount] = useState('');
+  const [showSquareModal, setShowSquareModal] = useState(false);
+  const [squareProcessing, setSquareProcessing] = useState(false);
+  const [squarePaymentComplete, setSquarePaymentComplete] = useState(false);
 
   useEffect(() => {
     fetch('/api/items').then((r) => r.json()).then(setItems);
@@ -119,6 +122,37 @@ export default function POS() {
     audio.volume = 0.3;
     audio.play().catch(e => console.log('Audio play failed:', e));
   }
+
+  // Square payment handling functions
+  const handleCreditSelection = () => {
+    setPaymentMethod('credit');
+    setShowSquareModal(true);
+    setSquarePaymentComplete(false);
+  };
+
+  const processSquarePayment = async () => {
+    setSquareProcessing(true);
+    
+    // Simulate Square payment processing
+    setTimeout(() => {
+      setSquareProcessing(false);
+      setSquarePaymentComplete(true);
+      
+      // After 2 seconds, close modal and return to payment selection
+      setTimeout(() => {
+        setShowSquareModal(false);
+        setSquarePaymentComplete(false);
+        // Keep credit selected but allow operator to click Complete
+      }, 2000);
+    }, 3000); // Simulate 3 second processing time
+  };
+
+  const cancelSquarePayment = () => {
+    setShowSquareModal(false);
+    setSquareProcessing(false);
+    setSquarePaymentComplete(false);
+    setPaymentMethod('cash'); // Reset to cash if cancelled
+  };
 
   async function completeOrder() {
     setSubmitting(true);
@@ -299,6 +333,145 @@ export default function POS() {
           </div>
         </div>
       )}
+
+      {/* Square Payment Modal */}
+      {showSquareModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9998
+        }}>
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            padding: '40px',
+            maxWidth: '500px',
+            width: '90%',
+            textAlign: 'center',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+          }}>
+            {!squareProcessing && !squarePaymentComplete && (
+              <>
+                <div style={{ fontSize: '48px', marginBottom: '20px' }}>💳</div>
+                <h2 style={{ 
+                  margin: '0 0 16px 0', 
+                  fontSize: '24px', 
+                  fontWeight: '700',
+                  color: '#1f2937'
+                }}>
+                  Square Payment
+                </h2>
+                <div style={{ 
+                  marginBottom: '24px', 
+                  fontSize: '18px',
+                  color: '#6b7280'
+                }}>
+                  Total Amount: <span style={{ fontWeight: '700', color: '#059669' }}>{centsToUSD(totalCents)}</span>
+                </div>
+                <div style={{ 
+                  marginBottom: '32px', 
+                  fontSize: '16px',
+                  color: '#6b7280'
+                }}>
+                  Please process the payment using your Square device
+                </div>
+                <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
+                  <button
+                    onClick={processSquarePayment}
+                    style={{
+                      padding: '16px 32px',
+                      backgroundColor: '#059669',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '12px',
+                      fontSize: '18px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    Process Payment
+                  </button>
+                  <button
+                    onClick={cancelSquarePayment}
+                    style={{
+                      padding: '16px 32px',
+                      backgroundColor: '#6b7280',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '12px',
+                      fontSize: '18px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+
+            {squareProcessing && (
+              <>
+                <div style={{ fontSize: '48px', marginBottom: '20px' }}>⏳</div>
+                <h2 style={{ 
+                  margin: '0 0 16px 0', 
+                  fontSize: '24px', 
+                  fontWeight: '700',
+                  color: '#1f2937'
+                }}>
+                  Processing Payment...
+                </h2>
+                <div style={{ 
+                  marginBottom: '24px', 
+                  fontSize: '16px',
+                  color: '#6b7280'
+                }}>
+                  Please wait while we process your payment
+                </div>
+                <div style={{
+                  width: '60px',
+                  height: '60px',
+                  border: '4px solid #e5e7eb',
+                  borderTop: '4px solid #059669',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  margin: '0 auto'
+                }}></div>
+              </>
+            )}
+
+            {squarePaymentComplete && (
+              <>
+                <div style={{ fontSize: '48px', marginBottom: '20px' }}>✅</div>
+                <h2 style={{ 
+                  margin: '0 0 16px 0', 
+                  fontSize: '24px', 
+                  fontWeight: '700',
+                  color: '#059669'
+                }}>
+                  Payment Successful!
+                </h2>
+                <div style={{ 
+                  marginBottom: '24px', 
+                  fontSize: '16px',
+                  color: '#6b7280'
+                }}>
+                  Returning to payment selection...
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       
       <style>
         {`
@@ -311,6 +484,10 @@ export default function POS() {
           @keyframes scaleIn {
             0% { transform: scale(0.5); opacity: 0; }
             100% { transform: scale(1); opacity: 1; }
+          }
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
           }
         `}
       </style>
@@ -635,14 +812,14 @@ export default function POS() {
                 name="pm" 
                 value="credit" 
                 checked={paymentMethod === 'credit'} 
-                onChange={() => setPaymentMethod('credit')}
+                onChange={handleCreditSelection}
                 style={{ margin: 0 }}
               />
               💳 Credit
             </label>
           </div>
 
-          {paymentMethod === 'cash' && (
+                    {paymentMethod === 'cash' && (
             <div>
               <div style={{ marginBottom: '12px' }}>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
@@ -692,7 +869,7 @@ export default function POS() {
                   backgroundColor: changeCents >= 0 ? '#f0fdf4' : '#fef2f2',
                   borderRadius: '8px',
                   border: `1px solid ${changeCents >= 0 ? '#22c55e' : '#dc2626'}`,
-                  textAlign: 'center'
+              textAlign: 'center'
                 }}>
                   <div style={{ 
                     fontSize: '18px', 
@@ -703,6 +880,32 @@ export default function POS() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {paymentMethod === 'credit' && (
+            <div style={{
+              padding: '16px',
+              backgroundColor: '#f0fdf4',
+              borderRadius: '8px',
+              border: '1px solid #22c55e',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '48px', marginBottom: '12px' }}>💳</div>
+              <div style={{ 
+                fontSize: '18px', 
+                fontWeight: '600',
+                color: '#059669',
+                marginBottom: '8px'
+              }}>
+                Credit Payment Ready
+              </div>
+              <div style={{ 
+                fontSize: '14px',
+                color: '#6b7280'
+              }}>
+                Click "Complete Order" to finalize the transaction
+              </div>
             </div>
           )}
         </div>
