@@ -152,22 +152,24 @@ export default function POS() {
         }
       };
       
-      // Try to create a card payment method
-      const card = await payments.card();
-      await card.attach('#card-container');
+      // Try using the payment request method instead
+      const paymentRequest = {
+        countryCode: 'US',
+        currencyCode: 'USD',
+        total: {
+          amount: totalCents,
+          label: 'Total'
+        }
+      };
       
-      // Create a temporary container for the card input
-      const tempContainer = document.createElement('div');
-      tempContainer.id = 'card-container';
-      tempContainer.style.position = 'absolute';
-      tempContainer.style.left = '-9999px';
-      document.body.appendChild(tempContainer);
+      console.log('Creating payment request:', paymentRequest);
       
       try {
-        const { result } = await card.tokenize();
+        // Try to create a payment request
+        const { result } = await payments.createPaymentRequest(paymentRequest);
         
         if (result.status === 'OK') {
-          // Payment method created successfully, now process with backend
+          // Payment request created successfully, now process with backend
           const response = await fetch('/api/square-payment', {
             method: 'POST',
             headers: {
@@ -175,7 +177,7 @@ export default function POS() {
             },
             body: JSON.stringify({
               amountCents: totalCents,
-              sourceId: result.token,
+              sourceId: result.paymentRequest.id,
               idempotencyKey: `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
             })
           });
@@ -189,11 +191,11 @@ export default function POS() {
             throw new Error(paymentResult.error || 'Payment failed');
           }
         } else {
-          throw new Error('Failed to create payment method');
+          throw new Error('Failed to create payment request');
         }
-      } finally {
-        // Clean up temporary container
-        document.body.removeChild(tempContainer);
+      } catch (error) {
+        console.error('Payment request error:', error);
+        throw error;
       }
     } catch (error) {
       console.error('Square payment error:', error);
