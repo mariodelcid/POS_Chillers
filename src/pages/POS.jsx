@@ -144,40 +144,50 @@ export default function POS() {
         locationId: 'L8DKM2PC7Q1HE'
       });
       
-      // Create card payment method
-      const card = await payments.card();
-      await card.attach('#card-container');
+      // Create a payment request with the amount
+      const paymentRequest = {
+        countryCode: 'US',
+        currencyCode: 'USD',
+        total: {
+          amount: totalCents,
+          label: 'Total'
+        }
+      };
       
-      // Get payment method
-      const paymentMethod = await card.createPaymentMethod();
+      // Request payment using Square's payment sheet
+      const { result } = await payments.requestPaymentMethod(paymentRequest);
       
-      // Process payment with backend
-      const response = await fetch('/api/square-payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amountCents: totalCents,
-          sourceId: paymentMethod.result.paymentMethod.id,
-          idempotencyKey: `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        })
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        setSquareProcessing(false);
-        setSquarePaymentComplete(true);
+      if (result.status === 'OK') {
+        // Payment method created successfully, now process with backend
+        const response = await fetch('/api/square-payment', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amountCents: totalCents,
+            sourceId: result.paymentMethod.id,
+            idempotencyKey: `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+          })
+        });
         
-        // After 2 seconds, close modal and return to payment selection
-        setTimeout(() => {
-          setShowSquareModal(false);
-          setSquarePaymentComplete(false);
-          // Keep credit selected but allow operator to click Complete
-        }, 2000);
+        const paymentResult = await response.json();
+        
+        if (paymentResult.success) {
+          setSquareProcessing(false);
+          setSquarePaymentComplete(true);
+          
+          // After 2 seconds, close modal and return to payment selection
+          setTimeout(() => {
+            setShowSquareModal(false);
+            setSquarePaymentComplete(false);
+            // Keep credit selected but allow operator to click Complete
+          }, 2000);
+        } else {
+          throw new Error(paymentResult.error || 'Payment failed');
+        }
       } else {
-        throw new Error(result.error || 'Payment failed');
+        throw new Error('Failed to create payment method');
       }
     } catch (error) {
       console.error('Square payment error:', error);
@@ -414,26 +424,13 @@ export default function POS() {
                  }}>
                    Total Amount: <span style={{ fontWeight: '700', color: '#059669' }}>{centsToUSD(totalCents)}</span>
                  </div>
-                 <div style={{ 
-                   marginBottom: '24px', 
-                   fontSize: '16px',
-                   color: '#6b7280'
-                 }}>
-                   Enter your card details below:
-                 </div>
-                 
-                 {/* Card Input Container */}
-                 <div 
-                   id="card-container" 
-                   style={{
-                     width: '100%',
-                     height: '56px',
-                     border: '1px solid #d1d5db',
-                     borderRadius: '8px',
-                     marginBottom: '24px',
-                     backgroundColor: '#ffffff'
-                   }}
-                 ></div>
+                                   <div style={{ 
+                    marginBottom: '24px', 
+                    fontSize: '16px',
+                    color: '#6b7280'
+                  }}>
+                    Click "Process Payment" to open Square's payment interface
+                  </div>
                  
                  <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
                    <button
