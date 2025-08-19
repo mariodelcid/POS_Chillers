@@ -15,6 +15,8 @@ const app = express();
 const squareClient = new Client({
   accessToken: 'EAAAlz7uE-Cnaqdwc_hnoxdWGLKETLuC7egOgYtWZy-dC0qkJqd_mdqsQ1d5PuH7',
   environment: Environment.Production,
+  userAgentDetail: 'ChillersPOS/1.0',
+  squareVersion: '2024-12-18'
 });
 
 app.use(express.json());

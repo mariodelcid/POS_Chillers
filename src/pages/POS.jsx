@@ -139,10 +139,11 @@ export default function POS() {
         throw new Error('Square Web Payments SDK not loaded');
       }
       
-      const payments = window.Square.payments({
-        applicationId: 'sq0idp-PbznJFG3brzaUpfhFZD3mg',
-        locationId: 'L8DKM2PC7Q1HE'
-      });
+             const payments = window.Square.payments({
+         applicationId: 'sq0idp-PbznJFG3brzaUpfhFZD3mg',
+         locationId: 'L8DKM2PC7Q1HE',
+         apiVersion: '2024-12-18'
+       });
       
       // Create card payment method
       const card = await payments.card();
