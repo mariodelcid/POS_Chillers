@@ -131,6 +131,12 @@ export default function POS() {
         throw new Error('Square Web Payments SDK not loaded');
       }
       
+      console.log('Square SDK loaded:', window.Square);
+      console.log('Initializing payments with:', {
+        applicationId: 'sq0idp-PbznJFG3brzaUpfhFZD3mg',
+        locationId: 'L8DKM2PC7Q1HE'
+      });
+      
       const payments = window.Square.payments({
         applicationId: 'sq0idp-PbznJFG3brzaUpfhFZD3mg',
         locationId: 'L8DKM2PC7Q1HE'
@@ -146,33 +152,48 @@ export default function POS() {
         }
       };
       
-      // Request payment using Square's payment sheet - this opens Square's interface directly
-      const { result } = await payments.requestPaymentMethod(paymentRequest);
+      // Try to create a card payment method
+      const card = await payments.card();
+      await card.attach('#card-container');
       
-      if (result.status === 'OK') {
-        // Payment method created successfully, now process with backend
-        const response = await fetch('/api/square-payment', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            amountCents: totalCents,
-            sourceId: result.paymentMethod.id,
-            idempotencyKey: `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-          })
-        });
+      // Create a temporary container for the card input
+      const tempContainer = document.createElement('div');
+      tempContainer.id = 'card-container';
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-9999px';
+      document.body.appendChild(tempContainer);
+      
+      try {
+        const { result } = await card.tokenize();
         
-        const paymentResult = await response.json();
-        
-        if (paymentResult.success) {
-          // Payment successful - show success message briefly
-          setMessage('Credit payment processed successfully! Click "Complete Order" to finalize.');
+        if (result.status === 'OK') {
+          // Payment method created successfully, now process with backend
+          const response = await fetch('/api/square-payment', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              amountCents: totalCents,
+              sourceId: result.token,
+              idempotencyKey: `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+            })
+          });
+          
+          const paymentResult = await response.json();
+          
+          if (paymentResult.success) {
+            // Payment successful - show success message briefly
+            setMessage('Credit payment processed successfully! Click "Complete Order" to finalize.');
+          } else {
+            throw new Error(paymentResult.error || 'Payment failed');
+          }
         } else {
-          throw new Error(paymentResult.error || 'Payment failed');
+          throw new Error('Failed to create payment method');
         }
-      } else {
-        throw new Error('Failed to create payment method');
+      } finally {
+        // Clean up temporary container
+        document.body.removeChild(tempContainer);
       }
     } catch (error) {
       console.error('Square payment error:', error);
