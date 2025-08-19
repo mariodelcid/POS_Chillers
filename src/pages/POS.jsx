@@ -16,6 +16,8 @@ export default function POS() {
   const [showClockIn, setShowClockIn] = useState(false);
   const [showClockOut, setShowClockOut] = useState(false);
   const [employeeName, setEmployeeName] = useState('');
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationAmount, setCelebrationAmount] = useState('');
 
   useEffect(() => {
     fetch('/api/items').then((r) => r.json()).then(setItems);
@@ -133,6 +135,17 @@ export default function POS() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to complete order');
+      
+      // Show celebration overlay
+      setCelebrationAmount(centsToUSD(data.totalCents));
+      setShowCelebration(true);
+      
+      // Hide celebration after 2 seconds
+      setTimeout(() => {
+        setShowCelebration(false);
+        setCelebrationAmount('');
+      }, 2000);
+      
       setMessage(`Sale ${data.saleId} complete. Total ${centsToUSD(data.totalCents)}${paymentMethod === 'cash' ? `, Change ${centsToUSD(data.changeDueCents)}` : ''}`);
       setCart([]);
       setTender('');
@@ -246,6 +259,61 @@ export default function POS() {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', height: 'calc(100vh - 60px)', gap: 0 }}>
+      {/* Celebration Overlay */}
+      {showCelebration && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.9)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          animation: 'fadeInOut 2s ease-in-out'
+        }}>
+          <div style={{
+            textAlign: 'center',
+            color: '#ffffff',
+            animation: 'scaleIn 0.5s ease-out'
+          }}>
+            <div style={{
+              fontSize: '120px',
+              fontWeight: '900',
+              marginBottom: '20px',
+              textShadow: '0 0 30px rgba(255, 255, 255, 0.5)',
+              color: '#22c55e'
+            }}>
+              {celebrationAmount}
+            </div>
+            <div style={{
+              fontSize: '48px',
+              fontWeight: '700',
+              color: '#ffffff',
+              textShadow: '0 0 20px rgba(255, 255, 255, 0.3)'
+            }}>
+              SALE COMPLETE! 🎉
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <style>
+        {`
+          @keyframes fadeInOut {
+            0% { opacity: 0; }
+            20% { opacity: 1; }
+            80% { opacity: 1; }
+            100% { opacity: 0; }
+          }
+          @keyframes scaleIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+          }
+        `}
+      </style>
       {/* Left Side - All Items (Scrollable) */}
       <div style={{ 
         display: 'flex', 
