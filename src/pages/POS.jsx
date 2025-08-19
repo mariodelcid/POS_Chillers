@@ -142,24 +142,25 @@ export default function POS() {
         locationId: 'L8DKM2PC7Q1HE'
       });
       
-             // Create a payment request with the amount
-       const paymentRequest = {
-         countryCode: 'US',
-         currencyCode: 'USD',
-         total: {
-           amount: totalCents,
-           label: 'Total'
-         }
-       };
+      // Create a card payment method
+      const card = await payments.card();
       
-      console.log('Creating payment request:', paymentRequest);
+      // Create a temporary container for the card input
+      const tempContainer = document.createElement('div');
+      tempContainer.id = 'card-container';
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-9999px';
+      document.body.appendChild(tempContainer);
       
       try {
-        // Try to create a payment request
-        const { result } = await payments.createPaymentRequest(paymentRequest);
+        // Attach the card to the container
+        await card.attach('#card-container');
+        
+        // Tokenize the card to get a payment method
+        const { result } = await card.tokenize();
         
         if (result.status === 'OK') {
-          // Payment request created successfully, now process with backend
+          // Card tokenized successfully, now process with backend
           const response = await fetch('/api/square-payment', {
             method: 'POST',
             headers: {
@@ -167,7 +168,7 @@ export default function POS() {
             },
             body: JSON.stringify({
               amountCents: totalCents,
-              sourceId: result.paymentRequest.id,
+              sourceId: result.token,
               idempotencyKey: `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
             })
           });
@@ -181,11 +182,16 @@ export default function POS() {
             throw new Error(paymentResult.error || 'Payment failed');
           }
         } else {
-          throw new Error('Failed to create payment request');
+          throw new Error('Failed to tokenize card');
         }
       } catch (error) {
-        console.error('Payment request error:', error);
+        console.error('Card processing error:', error);
         throw error;
+      } finally {
+        // Clean up the temporary container
+        if (tempContainer && tempContainer.parentNode) {
+          tempContainer.parentNode.removeChild(tempContainer);
+        }
       }
     } catch (error) {
       console.error('Square payment error:', error);
