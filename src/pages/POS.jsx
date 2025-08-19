@@ -133,18 +133,55 @@ export default function POS() {
   const processSquarePayment = async () => {
     setSquareProcessing(true);
     
-    // Simulate Square payment processing
-    setTimeout(() => {
-      setSquareProcessing(false);
-      setSquarePaymentComplete(true);
+    try {
+      // Initialize Square Web Payments SDK
+      if (!window.Square) {
+        throw new Error('Square Web Payments SDK not loaded');
+      }
       
-      // After 2 seconds, close modal and return to payment selection
-      setTimeout(() => {
-        setShowSquareModal(false);
-        setSquarePaymentComplete(false);
-        // Keep credit selected but allow operator to click Complete
-      }, 2000);
-    }, 3000); // Simulate 3 second processing time
+      const payments = window.Square.payments({
+        applicationId: 'sq0idp-PbznJFG3brzaUpfhFZD3mg',
+        locationId: 'L8DKM2PC7Q1HE'
+      });
+      
+      // Create card payment method
+      const card = await payments.card();
+      await card.attach('#card-container');
+      
+      // Get payment method
+      const paymentMethod = await card.createPaymentMethod();
+      
+      // Process payment with backend
+      const response = await fetch('/api/square-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amountCents: totalCents,
+          sourceId: paymentMethod.result.paymentMethod.id,
+          idempotencyKey: `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setSquareProcessing(false);
+        setSquarePaymentComplete(true);
+        
+        // After 2 seconds, close modal and return to payment selection
+        setTimeout(() => {
+          setShowSquareModal(false);
+          setSquarePaymentComplete(false);
+          // Keep credit selected but allow operator to click Complete
+        }, 2000);
+      } else {
+        throw new Error(result.error || 'Payment failed');
+      }
+    } catch (error) {
+      console.error('Square payment error:', error);
+      alert(`Payment failed: ${error.message}`);
+      setSquareProcessing(false);
+    }
   };
 
   const cancelSquarePayment = () => {
@@ -357,67 +394,81 @@ export default function POS() {
             textAlign: 'center',
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
           }}>
-            {!squareProcessing && !squarePaymentComplete && (
-              <>
-                <div style={{ fontSize: '48px', marginBottom: '20px' }}>💳</div>
-                <h2 style={{ 
-                  margin: '0 0 16px 0', 
-                  fontSize: '24px', 
-                  fontWeight: '700',
-                  color: '#1f2937'
-                }}>
-                  Square Payment
-                </h2>
-                <div style={{ 
-                  marginBottom: '24px', 
-                  fontSize: '18px',
-                  color: '#6b7280'
-                }}>
-                  Total Amount: <span style={{ fontWeight: '700', color: '#059669' }}>{centsToUSD(totalCents)}</span>
-                </div>
-                <div style={{ 
-                  marginBottom: '32px', 
-                  fontSize: '16px',
-                  color: '#6b7280'
-                }}>
-                  Please process the payment using your Square device
-                </div>
-                <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
-                  <button
-                    onClick={processSquarePayment}
-                    style={{
-                      padding: '16px 32px',
-                      backgroundColor: '#059669',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '12px',
-                      fontSize: '18px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    Process Payment
-                  </button>
-                  <button
-                    onClick={cancelSquarePayment}
-                    style={{
-                      padding: '16px 32px',
-                      backgroundColor: '#6b7280',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '12px',
-                      fontSize: '18px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </>
-            )}
+                         {!squareProcessing && !squarePaymentComplete && (
+               <>
+                 <div style={{ fontSize: '48px', marginBottom: '20px' }}>💳</div>
+                 <h2 style={{ 
+                   margin: '0 0 16px 0', 
+                   fontSize: '24px', 
+                   fontWeight: '700',
+                   color: '#1f2937'
+                 }}>
+                   Square Payment
+                 </h2>
+                 <div style={{ 
+                   marginBottom: '24px', 
+                   fontSize: '18px',
+                   color: '#6b7280'
+                 }}>
+                   Total Amount: <span style={{ fontWeight: '700', color: '#059669' }}>{centsToUSD(totalCents)}</span>
+                 </div>
+                 <div style={{ 
+                   marginBottom: '24px', 
+                   fontSize: '16px',
+                   color: '#6b7280'
+                 }}>
+                   Enter your card details below:
+                 </div>
+                 
+                 {/* Card Input Container */}
+                 <div 
+                   id="card-container" 
+                   style={{
+                     width: '100%',
+                     height: '56px',
+                     border: '1px solid #d1d5db',
+                     borderRadius: '8px',
+                     marginBottom: '24px',
+                     backgroundColor: '#ffffff'
+                   }}
+                 ></div>
+                 
+                 <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
+                   <button
+                     onClick={processSquarePayment}
+                     style={{
+                       padding: '16px 32px',
+                       backgroundColor: '#059669',
+                       color: '#ffffff',
+                       border: 'none',
+                       borderRadius: '12px',
+                       fontSize: '18px',
+                       fontWeight: '600',
+                       cursor: 'pointer',
+                       transition: 'all 0.2s'
+                     }}
+                   >
+                     Process Payment
+                   </button>
+                   <button
+                     onClick={cancelSquarePayment}
+                     style={{
+                       padding: '16px 32px',
+                       backgroundColor: '#6b7280',
+                       color: '#ffffff',
+                       border: 'none',
+                       borderRadius: '12px',
+                       fontSize: '18px',
+                       fontWeight: '600',
+                       cursor: 'pointer',
+                       transition: 'all 0.2s'
+                     }}
+                   >
+                     Cancel
+                   </button>
+                 </div>
+               </>
+             )}
 
             {squareProcessing && (
               <>

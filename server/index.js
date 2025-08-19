@@ -4,11 +4,18 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import { Client, Environment } from 'square';
 
 dotenv.config();
 
 const prisma = new PrismaClient();
 const app = express();
+
+// Square client configuration
+const squareClient = new Client({
+  accessToken: 'EAAAlz7uE-Cnaqdwc_hnoxdWGLKETLuC7egOgYtWZy-dC0qkJqd_mdqsQ1d5PuH7',
+  environment: Environment.Production,
+});
 
 app.use(express.json());
 app.use(cors({
@@ -428,6 +435,53 @@ app.post('/api/time-entries', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Square payment endpoint
+app.post('/api/square-payment', async (req, res) => {
+  try {
+    const { amountCents, sourceId, idempotencyKey } = req.body;
+    
+    if (!amountCents || !sourceId || !idempotencyKey) {
+      return res.status(400).json({ error: 'Amount, source ID, and idempotency key are required' });
+    }
+    
+    const amount = Math.round(amountCents / 100); // Convert cents to dollars for Square
+    
+    const paymentRequest = {
+      sourceId: sourceId,
+      idempotencyKey: idempotencyKey,
+      amountMoney: {
+        amount: amount,
+        currency: 'USD'
+      },
+      locationId: 'L8DKM2PC7Q1HE'
+    };
+    
+    const response = await squareClient.paymentsApi.createPayment(paymentRequest);
+    
+    if (response.result.payment.status === 'COMPLETED') {
+      res.json({
+        success: true,
+        paymentId: response.result.payment.id,
+        status: response.result.payment.status,
+        amount: response.result.payment.amountMoney.amount
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: 'Payment failed',
+        status: response.result.payment.status
+      });
+    }
+  } catch (error) {
+    console.error('Square payment error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Payment processing failed',
+      details: error.message 
+    });
   }
 });
 
