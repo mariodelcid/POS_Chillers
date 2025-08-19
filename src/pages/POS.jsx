@@ -18,9 +18,7 @@ export default function POS() {
   const [employeeName, setEmployeeName] = useState('');
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationAmount, setCelebrationAmount] = useState('');
-  const [showSquareModal, setShowSquareModal] = useState(false);
-  const [squareProcessing, setSquareProcessing] = useState(false);
-  const [squarePaymentComplete, setSquarePaymentComplete] = useState(false);
+
 
   useEffect(() => {
     fetch('/api/items').then((r) => r.json()).then(setItems);
@@ -124,14 +122,8 @@ export default function POS() {
   }
 
   // Square payment handling functions
-  const handleCreditSelection = () => {
+  const handleCreditSelection = async () => {
     setPaymentMethod('credit');
-    setShowSquareModal(true);
-    setSquarePaymentComplete(false);
-  };
-
-  const processSquarePayment = async () => {
-    setSquareProcessing(true);
     
     try {
       // Initialize Square Web Payments SDK
@@ -140,8 +132,8 @@ export default function POS() {
       }
       
       const payments = window.Square.payments({
-        applicationId: 'sq0idp-PbznJFG3brzaUpfhFZD3mg',
-        locationId: 'L8DKM2PC7Q1HE'
+        applicationId: process.env.REACT_APP_SQUARE_APPLICATION_ID || 'sq0idp-PbznJFG3brzaUpfhFZD3mg',
+        locationId: process.env.REACT_APP_SQUARE_LOCATION_ID || 'L8DKM2PC7Q1HE'
       });
       
       // Create a payment request with the amount
@@ -154,7 +146,7 @@ export default function POS() {
         }
       };
       
-      // Request payment using Square's payment sheet
+      // Request payment using Square's payment sheet - this opens Square's interface directly
       const { result } = await payments.requestPaymentMethod(paymentRequest);
       
       if (result.status === 'OK') {
@@ -174,15 +166,8 @@ export default function POS() {
         const paymentResult = await response.json();
         
         if (paymentResult.success) {
-          setSquareProcessing(false);
-          setSquarePaymentComplete(true);
-          
-          // After 2 seconds, close modal and return to payment selection
-          setTimeout(() => {
-            setShowSquareModal(false);
-            setSquarePaymentComplete(false);
-            // Keep credit selected but allow operator to click Complete
-          }, 2000);
+          // Payment successful - show success message briefly
+          setMessage('Credit payment processed successfully! Click "Complete Order" to finalize.');
         } else {
           throw new Error(paymentResult.error || 'Payment failed');
         }
@@ -191,16 +176,9 @@ export default function POS() {
       }
     } catch (error) {
       console.error('Square payment error:', error);
-      alert(`Payment failed: ${error.message}`);
-      setSquareProcessing(false);
+      setMessage(`Payment failed: ${error.message}`);
+      setPaymentMethod('cash'); // Reset to cash if failed
     }
-  };
-
-  const cancelSquarePayment = () => {
-    setShowSquareModal(false);
-    setSquareProcessing(false);
-    setSquarePaymentComplete(false);
-    setPaymentMethod('cash'); // Reset to cash if cancelled
   };
 
   async function completeOrder() {
@@ -383,145 +361,7 @@ export default function POS() {
         </div>
       )}
 
-      {/* Square Payment Modal */}
-      {showSquareModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9998
-        }}>
-          <div style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '16px',
-            padding: '40px',
-            maxWidth: '500px',
-            width: '90%',
-            textAlign: 'center',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
-          }}>
-                         {!squareProcessing && !squarePaymentComplete && (
-               <>
-                 <div style={{ fontSize: '48px', marginBottom: '20px' }}>💳</div>
-                 <h2 style={{ 
-                   margin: '0 0 16px 0', 
-                   fontSize: '24px', 
-                   fontWeight: '700',
-                   color: '#1f2937'
-                 }}>
-                   Square Payment
-                 </h2>
-                 <div style={{ 
-                   marginBottom: '24px', 
-                   fontSize: '18px',
-                   color: '#6b7280'
-                 }}>
-                   Total Amount: <span style={{ fontWeight: '700', color: '#059669' }}>{centsToUSD(totalCents)}</span>
-                 </div>
-                                   <div style={{ 
-                    marginBottom: '24px', 
-                    fontSize: '16px',
-                    color: '#6b7280'
-                  }}>
-                    Click "Process Payment" to open Square's payment interface
-                  </div>
-                 
-                 <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
-                   <button
-                     onClick={processSquarePayment}
-                     style={{
-                       padding: '16px 32px',
-                       backgroundColor: '#059669',
-                       color: '#ffffff',
-                       border: 'none',
-                       borderRadius: '12px',
-                       fontSize: '18px',
-                       fontWeight: '600',
-                       cursor: 'pointer',
-                       transition: 'all 0.2s'
-                     }}
-                   >
-                     Process Payment
-                   </button>
-                   <button
-                     onClick={cancelSquarePayment}
-                     style={{
-                       padding: '16px 32px',
-                       backgroundColor: '#6b7280',
-                       color: '#ffffff',
-                       border: 'none',
-                       borderRadius: '12px',
-                       fontSize: '18px',
-                       fontWeight: '600',
-                       cursor: 'pointer',
-                       transition: 'all 0.2s'
-                     }}
-                   >
-                     Cancel
-                   </button>
-                 </div>
-               </>
-             )}
-
-            {squareProcessing && (
-              <>
-                <div style={{ fontSize: '48px', marginBottom: '20px' }}>⏳</div>
-                <h2 style={{ 
-                  margin: '0 0 16px 0', 
-                  fontSize: '24px', 
-                  fontWeight: '700',
-                  color: '#1f2937'
-                }}>
-                  Processing Payment...
-                </h2>
-                <div style={{ 
-                  marginBottom: '24px', 
-                  fontSize: '16px',
-                  color: '#6b7280'
-                }}>
-                  Please wait while we process your payment
-                </div>
-                <div style={{
-                  width: '60px',
-                  height: '60px',
-                  border: '4px solid #e5e7eb',
-                  borderTop: '4px solid #059669',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite',
-                  margin: '0 auto'
-                }}></div>
-              </>
-            )}
-
-            {squarePaymentComplete && (
-              <>
-                <div style={{ fontSize: '48px', marginBottom: '20px' }}>✅</div>
-                <h2 style={{ 
-                  margin: '0 0 16px 0', 
-                  fontSize: '24px', 
-                  fontWeight: '700',
-                  color: '#059669'
-                }}>
-                  Payment Successful!
-                </h2>
-                <div style={{ 
-                  marginBottom: '24px', 
-                  fontSize: '16px',
-                  color: '#6b7280'
-                }}>
-                  Returning to payment selection...
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      
       
       <style>
         {`

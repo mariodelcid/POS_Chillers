@@ -384,7 +384,7 @@ app.post('/api/square-payment', async (req, res) => {
         amount: amount,
         currency: 'USD'
       },
-      locationId: 'L8DKM2PC7Q1HE'
+      locationId: process.env.SQUARE_LOCATION_ID
     };
     
     // Call Square API directly using fetch
@@ -392,7 +392,7 @@ app.post('/api/square-payment', async (req, res) => {
       method: 'POST',
       headers: {
         'Square-Version': '2024-12-18',
-        'Authorization': 'Bearer EAAAlz7uE-Cnaqdwc_hnoxdWGLKETLuC7egOgYtWZy-dC0qkJqd_mdqsQ1d5PuH7',
+        'Authorization': `Bearer ${process.env.SQUARE_ACCESS_TOKEN}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(paymentRequest)
