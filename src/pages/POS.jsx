@@ -751,12 +751,15 @@ export default function POS() {
            <button 
              disabled={cart.length === 0 || submitting} 
              onClick={() => {
-               // Android Square POS integration
+               // Platform detection
                const isAndroid = /Android/i.test(navigator.userAgent);
+               const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+               const isDesktop = !isAndroid && !isIOS;
+               
                if (isAndroid) {
+                 // Android: Open Square Point of Sale app
                  console.log('Opening Square POS for Android...');
                  
-                 // Build the intent URL according to Square's official documentation
                  const posUrl = 
                    "intent:#Intent;" +
                    "action=com.squareup.pos.action.CHARGE;" +
@@ -773,8 +776,38 @@ export default function POS() {
                  window.open(posUrl);
                  
                  setMessage('Square POS opened. After payment is processed, return here and click "Complete Order".');
-               } else {
-                 setMessage('Square POS is only available on Android devices.');
+                 
+               } else if (isIOS) {
+                 // iOS: Open Square Point of Sale app via URL scheme
+                 console.log('Opening Square POS for iOS...');
+                 
+                 const posUrl = 
+                   "square-pos://charge?" +
+                   "callback_url=" + encodeURIComponent('https://pos-production-751e.up.railway.app/') + "&" +
+                   "client_id=" + 'sq0idp-PbznJFG3brzaUpfhFZD3mg' + "&" +
+                   "amount=" + totalCents + "&" +
+                   "currency=USD";
+                 
+                 console.log('iOS POS URL:', posUrl);
+                 window.open(posUrl);
+                 
+                 setMessage('Square POS opened. After payment is processed, return here and click "Complete Order".');
+                 
+               } else if (isDesktop) {
+                 // Desktop: Open Square's web payment interface
+                 console.log('Opening Square web payment for desktop...');
+                 
+                 const webPaymentUrl = 
+                   "https://squareup.com/checkout?" +
+                   "callback_url=" + encodeURIComponent('https://pos-production-751e.up.railway.app/') + "&" +
+                   "client_id=" + 'sq0idp-PbznJFG3brzaUpfhFZD3mg' + "&" +
+                   "amount=" + totalCents + "&" +
+                   "currency=USD";
+                 
+                 console.log('Desktop web payment URL:', webPaymentUrl);
+                 window.open(webPaymentUrl, '_blank');
+                 
+                 setMessage('Square web payment opened. After payment is processed, return here and click "Complete Order".');
                }
              }} 
              style={{ 
