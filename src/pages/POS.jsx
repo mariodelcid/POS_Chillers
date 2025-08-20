@@ -137,7 +137,7 @@ export default function POS() {
         const sdkVersion = 'v2.0';
         const transactionTotal = totalCents;
         const currencyCode = 'USD';
-        const callbackUrl = window.location.origin + '/square-callback';
+        const callbackUrl = 'https://pos-production-751e.up.railway.app/';
         
         const posUrl = 
           "intent:#Intent;" +
