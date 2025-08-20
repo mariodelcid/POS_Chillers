@@ -122,53 +122,9 @@ export default function POS() {
   }
 
   // Square payment handling functions
-  const handleCreditSelection = async () => {
+  const handleCreditSelection = () => {
     setPaymentMethod('credit');
-    
-    try {
-      // Check if we're on Android
-      const isAndroid = /Android/i.test(navigator.userAgent);
-      
-      if (isAndroid) {
-        console.log('Android device detected, opening Square POS...');
-        
-        // Build the Android intent URL for Square Point of Sale
-        const applicationId = 'sq0idp-PbznJFG3brzaUpfhFZD3mg';
-        const sdkVersion = 'v2.0';
-        const transactionTotal = totalCents;
-        const currencyCode = 'USD';
-        const callbackUrl = 'https://pos-production-751e.up.railway.app/';
-        
-        const posUrl = 
-          "intent:#Intent;" +
-          "action=com.squareup.pos.action.CHARGE;" +
-          "package=com.squareup;" +
-          "S.com.squareup.pos.WEB_CALLBACK_URI=" + callbackUrl + ";" +
-          "S.com.squareup.pos.CLIENT_ID=" + applicationId + ";" +
-          "S.com.squareup.pos.API_VERSION=" + sdkVersion + ";" +
-          "i.com.squareup.pos.TOTAL_AMOUNT=" + transactionTotal + ";" +
-          "S.com.squareup.pos.CURRENCY_CODE=" + currencyCode + ";" +
-          "S.com.squareup.pos.TENDER_TYPES=com.squareup.pos.TENDER_CARD,com.squareup.pos.TENDER_CARD_ON_FILE,com.squareup.pos.TENDER_CASH,com.squareup.pos.TENDER_OTHER;" +
-          "end";
-        
-        console.log('Opening Square POS with URL:', posUrl);
-        
-        // Open Square POS app
-        window.open(posUrl);
-        
-        // Show message that Square app should open
-        setMessage('Opening Square Point of Sale app... Complete payment there, then return here to finalize order.');
-        
-      } else {
-        // For non-Android devices, show message to use Square app
-        setMessage('Please use the Square Point of Sale app on your Android device to process this payment.');
-      }
-      
-    } catch (error) {
-      console.error('Square payment error:', error);
-      setMessage(`Payment failed: ${error.message}`);
-      setPaymentMethod('cash'); // Reset to cash if failed
-    }
+    setMessage('Credit payment selected. Click "Complete Order" to process payment with Square.');
   };
 
   async function completeOrder() {
@@ -790,30 +746,79 @@ export default function POS() {
           )}
         </div>
 
-        {/* Complete Order Button */}
-        <button 
-          disabled={cart.length === 0 || submitting || (paymentMethod === 'cash' && tenderCents < totalCents)} 
-          onClick={completeOrder} 
-          style={{ 
-            width: '100%', 
-            padding: '20px', 
-            background: cart.length === 0 || submitting || (paymentMethod === 'cash' && tenderCents < totalCents) 
-              ? '#9ca3af' 
-              : '#059669', 
-            color: '#ffffff', 
-            border: 'none', 
-            borderRadius: '12px', 
-            fontSize: '20px', 
-            fontWeight: '700',
-            cursor: cart.length === 0 || submitting || (paymentMethod === 'cash' && tenderCents < totalCents) 
-              ? 'not-allowed' 
-              : 'pointer',
-            transition: 'all 0.2s',
-            marginBottom: '12px'
-          }}
-        >
-          {submitting ? 'Processing...' : 'Complete Order'}
-        </button>
+                 {/* Process Credit Card Button - Only show when credit is selected */}
+         {paymentMethod === 'credit' && (
+           <button 
+             disabled={cart.length === 0 || submitting} 
+             onClick={() => {
+               // Android Square POS integration
+               const isAndroid = /Android/i.test(navigator.userAgent);
+               if (isAndroid) {
+                 console.log('Opening Square POS for Android...');
+                 
+                 // Build the intent URL according to Square's official documentation
+                 const posUrl = 
+                   "intent:#Intent;" +
+                   "action=com.squareup.pos.action.CHARGE;" +
+                   "package=com.squareup;" +
+                   "S.com.squareup.pos.WEB_CALLBACK_URI=" + 'https://pos-production-751e.up.railway.app/' + ";" +
+                   "S.com.squareup.pos.CLIENT_ID=" + 'sq0idp-PbznJFG3brzaUpfhFZD3mg' + ";" +
+                   "S.com.squareup.pos.API_VERSION=" + 'v2.0' + ";" +
+                   "i.com.squareup.pos.TOTAL_AMOUNT=" + totalCents + ";" +
+                   "S.com.squareup.pos.CURRENCY_CODE=" + 'USD' + ";" +
+                   "S.com.squareup.pos.TENDER_TYPES=com.squareup.pos.TENDER_CARD,com.squareup.pos.TENDER_CARD_ON_FILE,com.squareup.pos.TENDER_CASH,com.squareup.pos.TENDER_OTHER;" +
+                   "end";
+                 
+                 console.log('Android POS URL:', posUrl);
+                 window.open(posUrl);
+                 
+                 setMessage('Square POS opened. After payment is processed, return here and click "Complete Order".');
+               } else {
+                 setMessage('Square POS is only available on Android devices.');
+               }
+             }} 
+             style={{ 
+               width: '100%', 
+               padding: '16px', 
+               background: cart.length === 0 || submitting ? '#9ca3af' : '#3b82f6', 
+               color: '#ffffff', 
+               border: 'none', 
+               borderRadius: '12px', 
+               fontSize: '18px', 
+               fontWeight: '700',
+               cursor: cart.length === 0 || submitting ? 'not-allowed' : 'pointer',
+               transition: 'all 0.2s',
+               marginBottom: '12px'
+             }}
+           >
+             💳 Process Credit Card
+           </button>
+         )}
+
+         {/* Complete Order Button */}
+         <button 
+           disabled={cart.length === 0 || submitting || (paymentMethod === 'cash' && tenderCents < totalCents)} 
+           onClick={completeOrder} 
+           style={{ 
+             width: '100%', 
+             padding: '20px', 
+             background: cart.length === 0 || submitting || (paymentMethod === 'cash' && tenderCents < totalCents) 
+               ? '#9ca3af' 
+               : '#059669', 
+             color: '#ffffff', 
+             border: 'none', 
+             borderRadius: '12px', 
+             fontSize: '20px', 
+             fontWeight: '700',
+             cursor: cart.length === 0 || submitting || (paymentMethod === 'cash' && tenderCents < totalCents) 
+               ? 'not-allowed' 
+               : 'pointer',
+             transition: 'all 0.2s',
+             marginBottom: '12px'
+           }}
+         >
+           {submitting ? 'Processing...' : 'Complete Order'}
+         </button>
 
         {/* Compras Button and Input */}
         <div style={{ marginBottom: '12px' }}>
