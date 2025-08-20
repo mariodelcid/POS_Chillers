@@ -778,18 +778,33 @@ export default function POS() {
                  setMessage('Square POS opened. After payment is processed, return here and click "Complete Order".');
                  
                                } else if (isIOS) {
-                  // iOS: Use Square's official payment link (most reliable method)
+                  // iOS: Try multiple methods for maximum compatibility
                   console.log('Opening Square payment for iOS...');
                   
-                  // Use Square's official payment link format
-                  const paymentUrl = `https://square.link/u/${'sq0idp-PbznJFG3brzaUpfhFZD3mg'}?amount=${totalCents}&currency=USD`;
-                  
-                  console.log('iOS Square payment URL:', paymentUrl);
-                  
-                  // Open Square's official payment link in new tab
-                  window.open(paymentUrl, '_blank');
-                  
-                  setMessage('Square payment opened. After payment is processed, return here and click "Complete Order".');
+                  // Method 1: Try to open Square app directly (if installed and configured)
+                  try {
+                    // Use Square's official deep link format
+                    const squareAppUrl = `square://pos/charge?amount=${totalCents}&currency=USD&client_id=${'sq0idp-PbznJFG3brzaUpfhFZD3mg'}`;
+                    console.log('Attempting to open Square app:', squareAppUrl);
+                    
+                    // Try to open the app
+                    window.location.href = squareAppUrl;
+                    
+                    // Set a timeout to fall back to web payment if app doesn't open
+                    setTimeout(() => {
+                      console.log('Square app may not have opened, falling back to web payment');
+                      const paymentUrl = `https://square.link/u/${'sq0idp-PbznJFG3brzaUpfhFZD3mg'}?amount=${totalCents}&currency=USD`;
+                      window.open(paymentUrl, '_blank');
+                      setMessage('Square web payment opened as fallback. After payment, return here and click "Complete Order".');
+                    }, 2000);
+                    
+                    setMessage('Attempting to open Square app... If it doesn\'t open, web payment will open automatically.');
+                  } catch (error) {
+                    console.log('Error opening Square app, using web payment:', error);
+                    const paymentUrl = `https://square.link/u/${'sq0idp-PbznJFG3brzaUpfhFZD3mg'}?amount=${totalCents}&currency=USD`;
+                    window.open(paymentUrl, '_blank');
+                    setMessage('Square web payment opened. After payment is processed, return here and click "Complete Order".');
+                  }
                  
                                } else if (isDesktop) {
                   // Desktop: Use Square's official payment link
