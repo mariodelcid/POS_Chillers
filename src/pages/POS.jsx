@@ -778,22 +778,49 @@ export default function POS() {
                  setMessage('Square POS opened. After payment is processed, return here and click "Complete Order".');
                  
                                } else if (isIOS) {
-                  // iOS: Open Square app directly using URL scheme
+                  // iOS: Try multiple Square integration methods with fallback
                   console.log('Opening Square app for iOS...');
                   
-                  // Try to open Square app directly with the transaction
-                  const squareAppUrl = `square://pos/charge?` +
-                    `amount=${totalCents}&` +
-                    `currency=USD&` +
-                    `callback_url=${encodeURIComponent('https://pos-production-751e.up.railway.app/')}&` +
-                    `client_id=${'sq0idp-PbznJFG3brzaUpfhFZD3mg'}`;
+                  // Method 1: Try Square's main app URL scheme
+                  const squareMainUrl = `square://pos/charge?amount=${totalCents}&currency=USD`;
                   
-                  console.log('iOS Square app URL:', squareAppUrl);
+                  // Method 2: Try Square Point of Sale specific scheme
+                  const squarePosUrl = `square-pos://charge?amount=${totalCents}&currency=USD`;
                   
-                  // Open the Square app directly
-                  window.location.href = squareAppUrl;
+                  // Method 3: Try Square's universal link
+                  const squareUniversalUrl = `https://squareup.com/pos/charge?amount=${totalCents}&currency=USD`;
                   
-                  setMessage('Opening Square app. After payment is processed, return here and click "Complete Order".');
+                  console.log('Trying iOS Square integration methods...');
+                  
+                  // Try method 1 first (most direct)
+                  try {
+                    console.log('Attempting to open Square main app...');
+                    window.location.href = squareMainUrl;
+                    
+                    // Set a timeout to check if it worked
+                    setTimeout(() => {
+                      // If we're still here, try method 2
+                      console.log('Square main app failed, trying POS app...');
+                      try {
+                        window.location.href = squarePosUrl;
+                      } catch (e) {
+                        console.log('Square POS app failed, opening web interface...');
+                        // Final fallback to web interface
+                        window.open(squareUniversalUrl, '_blank');
+                      }
+                    }, 2000);
+                    
+                  } catch (e) {
+                    console.log('Square main app failed, trying POS app...');
+                    try {
+                      window.location.href = squarePosUrl;
+                    } catch (e2) {
+                      console.log('Square POS app failed, opening web interface...');
+                      window.open(squareUniversalUrl, '_blank');
+                    }
+                  }
+                  
+                  setMessage('Attempting to open Square app. If it fails, web interface will open.');
                  
                } else if (isDesktop) {
                  // Desktop: Open Square's web payment interface
