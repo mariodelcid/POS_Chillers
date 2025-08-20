@@ -126,73 +126,44 @@ export default function POS() {
     setPaymentMethod('credit');
     
     try {
-      // Initialize Square Web Payments SDK
-      if (!window.Square) {
-        throw new Error('Square Web Payments SDK not loaded');
+      // Check if we're on Android
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      
+      if (isAndroid) {
+        console.log('Android device detected, opening Square POS...');
+        
+        // Build the Android intent URL for Square Point of Sale
+        const applicationId = 'sq0idp-PbznJFG3brzaUpfhFZD3mg';
+        const sdkVersion = 'v2.0';
+        const transactionTotal = totalCents;
+        const currencyCode = 'USD';
+        const callbackUrl = window.location.origin + '/square-callback';
+        
+        const posUrl = 
+          "intent:#Intent;" +
+          "action=com.squareup.pos.action.CHARGE;" +
+          "package=com.squareup;" +
+          "S.com.squareup.pos.WEB_CALLBACK_URI=" + callbackUrl + ";" +
+          "S.com.squareup.pos.CLIENT_ID=" + applicationId + ";" +
+          "S.com.squareup.pos.API_VERSION=" + sdkVersion + ";" +
+          "i.com.squareup.pos.TOTAL_AMOUNT=" + transactionTotal + ";" +
+          "S.com.squareup.pos.CURRENCY_CODE=" + currencyCode + ";" +
+          "S.com.squareup.pos.TENDER_TYPES=com.squareup.pos.TENDER_CARD,com.squareup.pos.TENDER_CARD_ON_FILE,com.squareup.pos.TENDER_CASH,com.squareup.pos.TENDER_OTHER;" +
+          "end";
+        
+        console.log('Opening Square POS with URL:', posUrl);
+        
+        // Open Square POS app
+        window.open(posUrl);
+        
+        // Show message that Square app should open
+        setMessage('Opening Square Point of Sale app... Complete payment there, then return here to finalize order.');
+        
+      } else {
+        // For non-Android devices, show message to use Square app
+        setMessage('Please use the Square Point of Sale app on your Android device to process this payment.');
       }
       
-      console.log('Square SDK loaded:', window.Square);
-      console.log('Initializing payments with:', {
-        applicationId: 'sq0idp-PbznJFG3brzaUpfhFZD3mg',
-        locationId: 'L8DKM2PC7Q1HE'
-      });
-      
-      const payments = window.Square.payments({
-        applicationId: 'sq0idp-PbznJFG3brzaUpfhFZD3mg',
-        locationId: 'L8DKM2PC7Q1HE'
-      });
-      
-      // Create a card payment method
-      const card = await payments.card();
-      
-      // Create a temporary container for the card input
-      const tempContainer = document.createElement('div');
-      tempContainer.id = 'card-container';
-      tempContainer.style.position = 'absolute';
-      tempContainer.style.left = '-9999px';
-      document.body.appendChild(tempContainer);
-      
-      try {
-        // Attach the card to the container
-        await card.attach('#card-container');
-        
-        // Tokenize the card to get a payment method
-        const { result } = await card.tokenize();
-        
-        if (result.status === 'OK') {
-          // Card tokenized successfully, now process with backend
-          const response = await fetch('/api/square-payment', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              amountCents: totalCents,
-              sourceId: result.token,
-              idempotencyKey: `payment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-            })
-          });
-          
-          const paymentResult = await response.json();
-          
-          if (paymentResult.success) {
-            // Payment successful - show success message briefly
-            setMessage('Credit payment processed successfully! Click "Complete Order" to finalize.');
-          } else {
-            throw new Error(paymentResult.error || 'Payment failed');
-          }
-        } else {
-          throw new Error('Failed to tokenize card');
-        }
-      } catch (error) {
-        console.error('Card processing error:', error);
-        throw error;
-      } finally {
-        // Clean up the temporary container
-        if (tempContainer && tempContainer.parentNode) {
-          tempContainer.parentNode.removeChild(tempContainer);
-        }
-      }
     } catch (error) {
       console.error('Square payment error:', error);
       setMessage(`Payment failed: ${error.message}`);
