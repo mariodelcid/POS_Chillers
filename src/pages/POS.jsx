@@ -778,38 +778,29 @@ export default function POS() {
                  setMessage('Square POS opened. After payment is processed, return here and click "Complete Order".');
                  
                                } else if (isIOS) {
-                  // iOS: Use Square Web Payments SDK (recommended by Square)
+                  // iOS: Use Square's official payment link (most reliable method)
                   console.log('Opening Square payment for iOS...');
                   
-                  // For iOS, we'll use Square's web checkout which is more reliable
-                  const webCheckoutUrl = `https://squareup.com/checkout?` +
-                    `amount=${totalCents}&` +
-                    `currency=USD&` +
-                    `callback_url=${encodeURIComponent('https://pos-production-751e.up.railway.app/')}&` +
-                    `client_id=${'sq0idp-PbznJFG3brzaUpfhFZD3mg'}`;
+                  // Use Square's official payment link format
+                  const paymentUrl = `https://square.link/u/${'sq0idp-PbznJFG3brzaUpfhFZD3mg'}?amount=${totalCents}&currency=USD`;
                   
-                  console.log('iOS web checkout URL:', webCheckoutUrl);
+                  console.log('iOS Square payment URL:', paymentUrl);
                   
-                  // Open Square's web checkout in new tab for iOS
-                  window.open(webCheckoutUrl, '_blank');
+                  // Open Square's official payment link in new tab
+                  window.open(paymentUrl, '_blank');
                   
-                  setMessage('Square web checkout opened. After payment is processed, return here and click "Complete Order".');
+                  setMessage('Square payment opened. After payment is processed, return here and click "Complete Order".');
                  
-               } else if (isDesktop) {
-                 // Desktop: Open Square's web payment interface
-                 console.log('Opening Square web payment for desktop...');
-                 
-                 const webPaymentUrl = 
-                   "https://squareup.com/checkout?" +
-                   "callback_url=" + encodeURIComponent('https://pos-production-751e.up.railway.app/') + "&" +
-                   "client_id=" + 'sq0idp-PbznJFG3brzaUpfhFZD3mg' + "&" +
-                   "amount=" + totalCents + "&" +
-                   "currency=USD";
-                 
-                 console.log('Desktop web payment URL:', webPaymentUrl);
-                 window.open(webPaymentUrl, '_blank');
-                 
-                 setMessage('Square web payment opened. After payment is processed, return here and click "Complete Order".');
+                               } else if (isDesktop) {
+                  // Desktop: Use Square's official payment link
+                  console.log('Opening Square payment for desktop...');
+                  
+                  const paymentUrl = `https://square.link/u/${'sq0idp-PbznJFG3brzaUpfhFZD3mg'}?amount=${totalCents}&currency=USD`;
+                  
+                  console.log('Desktop Square payment URL:', paymentUrl);
+                  window.open(paymentUrl, '_blank');
+                  
+                  setMessage('Square payment opened. After payment is processed, return here and click "Complete Order".');
                }
              }} 
              style={{ 
