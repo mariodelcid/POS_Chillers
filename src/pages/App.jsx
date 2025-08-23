@@ -15,6 +15,9 @@ export default function App() {
         <NavLink to="/sales" style={{ textDecoration: 'none' }}>
           Sales
         </NavLink>
+        <NavLink to="/reports" style={{ textDecoration: 'none' }}>
+          Reports
+        </NavLink>
       </header>
       <main style={{ flex: 1, overflow: 'auto' }}>
         <Outlet />
