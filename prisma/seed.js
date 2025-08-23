@@ -17,9 +17,9 @@ const items = [
   { name: 'Sopa', category: 'SNACKS', priceCents: 500 },
   { name: 'Vaso Nieve 1 Scoop', category: 'SNACKS', priceCents: 250 },
   { name: 'Vaso Nieve 2 Scoops', category: 'SNACKS', priceCents: 500 },
-  { name: 'Queso Extra', category: 'SNACKS', priceCents: 26 },
-  { name: 'Toppings', category: 'SNACKS', priceCents: 51 },
-  { name: 'Discount', category: 'SNACKS', priceCents: -49 },
+  { name: 'Queso Extra', category: 'SNACKS', priceCents: 25 },
+  { name: 'Toppings', category: 'SNACKS', priceCents: 50 },
+  { name: 'Discount', category: 'SNACKS', priceCents: -50 },
 
   // CHAMOYADAS (light yellow background) - $7.00
   { name: 'Chamoyada de Tamarindo', category: 'CHAMOYADAS', priceCents: 700 },
