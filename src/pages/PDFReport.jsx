@@ -177,13 +177,21 @@ export default function PDFReport() {
         month: 'long',
         day: 'numeric'
       });
-      doc.text(`Date: ${formattedDate}`, margin, yPosition);
-      yPosition += 15; // Reduced from 20
+      // doc.text(`Date: ${formattedDate}`, margin, yPosition); // Moved to the right
+      // yPosition += 15; // Reduced from 20
 
       // Sales Summary - compact
       doc.setFontSize(14); // Reduced from 16
       doc.setFont('helvetica', 'bold');
       doc.text('Sales Summary', margin, yPosition);
+      
+      // Date to the right of Sales Summary title
+      const dateText = `Date: ${formattedDate}`;
+      const dateWidth = doc.getTextWidth(dateText);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text(dateText, pageWidth - margin - dateWidth, yPosition);
+      
       yPosition += 8; // Reduced from 10
 
       // Fix: Use totalCents instead of total, and handle the data structure correctly
@@ -215,6 +223,7 @@ export default function PDFReport() {
         if (salesData.length > 0) {
           console.log('First sale structure:', salesData[0]);
           console.log('First sale items:', salesData[0].items);
+          console.log('Inventory data:', inventoryData);
         }
         
         salesData.forEach(sale => {
@@ -250,9 +259,19 @@ export default function PDFReport() {
 
         // Create comprehensive table with inventory balance
         const comprehensiveTableData = Object.entries(itemSales).map(([itemName, data]) => {
-          // Find inventory balance for this item
-          const inventoryItem = inventoryData.find(inv => inv.name === itemName);
+          // Find inventory balance for this item - try multiple matching strategies
           let inventoryBalance = 'N/A';
+          
+          // First try exact match
+          let inventoryItem = inventoryData.find(inv => inv.name === itemName);
+          
+          // If no exact match, try partial match
+          if (!inventoryItem) {
+            inventoryItem = inventoryData.find(inv => 
+              inv.name.toLowerCase().includes(itemName.toLowerCase()) ||
+              itemName.toLowerCase().includes(inv.name.toLowerCase())
+            );
+          }
           
           if (inventoryItem) {
             if (inventoryItem.name === 'elote') {
@@ -261,6 +280,9 @@ export default function PDFReport() {
             } else {
               inventoryBalance = `${inventoryItem.stock} ${inventoryItem.unit || 'units'}`;
             }
+            console.log(`Found inventory for ${itemName}:`, inventoryItem);
+          } else {
+            console.log(`No inventory found for ${itemName}`);
           }
           
           return [
