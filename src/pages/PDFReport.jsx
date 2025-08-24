@@ -222,12 +222,19 @@ export default function PDFReport() {
           items.forEach(item => {
             const itemName = item.item ? item.item.name : item.name;
             const quantity = item.quantity || 1;
-            // Fix: Get price from the correct field and calculate revenue properly
-            const price = (item.priceCents || item.price || 0);
-            const itemRevenue = price * quantity;
+            // Fix: Use the correct fields from SaleItem model
+            const price = item.unitPriceCents || item.lineTotalCents || 0;
+            const itemRevenue = item.lineTotalCents || (price * quantity);
             
             // Debug: Log item details
-            console.log('Processing item:', { itemName, quantity, price, itemRevenue, item });
+            console.log('Processing item:', { 
+              itemName, 
+              quantity, 
+              unitPriceCents: item.unitPriceCents,
+              lineTotalCents: item.lineTotalCents,
+              itemRevenue, 
+              item 
+            });
             
             if (!itemSales[itemName]) {
               itemSales[itemName] = {
