@@ -160,16 +160,16 @@ export default function PDFReport() {
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.width;
       const margin = 20;
-      let yPosition = 20;
+      let yPosition = 15; // Reduced from 20
 
-      // Title
-      doc.setFontSize(20);
+      // Title - smaller and more compact
+      doc.setFontSize(16); // Reduced from 20
       doc.setFont('helvetica', 'bold');
       doc.text('Chillers POS - Daily Report', pageWidth / 2, yPosition, { align: 'center' });
-      yPosition += 15;
+      yPosition += 10; // Reduced from 15
 
-      // Date
-      doc.setFontSize(14);
+      // Date - smaller and more compact
+      doc.setFontSize(12); // Reduced from 14
       doc.setFont('helvetica', 'normal');
       const formattedDate = new Date(selectedDate).toLocaleDateString('en-US', {
         weekday: 'long',
@@ -178,13 +178,13 @@ export default function PDFReport() {
         day: 'numeric'
       });
       doc.text(`Date: ${formattedDate}`, margin, yPosition);
-      yPosition += 20;
+      yPosition += 15; // Reduced from 20
 
-      // Sales Summary
-      doc.setFontSize(16);
+      // Sales Summary - compact
+      doc.setFontSize(14); // Reduced from 16
       doc.setFont('helvetica', 'bold');
       doc.text('Sales Summary', margin, yPosition);
-      yPosition += 10;
+      yPosition += 8; // Reduced from 10
 
       // Fix: Use totalCents instead of total, and handle the data structure correctly
       const totalSales = salesData.reduce((sum, sale) => {
@@ -193,19 +193,19 @@ export default function PDFReport() {
       }, 0);
       const totalTransactions = salesData.length;
       
-      doc.setFontSize(12);
+      doc.setFontSize(11); // Reduced from 12
       doc.setFont('helvetica', 'normal');
       doc.text(`Total Sales: $${(totalSales / 100).toFixed(2)}`, margin, yPosition);
-      yPosition += 7;
+      yPosition += 6; // Reduced from 7
       doc.text(`Total Transactions: ${totalTransactions}`, margin, yPosition);
-      yPosition += 15;
+      yPosition += 12; // Reduced from 15
 
-      // Sales Details Table
+      // Comprehensive Sales Details Table with Inventory Balance
       if (salesData.length > 0) {
-        doc.setFontSize(14);
+        doc.setFontSize(13); // Reduced from 14
         doc.setFont('helvetica', 'bold');
-        doc.text('Sales Details', margin, yPosition);
-        yPosition += 10;
+        doc.text('Sales Details & Inventory Balance', margin, yPosition);
+        yPosition += 8; // Reduced from 10
 
         // Group sales by item to show quantity sold per item
         const itemSales = {};
@@ -248,64 +248,46 @@ export default function PDFReport() {
           });
         });
 
-        const salesTableData = Object.entries(itemSales).map(([itemName, data]) => [
-          itemName,
-          data.quantity,
-          `$${(data.revenue / 100).toFixed(2)}`
-        ]);
-
-        yPosition = createSimpleTable(doc, ['Item', 'Qty Sold', 'Revenue'], salesTableData, yPosition, margin);
-        
-        // Add grand total
-        yPosition += 10;
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`Grand Total Revenue: $${(grandTotalRevenue / 100).toFixed(2)}`, margin, yPosition);
-        yPosition += 15;
-      }
-
-      // Enhanced Inventory Summary with Item Statistics
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Inventory Summary & Item Performance', margin, yPosition);
-      yPosition += 10;
-
-      if (inventoryData.length > 0) {
-        const itemStats = calculateItemStats();
-        
-        // Create comprehensive inventory table
-        const inventoryTableData = inventoryData.map(item => {
-          const stats = itemStats[item.name] || { transactions: 0, totalQuantity: 0, totalRevenue: 0 };
+        // Create comprehensive table with inventory balance
+        const comprehensiveTableData = Object.entries(itemSales).map(([itemName, data]) => {
+          // Find inventory balance for this item
+          const inventoryItem = inventoryData.find(inv => inv.name === itemName);
+          let inventoryBalance = 'N/A';
           
-          // Special handling for elote - convert ounces to boxes
-          let displayStock = item.stock;
-          let displayUnit = item.unit || 'units';
-          
-          if (item.name === 'elote') {
-            // Convert ounces to boxes (480 oz per box) - only for the packaging inventory item
-            displayStock = (item.stock / 480).toFixed(2);
-            displayUnit = 'boxes';
+          if (inventoryItem) {
+            if (inventoryItem.name === 'elote') {
+              // Convert ounces to boxes for elote packaging
+              inventoryBalance = `${(inventoryItem.stock / 480).toFixed(2)} boxes`;
+            } else {
+              inventoryBalance = `${inventoryItem.stock} ${inventoryItem.unit || 'units'}`;
+            }
           }
           
           return [
-            item.name,
-            displayStock,
-            displayUnit,
-            stats.transactions,
-            `$${(stats.totalRevenue / 100).toFixed(2)}`
+            itemName,
+            data.quantity,
+            `$${(data.revenue / 100).toFixed(2)}`,
+            inventoryBalance
           ];
         });
 
-        yPosition = createSimpleTable(doc, ['Item', 'Stock', 'Unit', 'Sales', 'Revenue'], inventoryTableData, yPosition, margin);
+        yPosition = createSimpleTable(doc, ['Item', 'Qty Sold', 'Revenue', 'Inventory Balance'], comprehensiveTableData, yPosition, margin);
+        
+        // Add grand total
+        yPosition += 8; // Reduced spacing
+        doc.setFontSize(11); // Reduced from 12
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Grand Total Revenue: $${(grandTotalRevenue / 100).toFixed(2)}`, margin, yPosition);
+        yPosition += 12; // Reduced from 15
       }
 
-      // Employee Performance Summary
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Employee Performance Summary', margin, yPosition);
-      yPosition += 10;
-
+      // Employee Hours Summary - compact
       if (hoursData.length > 0) {
+        doc.setFontSize(13); // Reduced from 16
+        doc.setFont('helvetica', 'bold');
+        doc.text('Employee Hours Summary', margin, yPosition);
+        yPosition += 8; // Reduced from 10
+
         const employeeStats = calculateEmployeeStats();
         
         const employeeTableData = Object.entries(employeeStats).map(([name, stats]) => [
