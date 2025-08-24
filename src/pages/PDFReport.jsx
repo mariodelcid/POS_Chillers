@@ -207,23 +207,33 @@ export default function PDFReport() {
         doc.text('Sales Details', margin, yPosition);
         yPosition += 10;
 
-        const salesTableData = salesData.map(sale => {
-          const saleTotal = sale.totalCents || sale.total || 0;
+        // Group sales by item to show quantity sold per item
+        const itemSales = {};
+        salesData.forEach(sale => {
           const items = sale.items || [];
-          const itemNames = items.map(item => {
-            // Handle both item structures: item.item.name or item.name
-            return item.item ? item.item.name : item.name;
-          }).join(', ');
-          
-          return [
-            sale.id || 'N/A',
-            new Date(sale.createdAt).toLocaleTimeString(),
-            itemNames || 'No items',
-            `$${(saleTotal / 100).toFixed(2)}`
-          ];
+          items.forEach(item => {
+            const itemName = item.item ? item.item.name : item.name;
+            const quantity = item.quantity || 1;
+            const price = item.priceCents || 0;
+            
+            if (!itemSales[itemName]) {
+              itemSales[itemName] = {
+                quantity: 0,
+                revenue: 0
+              };
+            }
+            itemSales[itemName].quantity += quantity;
+            itemSales[itemName].revenue += price * quantity;
+          });
         });
 
-        yPosition = createSimpleTable(doc, ['Order #', 'Time', 'Items', 'Total'], salesTableData, yPosition, margin);
+        const salesTableData = Object.entries(itemSales).map(([itemName, data]) => [
+          itemName,
+          data.quantity,
+          `$${(data.revenue / 100).toFixed(2)}`
+        ]);
+
+        yPosition = createSimpleTable(doc, ['Item', 'Qty Sold', 'Revenue'], salesTableData, yPosition, margin);
       }
 
       // Enhanced Inventory Summary with Item Statistics
