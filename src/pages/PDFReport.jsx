@@ -276,10 +276,21 @@ export default function PDFReport() {
         // Create comprehensive inventory table
         const inventoryTableData = inventoryData.map(item => {
           const stats = itemStats[item.name] || { transactions: 0, totalQuantity: 0, totalRevenue: 0 };
+          
+          // Special handling for elote - convert ounces to boxes
+          let displayStock = item.stock;
+          let displayUnit = item.unit || 'units';
+          
+          if (item.name.toLowerCase().includes('elote')) {
+            // Convert ounces to boxes (480 oz per box)
+            displayStock = (item.stock / 480).toFixed(2);
+            displayUnit = 'boxes';
+          }
+          
           return [
             item.name,
-            item.stock,
-            item.unit || 'units',
+            displayStock,
+            displayUnit,
             stats.transactions,
             `$${(stats.totalRevenue / 100).toFixed(2)}`
           ];
