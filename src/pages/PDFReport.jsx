@@ -83,6 +83,76 @@ export default function PDFReport() {
     return yPosition + 10;
   };
 
+  // Helper function to calculate item statistics from sales data
+  const calculateItemStats = () => {
+    const itemStats = {};
+    
+    salesData.forEach(sale => {
+      const items = sale.items || [];
+      items.forEach(item => {
+        const itemName = item.item ? item.item.name : item.name;
+        if (!itemStats[itemName]) {
+          itemStats[itemName] = {
+            transactions: 0,
+            totalQuantity: 0,
+            totalRevenue: 0
+          };
+        }
+        itemStats[itemName].transactions += 1;
+        itemStats[itemName].totalQuantity += item.quantity || 1;
+        itemStats[itemName].totalRevenue += (item.priceCents || 0) * (item.quantity || 1);
+      });
+    });
+    
+    return itemStats;
+  };
+
+  // Helper function to calculate employee statistics
+  const calculateEmployeeStats = () => {
+    const employeeStats = {};
+    
+    // Calculate hours from time entries
+    hoursData.forEach(entry => {
+      if (!employeeStats[entry.employeeName]) {
+        employeeStats[entry.employeeName] = {
+          totalHours: 0,
+          clockIns: 0,
+          clockOuts: 0,
+          totalSales: 0
+        };
+      }
+      
+      if (entry.type === 'clock_in') {
+        employeeStats[entry.employeeName].clockIns += 1;
+      } else if (entry.type === 'clock_out') {
+        employeeStats[entry.employeeName].clockOuts += 1;
+      }
+    });
+    
+    // Calculate total hours for each employee
+    Object.keys(employeeStats).forEach(employeeName => {
+      const employee = employeeStats[employeeName];
+      const employeeHours = hoursData.filter(entry => entry.employeeName === employeeName);
+      
+      let totalHours = 0;
+      const clockIns = employeeHours.filter(entry => entry.type === 'clock_in')
+        .map(entry => new Date(entry.timestamp))
+        .sort((a, b) => a - b);
+      const clockOuts = employeeHours.filter(entry => entry.type === 'clock_out')
+        .map(entry => new Date(entry.timestamp))
+        .sort((a, b) => a - b);
+      
+      for (let i = 0; i < Math.min(clockIns.length, clockOuts.length); i++) {
+        const hours = (clockOuts[i] - clockIns[i]) / (1000 * 60 * 60);
+        totalHours += hours;
+      }
+      
+      employee.totalHours = totalHours;
+    });
+    
+    return employeeStats;
+  };
+
   const generatePDF = () => {
     try {
       console.log('Generating PDF with data:', { salesData, inventoryData, hoursData });
@@ -156,55 +226,47 @@ export default function PDFReport() {
         yPosition = createSimpleTable(doc, ['Order #', 'Time', 'Items', 'Total'], salesTableData, yPosition, margin);
       }
 
-      // Inventory Summary
+      // Enhanced Inventory Summary with Item Statistics
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('Inventory Summary', margin, yPosition);
+      doc.text('Inventory Summary & Item Performance', margin, yPosition);
       yPosition += 10;
 
       if (inventoryData.length > 0) {
-        const inventoryTableData = inventoryData.map(item => [
-          item.name,
-          item.stock,
-          item.unit || 'units'
-        ]);
+        const itemStats = calculateItemStats();
+        
+        // Create comprehensive inventory table
+        const inventoryTableData = inventoryData.map(item => {
+          const stats = itemStats[item.name] || { transactions: 0, totalQuantity: 0, totalRevenue: 0 };
+          return [
+            item.name,
+            item.stock,
+            item.unit || 'units',
+            stats.transactions,
+            `$${(stats.totalRevenue / 100).toFixed(2)}`
+          ];
+        });
 
-        yPosition = createSimpleTable(doc, ['Item', 'Stock', 'Unit'], inventoryTableData, yPosition, margin);
+        yPosition = createSimpleTable(doc, ['Item', 'Stock', 'Unit', 'Sales', 'Revenue'], inventoryTableData, yPosition, margin);
       }
 
-      // Hours Summary
+      // Employee Performance Summary
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('Employee Hours', margin, yPosition);
+      doc.text('Employee Performance Summary', margin, yPosition);
       yPosition += 10;
 
       if (hoursData.length > 0) {
-        const employeeHours = {};
-        hoursData.forEach(entry => {
-          if (!employeeHours[entry.employeeName]) {
-            employeeHours[entry.employeeName] = { clockIns: [], clockOuts: [] };
-          }
-          if (entry.type === 'clock_in') {
-            employeeHours[entry.employeeName].clockIns.push(new Date(entry.timestamp));
-          } else if (entry.type === 'clock_out') {
-            employeeHours[entry.employeeName].clockOuts.push(new Date(entry.timestamp));
-          }
-        });
+        const employeeStats = calculateEmployeeStats();
+        
+        const employeeTableData = Object.entries(employeeStats).map(([name, stats]) => [
+          name,
+          stats.totalHours.toFixed(2),
+          stats.clockIns,
+          stats.clockOuts
+        ]);
 
-        const hoursTableData = Object.entries(employeeHours).map(([name, times]) => {
-          let totalHours = 0;
-          const clockIns = times.clockIns.sort((a, b) => a - b);
-          const clockOuts = times.clockOuts.sort((a, b) => a - b);
-          
-          for (let i = 0; i < Math.min(clockIns.length, clockOuts.length); i++) {
-            const hours = (clockOuts[i] - clockIns[i]) / (1000 * 60 * 60);
-            totalHours += hours;
-          }
-
-          return [name, totalHours.toFixed(2), times.clockIns.length, times.clockOuts.length];
-        });
-
-        yPosition = createSimpleTable(doc, ['Employee', 'Hours', 'Ins', 'Outs'], hoursTableData, yPosition, margin);
+        yPosition = createSimpleTable(doc, ['Employee', 'Hours', 'Ins', 'Outs'], employeeTableData, yPosition, margin);
       }
 
       // Footer
