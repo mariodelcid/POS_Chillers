@@ -209,12 +209,25 @@ export default function PDFReport() {
 
         // Group sales by item to show quantity sold per item
         const itemSales = {};
+        let grandTotalRevenue = 0;
+        
+        // Debug: Log the first sale to see the data structure
+        if (salesData.length > 0) {
+          console.log('First sale structure:', salesData[0]);
+          console.log('First sale items:', salesData[0].items);
+        }
+        
         salesData.forEach(sale => {
           const items = sale.items || [];
           items.forEach(item => {
             const itemName = item.item ? item.item.name : item.name;
             const quantity = item.quantity || 1;
-            const price = item.priceCents || 0;
+            // Fix: Get price from the correct field and calculate revenue properly
+            const price = (item.priceCents || item.price || 0);
+            const itemRevenue = price * quantity;
+            
+            // Debug: Log item details
+            console.log('Processing item:', { itemName, quantity, price, itemRevenue, item });
             
             if (!itemSales[itemName]) {
               itemSales[itemName] = {
@@ -223,7 +236,8 @@ export default function PDFReport() {
               };
             }
             itemSales[itemName].quantity += quantity;
-            itemSales[itemName].revenue += price * quantity;
+            itemSales[itemName].revenue += itemRevenue;
+            grandTotalRevenue += itemRevenue;
           });
         });
 
@@ -234,6 +248,13 @@ export default function PDFReport() {
         ]);
 
         yPosition = createSimpleTable(doc, ['Item', 'Qty Sold', 'Revenue'], salesTableData, yPosition, margin);
+        
+        // Add grand total
+        yPosition += 10;
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Grand Total Revenue: $${(grandTotalRevenue / 100).toFixed(2)}`, margin, yPosition);
+        yPosition += 15;
       }
 
       // Enhanced Inventory Summary with Item Statistics
