@@ -281,8 +281,8 @@ export default function PDFReport() {
           let displayStock = item.stock;
           let displayUnit = item.unit || 'units';
           
-          if (item.name.toLowerCase().includes('elote')) {
-            // Convert ounces to boxes (480 oz per box)
+          if (item.name === 'elote') {
+            // Convert ounces to boxes (480 oz per box) - only for the packaging inventory item
             displayStock = (item.stock / 480).toFixed(2);
             displayUnit = 'boxes';
           }
