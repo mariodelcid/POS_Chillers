@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 
 export default function PDFReport() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -43,6 +42,45 @@ export default function PDFReport() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper function to create simple tables without autoTable
+  const createSimpleTable = (doc, headers, data, startY, margin) => {
+    let yPosition = startY;
+    const lineHeight = 8;
+    const colWidths = [30, 40, 80, 40]; // Adjust column widths as needed
+    
+    // Draw headers
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    let xPosition = margin;
+    headers.forEach((header, index) => {
+      doc.text(header, xPosition, yPosition);
+      xPosition += colWidths[index];
+    });
+    
+    yPosition += lineHeight;
+    
+    // Draw data rows
+    doc.setFont('helvetica', 'normal');
+    data.forEach(row => {
+      if (yPosition > doc.internal.pageSize.height - 40) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      
+      xPosition = margin;
+      row.forEach((cell, index) => {
+        // Truncate long text to fit column
+        const maxWidth = colWidths[index] - 2;
+        const truncatedText = doc.splitTextToSize(String(cell), maxWidth);
+        doc.text(truncatedText, xPosition, yPosition);
+        xPosition += colWidths[index];
+      });
+      yPosition += lineHeight;
+    });
+    
+    return yPosition + 10;
   };
 
   const generatePDF = () => {
@@ -115,16 +153,7 @@ export default function PDFReport() {
           ];
         });
 
-        doc.autoTable({
-          startY: yPosition,
-          head: [['Order #', 'Time', 'Items', 'Total']],
-          body: salesTableData,
-          margin: { left: margin },
-          styles: { fontSize: 10 },
-          headStyles: { fillColor: [41, 128, 185] }
-        });
-
-        yPosition = doc.lastAutoTable.finalY + 15;
+        yPosition = createSimpleTable(doc, ['Order #', 'Time', 'Items', 'Total'], salesTableData, yPosition, margin);
       }
 
       // Inventory Summary
@@ -140,16 +169,7 @@ export default function PDFReport() {
           item.unit || 'units'
         ]);
 
-        doc.autoTable({
-          startY: yPosition,
-          head: [['Item', 'Current Stock', 'Unit']],
-          body: inventoryTableData,
-          margin: { left: margin },
-          styles: { fontSize: 10 },
-          headStyles: { fillColor: [39, 174, 96] }
-        });
-
-        yPosition = doc.lastAutoTable.finalY + 15;
+        yPosition = createSimpleTable(doc, ['Item', 'Stock', 'Unit'], inventoryTableData, yPosition, margin);
       }
 
       // Hours Summary
@@ -184,14 +204,7 @@ export default function PDFReport() {
           return [name, totalHours.toFixed(2), times.clockIns.length, times.clockOuts.length];
         });
 
-        doc.autoTable({
-          startY: yPosition,
-          head: [['Employee', 'Total Hours', 'Clock Ins', 'Clock Outs']],
-          body: hoursTableData,
-          margin: { left: margin },
-          styles: { fontSize: 10 },
-          headStyles: { fillColor: [155, 89, 182] }
-        });
+        yPosition = createSimpleTable(doc, ['Employee', 'Hours', 'Ins', 'Outs'], hoursTableData, yPosition, margin);
       }
 
       // Footer
