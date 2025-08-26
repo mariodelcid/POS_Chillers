@@ -257,107 +257,50 @@ export default function PDFReport() {
           });
         });
 
-        // Create comprehensive table with inventory balance
+        // Create sales table (without inventory balance)
         const comprehensiveTableData = Object.entries(itemSales).map(([itemName, data]) => {
-          // Find inventory balance for this item using item-to-packaging mapping
-          let inventoryBalance = 'N/A';
-          
-          // Item to packaging mapping (from seed-packaging.js)
-          const itemPackagingMapping = {
-            // Bobas -> 24clear
-            'Boba Coffee': '24clear',
-            'Boba Customized': '24clear',
-            'Boba Strawberry': '24clear',
-            'Boba Taro': '24clear',
-            'Tiger Milk': '24clear',
-            
-            // Chamoyadas -> 20clear
-            'Chamoyada de Tamarindo': '20clear',
-            'Chamoyada Fresa': '20clear',
-            'Chamoyada Mango': '20clear',
-            'Chamoyada Sandía': '20clear',
-            
-            // Refreshers -> 24clear
-            'Coco Rosa': '24clear',
-            'Horchata Canela': '24clear',
-            'Horchata Fresa': '24clear',
-            'Limonada': '24clear',
-            'Mango Peach Dragonfruit': '24clear',
-            'Red Bull Preparado': '24clear',
-            'Strawberry Acai': '24clear',
-            
-            // Milk Shakes -> 20clear
-            'Caramel Frappuccino': '20clear',
-            'Cookies and Cream': '20clear',
-            'Malteada Chocolate': '20clear',
-            'Malteada de Taro': '20clear',
-            'Malteada de Fresa': '20clear',
-            'Malteada Vainilla': '20clear',
-            
-            // Snacks with their own packaging
-            'Cheetos': 'chetos',
-            'Conchitas': 'conchitas',
-            'Takis': 'takis',
-            'Tostitos': 'tostitos',
-            'Sopa': 'sopas',
-            
-            // Crepas -> charolas
-            'Crepas': 'charolas',
-            
-            // Elotes in cups
-            'Elote Chico': 'elote chico',
-            'Elote Grande': 'elote grande',
-            'Elote Entero': 'charolas',
-            
-            // Fresa con crema
-            'Fresa Con Crema 16 oz': '16clear',
-            
-            // Ice cream - nievecup
-            'Vaso Nieve 1 Scoop': 'nievecup',
-            'Vaso Nieve 2 Scoops': 'nievecup',
-            
-            // Toppings and Discount (no packaging needed)
-            'Queso Extra': null,
-            'Toppings': null,
-            'Discount': null,
-          };
-          
-          const packagingName = itemPackagingMapping[itemName];
-          
-          if (packagingName) {
-            // Find the packaging material in inventory
-            const inventoryItem = inventoryData.find(inv => inv.name === packagingName);
-            
-            if (inventoryItem) {
-              if (inventoryItem.name === 'elote') {
-                // Convert ounces to boxes for elote packaging
-                inventoryBalance = `${(inventoryItem.stock / 480).toFixed(2)} boxes`;
-              } else {
-                inventoryBalance = `${inventoryItem.stock} ${inventoryItem.unit || 'units'}`;
-              }
-              console.log(`Found inventory for ${itemName} (packaging: ${packagingName}):`, inventoryItem);
-            } else {
-              console.log(`No inventory found for packaging: ${packagingName}`);
-            }
-          } else {
-            console.log(`No packaging mapping for item: ${itemName}`);
-          }
-          
           return [
             itemName,
             data.quantity,
-            `$${(data.revenue / 100).toFixed(2)}`,
-            inventoryBalance
+            `$${(data.revenue / 100).toFixed(2)}`
           ];
         });
 
-        yPosition = createSimpleTable(doc, ['Item', 'Qty Sold', 'Revenue', 'Inventory Balance'], comprehensiveTableData, yPosition, margin);
+        yPosition = createSimpleTable(doc, ['Item', 'Qty Sold', 'Revenue'], comprehensiveTableData, yPosition, margin);
         
         // Add grand total
         yPosition += 8; // Reduced spacing
         doc.setFontSize(11); // Reduced from 12
         doc.setFont('helvetica', 'bold');
         doc.text(`Grand Total Revenue: $${(grandTotalRevenue / 100).toFixed(2)}`, margin, yPosition);
+        yPosition += 12; // Reduced from 15
+      }
+
+      // Separate Inventory Table
+      if (inventoryData.length > 0) {
+        doc.setFontSize(13); // Reduced from 14
+        doc.setFont('helvetica', 'bold');
+        doc.text('Inventory Balance', margin, yPosition);
+        yPosition += 8; // Reduced from 10
+
+        // Create inventory table with actual inventory items
+        const inventoryTableData = inventoryData.map(inventoryItem => {
+          let displayStock = inventoryItem.stock;
+          let unit = inventoryItem.unit || 'units';
+          
+          if (inventoryItem.name === 'elote') {
+            // Convert ounces to boxes for elote packaging
+            displayStock = (inventoryItem.stock / 480).toFixed(2);
+            unit = 'boxes';
+          }
+          
+          return [
+            inventoryItem.name,
+            `${displayStock} ${unit}`
+          ];
+        });
+
+        yPosition = createSimpleTable(doc, ['Inventory Item', 'Current Stock'], inventoryTableData, yPosition, margin);
         yPosition += 12; // Reduced from 15
       }
 
