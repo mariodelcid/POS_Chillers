@@ -96,12 +96,13 @@ app.get('/api/sales', async (req, res) => {
     if (startDate || endDate) {
       whereClause.createdAt = {};
       if (startDate) {
-        whereClause.createdAt.gte = new Date(startDate);
+        // Convert local date to UTC start of day
+        const startDateTime = new Date(startDate + 'T00:00:00.000Z');
+        whereClause.createdAt.gte = startDateTime;
       }
       if (endDate) {
-        // Set end date to end of day
-        const endDateTime = new Date(endDate);
-        endDateTime.setHours(23, 59, 59, 999);
+        // Convert local date to UTC end of day
+        const endDateTime = new Date(endDate + 'T23:59:59.999Z');
         whereClause.createdAt.lte = endDateTime;
       }
     }
@@ -135,12 +136,13 @@ app.get('/api/sales/stats', async (req, res) => {
     if (startDate || endDate) {
       whereClause.createdAt = {};
       if (startDate) {
-        whereClause.createdAt.gte = new Date(startDate);
+        // Convert local date to UTC start of day
+        const startDateTime = new Date(startDate + 'T00:00:00.000Z');
+        whereClause.createdAt.gte = startDateTime;
       }
       if (endDate) {
-        // Set end date to end of day
-        const endDateTime = new Date(endDate);
-        endDateTime.setHours(23, 59, 59, 999);
+        // Convert local date to UTC end of day
+        const endDateTime = new Date(endDate + 'T23:59:59.999Z');
         whereClause.createdAt.lte = endDateTime;
       }
     }
@@ -186,24 +188,20 @@ app.get('/api/sales/stats', async (req, res) => {
 
     const topItems = Object.entries(itemStats)
       .map(([name, stats]) => ({ name, ...stats }))
-      .sort((a, b) => b.quantity - a.quantity)
+      .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10);
 
     res.json({
-      summary: {
-        totalSales,
-        cashSales,
-        creditSales,
-        totalPurchases,
-        netCash,
-        totalTransactions
-      },
-      topItems,
-      sales,
-      purchases
+      totalSales,
+      cashSales,
+      creditSales,
+      totalPurchases,
+      netCash,
+      totalTransactions,
+      topItems
     });
   } catch (error) {
-    console.error('Error fetching sales stats:', error);
+    console.error('Error fetching sales statistics:', error);
     res.status(500).json({ error: 'Failed to fetch sales statistics' });
   }
 });
@@ -242,6 +240,36 @@ app.post('/api/sales', async (req, res) => {
         return res.status(400).json({ error: 'Insufficient cash tendered' });
       }
       changeDueCents = amountTenderedCents - totalCents;
+    }
+
+    // Check elote inventory before proceeding
+    const eloteItems = items.filter(line => {
+      const dbItem = idToItem.get(line.itemId);
+      return dbItem && (dbItem.name === 'Elote Chico' || dbItem.name === 'Elote Grande');
+    });
+
+    if (eloteItems.length > 0) {
+      const elotePackaging = await prisma.packagingMaterial.findUnique({
+        where: { name: 'elote' }
+      });
+      
+      if (!elotePackaging) {
+        return res.status(400).json({ error: 'Elote packaging material not found' });
+      }
+
+      let totalEloteOuncesNeeded = 0;
+      for (const line of eloteItems) {
+        const dbItem = idToItem.get(line.itemId);
+        if (dbItem.name === 'Elote Chico') {
+          totalEloteOuncesNeeded += line.quantity * 8; // 8 oz per elote chico
+        } else if (dbItem.name === 'Elote Grande') {
+          totalEloteOuncesNeeded += line.quantity * 14; // 14 oz per elote grande
+        }
+      }
+
+      if (elotePackaging.stock < totalEloteOuncesNeeded) {
+        return res.status(400).json({ error: `Insufficient elote stock. Need ${totalEloteOuncesNeeded} oz, have ${elotePackaging.stock} oz` });
+      }
     }
 
     const result = await prisma.$transaction(async (tx) => {
@@ -322,12 +350,13 @@ app.get('/api/purchases', async (req, res) => {
     if (startDate || endDate) {
       whereClause.createdAt = {};
       if (startDate) {
-        whereClause.createdAt.gte = new Date(startDate);
+        // Convert local date to UTC start of day
+        const startDateTime = new Date(startDate + 'T00:00:00.000Z');
+        whereClause.createdAt.gte = startDateTime;
       }
       if (endDate) {
-        // Set end date to end of day
-        const endDateTime = new Date(endDate);
-        endDateTime.setHours(23, 59, 59, 999);
+        // Convert local date to UTC end of day
+        const endDateTime = new Date(endDate + 'T23:59:59.999Z');
         whereClause.createdAt.lte = endDateTime;
       }
     }
@@ -436,12 +465,13 @@ app.get('/api/time-entries', async (req, res) => {
     if (startDate || endDate) {
       whereClause.timestamp = {};
       if (startDate) {
-        whereClause.timestamp.gte = new Date(startDate);
+        // Convert local date to UTC start of day
+        const startDateTime = new Date(startDate + 'T00:00:00.000Z');
+        whereClause.timestamp.gte = startDateTime;
       }
       if (endDate) {
-        // Set end date to end of day
-        const endDateTime = new Date(endDate);
-        endDateTime.setHours(23, 59, 59, 999);
+        // Convert local date to UTC end of day
+        const endDateTime = new Date(endDate + 'T23:59:59.999Z');
         whereClause.timestamp.lte = endDateTime;
       }
     }
