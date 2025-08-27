@@ -1,8 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 
+// Helper function to get today's date in local timezone
+function getTodayLocal() {
+  const now = new Date();
+  return now.toISOString().split('T')[0];
+}
+
+// Helper function to check if a date is today in local timezone
+function isToday(dateString) {
+  const today = new Date();
+  const date = new Date(dateString);
+  
+  return date.getDate() === today.getDate() &&
+         date.getMonth() === today.getMonth() &&
+         date.getFullYear() === today.getFullYear();
+}
+
 export default function PDFReport() {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(getTodayLocal());
   const [salesData, setSalesData] = useState([]);
   const [inventoryData, setInventoryData] = useState([]);
   const [hoursData, setHoursData] = useState([]);
@@ -17,6 +33,8 @@ export default function PDFReport() {
     setLoading(true);
     setError('');
     try {
+      console.log('PDF Report: Fetching data for date:', selectedDate);
+      
       // Fetch sales data for the selected date
       const salesResponse = await fetch(`/api/sales?startDate=${selectedDate}&endDate=${selectedDate}`);
       if (!salesResponse.ok) throw new Error('Failed to fetch sales data');
@@ -35,7 +53,14 @@ export default function PDFReport() {
       const hours = await hoursResponse.json();
       setHoursData(hours);
 
-      console.log('Fetched data:', { sales, inventory, hours });
+      console.log('PDF Report: Fetched data for date:', selectedDate, { 
+        salesCount: sales.length, 
+        inventoryCount: inventory.length, 
+        hoursCount: hours.length,
+        sales: sales,
+        inventory: inventory,
+        hours: hours 
+      });
     } catch (error) {
       console.error('Error fetching data:', error);
       setError(`Error fetching data: ${error.message}`);
