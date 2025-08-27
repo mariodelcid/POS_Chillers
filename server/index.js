@@ -96,18 +96,16 @@ app.get('/api/sales', async (req, res) => {
     if (startDate || endDate) {
       whereClause.createdAt = {};
       if (startDate) {
-        // Create date in local timezone, then convert to UTC
-        const localStartDate = new Date(startDate + 'T00:00:00');
-        const utcStartDate = new Date(localStartDate.getTime() - localStartDate.getTimezoneOffset() * 60000);
-        whereClause.createdAt.gte = utcStartDate;
-        console.log('Sales API - Start Date:', { startDate, localStartDate, utcStartDate });
+        // Use date-only comparison (start of day in local timezone)
+        const startDateTime = new Date(startDate + 'T00:00:00');
+        whereClause.createdAt.gte = startDateTime;
+        console.log('Sales API - Start Date:', { startDate, startDateTime });
       }
       if (endDate) {
-        // Create date in local timezone, then convert to UTC
-        const localEndDate = new Date(endDate + 'T23:59:59.999');
-        const utcEndDate = new Date(localEndDate.getTime() - localEndDate.getTimezoneOffset() * 60000);
-        whereClause.createdAt.lte = utcEndDate;
-        console.log('Sales API - End Date:', { endDate, localEndDate, utcEndDate });
+        // Use date-only comparison (end of day in local timezone)
+        const endDateTime = new Date(endDate + 'T23:59:59.999');
+        whereClause.createdAt.lte = endDateTime;
+        console.log('Sales API - End Date:', { endDate, endDateTime });
       }
     }
 
@@ -150,16 +148,14 @@ app.get('/api/sales/stats', async (req, res) => {
     if (startDate || endDate) {
       whereClause.createdAt = {};
       if (startDate) {
-        // Create date in local timezone, then convert to UTC
-        const localStartDate = new Date(startDate + 'T00:00:00');
-        const utcStartDate = new Date(localStartDate.getTime() - localStartDate.getTimezoneOffset() * 60000);
-        whereClause.createdAt.gte = utcStartDate;
+        // Use date-only comparison (start of day in local timezone)
+        const startDateTime = new Date(startDate + 'T00:00:00');
+        whereClause.createdAt.gte = startDateTime;
       }
       if (endDate) {
-        // Create date in local timezone, then convert to UTC
-        const localEndDate = new Date(endDate + 'T23:59:59.999');
-        const utcEndDate = new Date(localEndDate.getTime() - localEndDate.getTimezoneOffset() * 60000);
-        whereClause.createdAt.lte = utcEndDate;
+        // Use date-only comparison (end of day in local timezone)
+        const endDateTime = new Date(endDate + 'T23:59:59.999');
+        whereClause.createdAt.lte = endDateTime;
       }
     }
 
@@ -419,16 +415,14 @@ app.get('/api/purchases', async (req, res) => {
     if (startDate || endDate) {
       whereClause.createdAt = {};
       if (startDate) {
-        // Create date in local timezone, then convert to UTC
-        const localStartDate = new Date(startDate + 'T00:00:00');
-        const utcStartDate = new Date(localStartDate.getTime() - localStartDate.getTimezoneOffset() * 60000);
-        whereClause.createdAt.gte = utcStartDate;
+        // Use date-only comparison (start of day in local timezone)
+        const startDateTime = new Date(startDate + 'T00:00:00');
+        whereClause.createdAt.gte = startDateTime;
       }
       if (endDate) {
-        // Create date in local timezone, then convert to UTC
-        const localEndDate = new Date(endDate + 'T23:59:59.999');
-        const utcEndDate = new Date(localEndDate.getTime() - localEndDate.getTimezoneOffset() * 60000);
-        whereClause.createdAt.lte = utcEndDate;
+        // Use date-only comparison (end of day in local timezone)
+        const endDateTime = new Date(endDate + 'T23:59:59.999');
+        whereClause.createdAt.lte = endDateTime;
       }
     }
 
@@ -536,16 +530,14 @@ app.get('/api/time-entries', async (req, res) => {
     if (startDate || endDate) {
       whereClause.timestamp = {};
       if (startDate) {
-        // Create date in local timezone, then convert to UTC
-        const localStartDate = new Date(startDate + 'T00:00:00');
-        const utcStartDate = new Date(localStartDate.getTime() - localStartDate.getTimezoneOffset() * 60000);
-        whereClause.timestamp.gte = utcStartDate;
+        // Use date-only comparison (start of day in local timezone)
+        const startDateTime = new Date(startDate + 'T00:00:00');
+        whereClause.timestamp.gte = startDateTime;
       }
       if (endDate) {
-        // Create date in local timezone, then convert to UTC
-        const localEndDate = new Date(endDate + 'T23:59:59.999');
-        const utcEndDate = new Date(localEndDate.getTime() - localEndDate.getTimezoneOffset() * 60000);
-        whereClause.timestamp.lte = utcEndDate;
+        // Use date-only comparison (end of day in local timezone)
+        const endDateTime = new Date(endDate + 'T23:59:59.999');
+        whereClause.timestamp.lte = endDateTime;
       }
     }
 
