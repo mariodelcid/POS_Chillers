@@ -237,7 +237,7 @@ app.post('/api/sales', async (req, res) => {
     for (const line of items) {
       const dbItem = idToItem.get(line.itemId);
       if (!dbItem) return res.status(400).json({ error: `Item not found: ${line.itemId}` });
-      if (dbItem.stock < line.quantity) return res.status(400).json({ error: `Insufficient stock for ${dbItem.name}` });
+      // Note: We don't check item.stock here because we check packaging materials instead
       subtotalCents += dbItem.priceCents * line.quantity;
     }
     const taxCents = 0; // Adjust if tax required
@@ -357,11 +357,7 @@ app.post('/api/sales', async (req, res) => {
           },
         });
         
-        // Decrement item stock
-        await tx.item.update({
-          where: { id: dbItem.id },
-          data: { stock: { decrement: line.quantity } },
-        });
+        // Note: We don't decrement item.stock here because we only manage packaging materials
 
         // Track packaging usage
         if (dbItem.packaging) {
