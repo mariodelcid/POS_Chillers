@@ -96,14 +96,18 @@ app.get('/api/sales', async (req, res) => {
     if (startDate || endDate) {
       whereClause.createdAt = {};
       if (startDate) {
-        // Convert local date to UTC start of day
-        const startDateTime = new Date(startDate + 'T00:00:00.000Z');
-        whereClause.createdAt.gte = startDateTime;
+        // Create date in local timezone, then convert to UTC
+        const localStartDate = new Date(startDate + 'T00:00:00');
+        const utcStartDate = new Date(localStartDate.getTime() - localStartDate.getTimezoneOffset() * 60000);
+        whereClause.createdAt.gte = utcStartDate;
+        console.log('Sales API - Start Date:', { startDate, localStartDate, utcStartDate });
       }
       if (endDate) {
-        // Convert local date to UTC end of day
-        const endDateTime = new Date(endDate + 'T23:59:59.999Z');
-        whereClause.createdAt.lte = endDateTime;
+        // Create date in local timezone, then convert to UTC
+        const localEndDate = new Date(endDate + 'T23:59:59.999');
+        const utcEndDate = new Date(localEndDate.getTime() - localEndDate.getTimezoneOffset() * 60000);
+        whereClause.createdAt.lte = utcEndDate;
+        console.log('Sales API - End Date:', { endDate, localEndDate, utcEndDate });
       }
     }
 
@@ -118,6 +122,16 @@ app.get('/api/sales', async (req, res) => {
       },
       orderBy: { createdAt: 'desc' },
     });
+    
+    console.log('Sales API - Query result:', { 
+      startDate, 
+      endDate, 
+      whereClause, 
+      salesCount: sales.length,
+      firstSale: sales[0] ? sales[0].createdAt : null,
+      lastSale: sales[sales.length - 1] ? sales[sales.length - 1].createdAt : null
+    });
+    
     res.json(sales);
   } catch (error) {
     console.error('Error fetching sales:', error);
@@ -136,14 +150,16 @@ app.get('/api/sales/stats', async (req, res) => {
     if (startDate || endDate) {
       whereClause.createdAt = {};
       if (startDate) {
-        // Convert local date to UTC start of day
-        const startDateTime = new Date(startDate + 'T00:00:00.000Z');
-        whereClause.createdAt.gte = startDateTime;
+        // Create date in local timezone, then convert to UTC
+        const localStartDate = new Date(startDate + 'T00:00:00');
+        const utcStartDate = new Date(localStartDate.getTime() - localStartDate.getTimezoneOffset() * 60000);
+        whereClause.createdAt.gte = utcStartDate;
       }
       if (endDate) {
-        // Convert local date to UTC end of day
-        const endDateTime = new Date(endDate + 'T23:59:59.999Z');
-        whereClause.createdAt.lte = endDateTime;
+        // Create date in local timezone, then convert to UTC
+        const localEndDate = new Date(endDate + 'T23:59:59.999');
+        const utcEndDate = new Date(localEndDate.getTime() - localEndDate.getTimezoneOffset() * 60000);
+        whereClause.createdAt.lte = utcEndDate;
       }
     }
 
@@ -350,14 +366,16 @@ app.get('/api/purchases', async (req, res) => {
     if (startDate || endDate) {
       whereClause.createdAt = {};
       if (startDate) {
-        // Convert local date to UTC start of day
-        const startDateTime = new Date(startDate + 'T00:00:00.000Z');
-        whereClause.createdAt.gte = startDateTime;
+        // Create date in local timezone, then convert to UTC
+        const localStartDate = new Date(startDate + 'T00:00:00');
+        const utcStartDate = new Date(localStartDate.getTime() - localStartDate.getTimezoneOffset() * 60000);
+        whereClause.createdAt.gte = utcStartDate;
       }
       if (endDate) {
-        // Convert local date to UTC end of day
-        const endDateTime = new Date(endDate + 'T23:59:59.999Z');
-        whereClause.createdAt.lte = endDateTime;
+        // Create date in local timezone, then convert to UTC
+        const localEndDate = new Date(endDate + 'T23:59:59.999');
+        const utcEndDate = new Date(localEndDate.getTime() - localEndDate.getTimezoneOffset() * 60000);
+        whereClause.createdAt.lte = utcEndDate;
       }
     }
 
@@ -465,14 +483,16 @@ app.get('/api/time-entries', async (req, res) => {
     if (startDate || endDate) {
       whereClause.timestamp = {};
       if (startDate) {
-        // Convert local date to UTC start of day
-        const startDateTime = new Date(startDate + 'T00:00:00.000Z');
-        whereClause.timestamp.gte = startDateTime;
+        // Create date in local timezone, then convert to UTC
+        const localStartDate = new Date(startDate + 'T00:00:00');
+        const utcStartDate = new Date(localStartDate.getTime() - localStartDate.getTimezoneOffset() * 60000);
+        whereClause.timestamp.gte = utcStartDate;
       }
       if (endDate) {
-        // Convert local date to UTC end of day
-        const endDateTime = new Date(endDate + 'T23:59:59.999Z');
-        whereClause.timestamp.lte = endDateTime;
+        // Create date in local timezone, then convert to UTC
+        const localEndDate = new Date(endDate + 'T23:59:59.999');
+        const utcEndDate = new Date(localEndDate.getTime() - localEndDate.getTimezoneOffset() * 60000);
+        whereClause.timestamp.lte = utcEndDate;
       }
     }
 
