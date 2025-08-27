@@ -261,30 +261,76 @@ app.post('/api/sales', async (req, res) => {
     // Check elote inventory before proceeding
     const eloteItems = items.filter(line => {
       const dbItem = idToItem.get(line.itemId);
-      return dbItem && (dbItem.name === 'Elote Chico' || dbItem.name === 'Elote Grande');
+      return dbItem && (dbItem.name === 'Elote Chico' || dbItem.name === 'Elote Grande' || dbItem.name === 'Elote Entero');
     });
 
     if (eloteItems.length > 0) {
-      const elotePackaging = await prisma.packagingMaterial.findUnique({
-        where: { name: 'elote' }
-      });
-      
-      if (!elotePackaging) {
-        return res.status(400).json({ error: 'Elote packaging material not found' });
-      }
-
-      let totalEloteOuncesNeeded = 0;
-      for (const line of eloteItems) {
+      // Check elote ounces for Chico and Grande
+      const eloteOunceItems = eloteItems.filter(line => {
         const dbItem = idToItem.get(line.itemId);
-        if (dbItem.name === 'Elote Chico') {
-          totalEloteOuncesNeeded += line.quantity * 8; // 8 oz per elote chico
-        } else if (dbItem.name === 'Elote Grande') {
-          totalEloteOuncesNeeded += line.quantity * 14; // 14 oz per elote grande
+        return dbItem && (dbItem.name === 'Elote Chico' || dbItem.name === 'Elote Grande');
+      });
+
+      if (eloteOunceItems.length > 0) {
+        const elotePackaging = await prisma.packagingMaterial.findUnique({
+          where: { name: 'elote' }
+        });
+        
+        if (!elotePackaging) {
+          return res.status(400).json({ error: 'Elote packaging material not found' });
+        }
+
+        let totalEloteOuncesNeeded = 0;
+        for (const line of eloteOunceItems) {
+          const dbItem = idToItem.get(line.itemId);
+          if (dbItem.name === 'Elote Chico') {
+            totalEloteOuncesNeeded += line.quantity * 8; // 8 oz per elote chico
+          } else if (dbItem.name === 'Elote Grande') {
+            totalEloteOuncesNeeded += line.quantity * 14; // 14 oz per elote grande
+          }
+        }
+
+        if (elotePackaging.stock < totalEloteOuncesNeeded) {
+          return res.status(400).json({ error: `Insufficient elote stock. Need ${totalEloteOuncesNeeded} oz, have ${elotePackaging.stock} oz` });
         }
       }
 
-      if (elotePackaging.stock < totalEloteOuncesNeeded) {
-        return res.status(400).json({ error: `Insufficient elote stock. Need ${totalEloteOuncesNeeded} oz, have ${elotePackaging.stock} oz` });
+      // Check elote entero stock
+      const eloteEnteroItems = eloteItems.filter(line => {
+        const dbItem = idToItem.get(line.itemId);
+        return dbItem && dbItem.name === 'Elote Entero';
+      });
+
+      if (eloteEnteroItems.length > 0) {
+        const eloteEnteroPackaging = await prisma.packagingMaterial.findUnique({
+          where: { name: 'elote entero' }
+        });
+        
+        if (!eloteEnteroPackaging) {
+          return res.status(400).json({ error: 'Elote entero packaging material not found' });
+        }
+
+        let totalEloteEnteroNeeded = 0;
+        for (const line of eloteEnteroItems) {
+          totalEloteEnteroNeeded += line.quantity;
+        }
+
+        if (eloteEnteroPackaging.stock < totalEloteEnteroNeeded) {
+          return res.status(400).json({ error: `Insufficient elote entero stock. Need ${totalEloteEnteroNeeded}, have ${eloteEnteroPackaging.stock}` });
+        }
+
+        // Also check charolas stock for Elote Entero
+        const charolasPackaging = await prisma.packagingMaterial.findUnique({
+          where: { name: 'charolas' }
+        });
+        
+        if (!charolasPackaging) {
+          return res.status(400).json({ error: 'Charolas packaging material not found' });
+        }
+
+        if (charolasPackaging.stock < totalEloteEnteroNeeded) {
+          return res.status(400).json({ error: `Insufficient charolas stock. Need ${totalEloteEnteroNeeded}, have ${charolasPackaging.stock}` });
+        }
       }
     }
 
@@ -334,6 +380,13 @@ app.post('/api/sales', async (req, res) => {
         } else if (dbItem.name === 'Elote Grande') {
           const current = packagingUsage.get('elote') || 0;
           packagingUsage.set('elote', current + (line.quantity * 14)); // 14 oz per elote grande
+        } else if (dbItem.name === 'Elote Entero') {
+          // Elote Entero deducts from both charolas and elote entero
+          const currentCharolas = packagingUsage.get('charolas') || 0;
+          packagingUsage.set('charolas', currentCharolas + line.quantity);
+          
+          const currentEloteEntero = packagingUsage.get('elote entero') || 0;
+          packagingUsage.set('elote entero', currentEloteEntero + line.quantity);
         }
       }
 

@@ -17,6 +17,7 @@ const packagingMaterials = [
   { name: 'tostitos', stock: 100 },
   { name: 'nievecup', stock: 250 },
   { name: 'elote', stock: 480 }, // 480 ounces per box
+  { name: 'elote entero', stock: 200 }, // New inventory item for Elote Entero
 ];
 
 // Item to packaging mapping
@@ -64,7 +65,7 @@ const itemPackagingMapping = [
   // Elotes in cups
   { itemName: 'Elote Chico', packaging: 'elote chico' },
   { itemName: 'Elote Grande', packaging: 'elote grande' },
-  { itemName: 'Elote Entero', packaging: 'charolas' },
+  { itemName: 'Elote Entero', packaging: 'elote entero' },
   
   // Fresa con crema
   { itemName: 'Fresa Con Crema 16 oz', packaging: '16clear' },
