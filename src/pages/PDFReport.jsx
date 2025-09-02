@@ -13,14 +13,48 @@ const PDFReport = () => {
   const getDateRange = (dateString) => {
     const date = new Date(dateString);
     
-    // For UTC-6 (America/Chicago), when user selects "2025-09-01":
-    // Start: 00:00:00 local = 06:00:00 UTC
-    // End: 23:59:59 local = 05:59:59 UTC (next day)
-    
-    const startDate = dateString;
-    const endDate = dateString;
-    
-    return { startDate, endDate };
+    // Check if this is a week selection (contains 'W' for week)
+    if (dateString.includes('W')) {
+      // For week ranges, we need to calculate the full week
+      const year = parseInt(dateString.split('-')[0]);
+      const week = parseInt(dateString.split('W')[1]);
+      
+      // Get the first day of the week (Sunday)
+      const firstDayOfYear = new Date(year, 0, 1);
+      const daysToFirstSunday = (7 - firstDayOfYear.getDay()) % 7;
+      const firstSunday = new Date(year, 0, 1 + daysToFirstSunday);
+      
+      // Calculate the start of the selected week
+      const weekStart = new Date(firstSunday);
+      weekStart.setDate(firstSunday.getDate() + (week - 1) * 7);
+      
+      // Calculate the end of the selected week (Saturday)
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      
+      console.log('🔍 PDF Report: Week calculation:', {
+        input: dateString,
+        year,
+        week,
+        weekStart: weekStart.toISOString().split('T')[0],
+        weekEnd: weekEnd.toISOString().split('T')[0]
+      });
+      
+      return {
+        startDate: weekStart.toISOString().split('T')[0],
+        endDate: weekEnd.toISOString().split('T')[0]
+      };
+    } else {
+      // For single date selection
+      // For UTC-6 (America/Chicago), when user selects "2025-09-01":
+      // Start: 00:00:00 local = 06:00:00 UTC
+      // End: 23:59:59 local = 05:59:59 UTC (next day)
+      
+      const startDate = dateString;
+      const endDate = dateString;
+      
+      return { startDate, endDate };
+    }
   };
 
   // Helper function to create simple table in PDF
@@ -234,6 +268,8 @@ const PDFReport = () => {
       // Hours Summary
       if (hoursData.length > 0) {
         console.log('🔍 PDF Report: Processing hours data...');
+        console.log('🔍 PDF Report: Raw hours data:', hoursData);
+        
         if (currentY > 200) {
           doc.addPage();
           currentY = 20;
@@ -247,6 +283,8 @@ const PDFReport = () => {
         const employeeHours = {};
         hoursData.forEach(entry => {
           const employeeName = entry.employeeName;
+          console.log('🔍 PDF Report: Processing entry for employee:', employeeName, 'type:', entry.type, 'timestamp:', entry.timestamp);
+          
           if (!employeeHours[employeeName]) {
             employeeHours[employeeName] = {
               clockIns: [],
@@ -262,6 +300,8 @@ const PDFReport = () => {
           }
         });
         
+        console.log('🔍 PDF Report: Employee hours grouped:', employeeHours);
+        
         // Calculate actual hours worked for each employee
         Object.keys(employeeHours).forEach(employeeName => {
           const employee = employeeHours[employeeName];
@@ -269,6 +309,11 @@ const PDFReport = () => {
           // Sort clock ins and outs chronologically
           employee.clockIns.sort((a, b) => a - b);
           employee.clockOuts.sort((a, b) => a - b);
+          
+          console.log('🔍 PDF Report: Employee', employeeName, 'sorted times:', {
+            clockIns: employee.clockIns.map(d => d.toISOString()),
+            clockOuts: employee.clockOuts.map(d => d.toISOString())
+          });
           
           // Calculate total hours by pairing clock ins with clock outs
           let totalHours = 0;
@@ -281,9 +326,16 @@ const PDFReport = () => {
             // Calculate hours between clock in and clock out
             const hoursWorked = (clockOut - clockIn) / (1000 * 60 * 60);
             totalHours += hoursWorked;
+            
+            console.log('🔍 PDF Report: Pair', i + 1, 'for', employeeName, ':', {
+              clockIn: clockIn.toISOString(),
+              clockOut: clockOut.toISOString(),
+              hoursWorked: hoursWorked.toFixed(2)
+            });
           }
           
           employee.totalHours = totalHours;
+          console.log('🔍 PDF Report: Total hours for', employeeName, ':', totalHours.toFixed(2));
         });
         
         // Create hours table data
@@ -294,7 +346,7 @@ const PDFReport = () => {
           'Hours Worked': data.totalHours.toFixed(2)
         }));
         
-        console.log('🔍 PDF Report: Hours calculation results:', hoursTableData);
+        console.log('🔍 PDF Report: Final hours table data:', hoursTableData);
         
         const headers = ['Employee', 'Clock Ins', 'Clock Outs', 'Hours Worked'];
         currentY = createSimpleTable(doc, hoursTableData, headers, currentY);
