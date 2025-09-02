@@ -123,6 +123,7 @@ app.get('/api/sales', async (req, res) => {
         const timezoneOffset = startDateTime.getTimezoneOffset() * 60000; // Convert to milliseconds
         const adjustedStartDateTime = new Date(startDateTime.getTime() - timezoneOffset);
         whereClause.createdAt.gte = adjustedStartDateTime;
+        
         console.log('Sales API - Start Date:', { 
           startDate, 
           startDateTime, 
@@ -139,6 +140,7 @@ app.get('/api/sales', async (req, res) => {
         const timezoneOffset = endDateTime.getTimezoneOffset() * 60000; // Convert to milliseconds
         const adjustedEndDateTime = new Date(endDateTime.getTime() - timezoneOffset);
         whereClause.createdAt.lte = adjustedEndDateTime;
+        
         console.log('Sales API - End Date:', { 
           endDate, 
           endDateTime, 
