@@ -192,8 +192,7 @@ const PDFReport = () => {
         const salesTableData = Object.entries(itemSales).map(([itemName, data]) => ({
           'Item': itemName,
           'Qty': data.quantity,
-          'Revenue': `$${(data.revenue / 100).toFixed(2)}`,
-          'Balance': data.stock
+          'Revenue': `$${(data.revenue / 100).toFixed(2)}`
         }));
 
         if (salesTableData.length > 0) {
@@ -203,7 +202,7 @@ const PDFReport = () => {
           doc.text('Sales Details', 10, currentY);
           currentY += 10;
           
-          const headers = ['Item', 'Qty', 'Revenue', 'Balance'];
+          const headers = ['Item', 'Qty', 'Revenue'];
           currentY = createSimpleTable(doc, salesTableData, headers, currentY);
           currentY += 10;
         }
