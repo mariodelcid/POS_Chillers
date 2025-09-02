@@ -127,116 +127,141 @@ const PDFReport = () => {
   }, [selectedDate]);
 
   const generatePDF = () => {
+    console.log('🔍 PDF Report: Generate PDF button clicked');
+    console.log('🔍 PDF Report: Current data state:', {
+      salesData: salesData.length,
+      inventoryData: inventoryData.length,
+      hoursData: hoursData.length,
+      selectedDate
+    });
+    
     if (!salesData.length && !inventoryData.length && !hoursData.length) {
+      console.log('🔍 PDF Report: No data available, showing alert');
       alert('No data available for the selected date');
       return;
     }
 
-    const doc = new jsPDF();
-    let currentY = 20;
-
-    // Title and date
-    doc.setFontSize(18);
-    doc.text('Daily Report', 10, currentY);
-    
-    doc.setFontSize(12);
-    doc.text(`Date: ${selectedDate}`, 120, currentY);
-    currentY += 20;
-
-    // Sales Summary
-    if (salesData.length > 0) {
-      const totalRevenue = salesData.reduce((sum, sale) => sum + sale.totalCents, 0);
-      const totalTransactions = salesData.length;
+    try {
+      console.log('🔍 PDF Report: Starting PDF generation...');
       
-      doc.setFontSize(14);
-      doc.text('Sales Summary', 10, currentY);
-      currentY += 10;
+      const doc = new jsPDF();
+      let currentY = 20;
+
+      // Title and date
+      doc.setFontSize(18);
+      doc.text('Daily Report', 10, currentY);
       
-      doc.setFontSize(10);
-      doc.text(`Total Revenue: $${(totalRevenue / 100).toFixed(2)}`, 10, currentY);
-      currentY += 8;
-      doc.text(`Total Transactions: ${totalTransactions}`, 10, currentY);
-      currentY += 15;
+      doc.setFontSize(12);
+      doc.text(`Date: ${selectedDate}`, 120, currentY);
+      currentY += 20;
 
-      // Sales Details Table
-      const salesTableData = salesData.flatMap(sale => 
-        sale.items.map(item => ({
-          'Item': item.item.name,
-          'Qty': item.quantity,
-          'Revenue': `$${(item.lineTotalCents / 100).toFixed(2)}`,
-          'Balance': item.item.stock || 'N/A'
-        }))
-      );
-
-      if (salesTableData.length > 0) {
-        doc.setFontSize(12);
-        doc.text('Sales Details', 10, currentY);
+      // Sales Summary
+      if (salesData.length > 0) {
+        console.log('🔍 PDF Report: Processing sales data...');
+        const totalRevenue = salesData.reduce((sum, sale) => sum + sale.totalCents, 0);
+        const totalTransactions = salesData.length;
+        
+        doc.setFontSize(14);
+        doc.text('Sales Summary', 10, currentY);
         currentY += 10;
         
-        const headers = ['Item', 'Qty', 'Revenue', 'Balance'];
-        currentY = createSimpleTable(doc, salesTableData, headers, currentY);
+        doc.setFontSize(10);
+        doc.text(`Total Revenue: $${(totalRevenue / 100).toFixed(2)}`, 10, currentY);
+        currentY += 8;
+        doc.text(`Total Transactions: ${totalTransactions}`, 10, currentY);
+        currentY += 15;
+
+        // Sales Details Table
+        const salesTableData = salesData.flatMap(sale => 
+          sale.items.map(item => ({
+            'Item': item.item.name,
+            'Qty': item.quantity,
+            'Revenue': `$${(item.lineTotalCents / 100).toFixed(2)}`,
+            'Balance': item.item.stock || 'N/A'
+          }))
+        );
+
+        if (salesTableData.length > 0) {
+          console.log('🔍 PDF Report: Creating sales table with', salesTableData.length, 'rows');
+          doc.setFontSize(12);
+          doc.text('Sales Details', 10, currentY);
+          currentY += 10;
+          
+          const headers = ['Item', 'Qty', 'Revenue', 'Balance'];
+          currentY = createSimpleTable(doc, salesTableData, headers, currentY);
+          currentY += 10;
+        }
+      }
+
+      // Inventory Summary
+      if (inventoryData.length > 0) {
+        console.log('🔍 PDF Report: Processing inventory data...');
+        if (currentY > 200) {
+          doc.addPage();
+          currentY = 20;
+        }
+        
+        doc.setFontSize(14);
+        doc.text('Inventory Balance', 10, currentY);
+        currentY += 10;
+        
+        const inventoryTableData = inventoryData.map(item => ({
+          'Item': item.name,
+          'Stock': item.name === 'elote' ? `${(item.stock / 480).toFixed(2)} boxes` : item.stock,
+          'Unit': item.unit
+        }));
+        
+        const headers = ['Item', 'Stock', 'Unit'];
+        currentY = createSimpleTable(doc, inventoryTableData, headers, currentY);
         currentY += 10;
       }
-    }
 
-    // Inventory Summary
-    if (inventoryData.length > 0) {
-      if (currentY > 200) {
-        doc.addPage();
-        currentY = 20;
-      }
-      
-      doc.setFontSize(14);
-      doc.text('Inventory Balance', 10, currentY);
-      currentY += 10;
-      
-      const inventoryTableData = inventoryData.map(item => ({
-        'Item': item.name,
-        'Stock': item.name === 'elote' ? `${(item.stock / 480).toFixed(2)} boxes` : item.stock,
-        'Unit': item.unit
-      }));
-      
-      const headers = ['Item', 'Stock', 'Unit'];
-      currentY = createSimpleTable(doc, inventoryTableData, headers, currentY);
-      currentY += 10;
-    }
-
-    // Hours Summary
-    if (hoursData.length > 0) {
-      if (currentY > 200) {
-        doc.addPage();
-        currentY = 20;
-      }
-      
-      doc.setFontSize(14);
-      doc.text('Employee Hours', 10, currentY);
-      currentY += 10;
-      
-      // Group by employee
-      const employeeHours = {};
-      hoursData.forEach(entry => {
-        if (!employeeHours[entry.employeeName]) {
-          employeeHours[entry.employeeName] = [];
+      // Hours Summary
+      if (hoursData.length > 0) {
+        console.log('🔍 PDF Report: Processing hours data...');
+        if (currentY > 200) {
+          doc.addPage();
+          currentY = 20;
         }
-        employeeHours[entry.employeeName].push(entry);
-      });
-      
-      const hoursTableData = Object.entries(employeeHours).map(([name, entries]) => {
-        const clockIns = entries.filter(e => e.type === 'clock_in').length;
-        const clockOuts = entries.filter(e => e.type === 'clock_out').length;
-        return {
-          'Employee': name,
-          'Clock Ins': clockIns,
-          'Clock Outs': clockOuts
-        };
-      });
-      
-      const headers = ['Employee', 'Clock Ins', 'Clock Outs'];
-      currentY = createSimpleTable(doc, hoursTableData, headers, currentY);
-    }
+        
+        doc.setFontSize(14);
+        doc.text('Employee Hours', 10, currentY);
+        currentY += 10;
+        
+        // Group by employee
+        const employeeHours = {};
+        hoursData.forEach(entry => {
+          if (!employeeHours[entry.employeeName]) {
+            employeeHours[entry.employeeName] = [];
+          }
+          employeeHours[entry.employeeName].push(entry);
+        });
+        
+        const hoursTableData = Object.entries(employeeHours).map(([name, entries]) => {
+          const clockIns = entries.filter(e => e.type === 'clock_in').length;
+          const clockOuts = entries.filter(e => e.type === 'clock_out').length;
+          return {
+            'Employee': name,
+            'Clock Ins': clockIns,
+            'Clock Outs': clockOuts
+          };
+        });
+        
+        const headers = ['Employee', 'Clock Ins', 'Clock Outs'];
+        currentY = createSimpleTable(doc, hoursTableData, headers, currentY);
+      }
 
-    // Save PDF
-    doc.save(`daily-report-${selectedDate}.pdf`);
+      // Save PDF
+      const filename = `daily-report-${selectedDate}.pdf`;
+      console.log('🔍 PDF Report: Saving PDF as:', filename);
+      doc.save(filename);
+      
+      console.log('🔍 PDF Report: PDF generated successfully!');
+      
+    } catch (error) {
+      console.error('🔍 PDF Report: Error generating PDF:', error);
+      alert(`Error generating PDF: ${error.message}`);
+    }
   };
 
   return (
