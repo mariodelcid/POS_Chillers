@@ -14,9 +14,13 @@ app.use(cors({
   origin: process.env.CLIENT_ORIGIN?.split(',') || '*',
 }));
 
-// Health
-app.get('/api/health', (_req, res) => {
-  res.json({ ok: true });
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
 });
 
 // Items
