@@ -254,83 +254,96 @@ app.post('/api/sales', async (req, res) => {
       changeDueCents = amountTenderedCents - totalCents;
     }
 
-    // Check elote inventory before proceeding
+    // Check if we have enough packaging materials before proceeding
+    const packagingMaterials = await prisma.packagingMaterial.findMany();
+    const packagingMap = new Map(packagingMaterials.map(p => [p.name, p]));
+
+    // Check elote packaging (ounces)
     const eloteItems = items.filter(line => {
       const dbItem = idToItem.get(line.itemId);
-      return dbItem && (dbItem.name === 'Elote Chico' || dbItem.name === 'Elote Grande' || dbItem.name === 'Elote Entero');
+      return dbItem && (dbItem.name === 'Elote Chico' || dbItem.name === 'Elote Grande');
     });
 
     if (eloteItems.length > 0) {
-      // Check elote ounces for Chico and Grande
-      const eloteOunceItems = eloteItems.filter(line => {
+      const elotePackaging = packagingMap.get('elote');
+      if (!elotePackaging) {
+        return res.status(400).json({ error: 'Elote packaging material not found' });
+      }
+
+      let totalEloteOuncesNeeded = 0;
+      for (const line of eloteItems) {
         const dbItem = idToItem.get(line.itemId);
-        return dbItem && (dbItem.name === 'Elote Chico' || dbItem.name === 'Elote Grande');
-      });
-
-      if (eloteOunceItems.length > 0) {
-        const elotePackaging = await prisma.packagingMaterial.findUnique({
-          where: { name: 'elote' }
-        });
-        
-        if (!elotePackaging) {
-          return res.status(400).json({ error: 'Elote packaging material not found' });
-        }
-
-        let totalEloteOuncesNeeded = 0;
-        for (const line of eloteOunceItems) {
-          const dbItem = idToItem.get(line.itemId);
-          if (dbItem.name === 'Elote Chico') {
-            totalEloteOuncesNeeded += line.quantity * 8; // 8 oz per elote chico
-          } else if (dbItem.name === 'Elote Grande') {
-            totalEloteOuncesNeeded += line.quantity * 14; // 14 oz per elote grande
-          }
-        }
-
-        if (elotePackaging.stock < totalEloteOuncesNeeded) {
-          return res.status(400).json({ error: `Insufficient elote stock. Need ${totalEloteOuncesNeeded} oz, have ${elotePackaging.stock} oz` });
+        if (dbItem.name === 'Elote Chico') {
+          totalEloteOuncesNeeded += line.quantity * 8; // 8 oz per elote chico
+        } else if (dbItem.name === 'Elote Grande') {
+          totalEloteOuncesNeeded += line.quantity * 14; // 14 oz per elote grande
         }
       }
 
-      // Check elote entero stock
-      const eloteEnteroItems = eloteItems.filter(line => {
-        const dbItem = idToItem.get(line.itemId);
-        return dbItem && dbItem.name === 'Elote Entero';
-      });
+      if (elotePackaging.stock < totalEloteOuncesNeeded) {
+        return res.status(400).json({ error: `Insufficient elote stock. Need ${totalEloteOuncesNeeded} oz, have ${elotePackaging.stock} oz` });
+      }
+    }
 
-      if (eloteEnteroItems.length > 0) {
-        const eloteEnteroPackaging = await prisma.packagingMaterial.findUnique({
-          where: { name: 'elote entero' }
-        });
-        
-        if (!eloteEnteroPackaging) {
-          return res.status(400).json({ error: 'Elote entero packaging material not found' });
-        }
+    // Check elote entero stock
+    const eloteEnteroItems = items.filter(line => {
+      const dbItem = idToItem.get(line.itemId);
+      return dbItem && dbItem.name === 'Elote Entero';
+    });
 
-        let totalEloteEnteroNeeded = 0;
-        for (const line of eloteEnteroItems) {
-          totalEloteEnteroNeeded += line.quantity;
-        }
+    if (eloteEnteroItems.length > 0) {
+      const eloteEnteroPackaging = packagingMap.get('elote entero');
+      if (!eloteEnteroPackaging) {
+        return res.status(400).json({ error: 'Elote entero packaging material not found' });
+      }
 
-        if (eloteEnteroPackaging.stock < totalEloteEnteroNeeded) {
-          return res.status(400).json({ error: `Insufficient elote entero stock. Need ${totalEloteEnteroNeeded}, have ${eloteEnteroPackaging.stock}` });
-        }
+      let totalEloteEnteroNeeded = 0;
+      for (const line of eloteEnteroItems) {
+        totalEloteEnteroNeeded += line.quantity;
+      }
 
-        // Also check charolas stock for Elote Entero
-        const charolasPackaging = await prisma.packagingMaterial.findUnique({
-          where: { name: 'charolas' }
-        });
-        
-        if (!charolasPackaging) {
-          return res.status(400).json({ error: 'Charolas packaging material not found' });
-        }
+      if (eloteEnteroPackaging.stock < totalEloteEnteroNeeded) {
+        return res.status(400).json({ error: `Insufficient elote entero stock. Need ${totalEloteEnteroNeeded}, have ${eloteEnteroPackaging.stock}` });
+      }
 
-        if (charolasPackaging.stock < totalEloteEnteroNeeded) {
-          return res.status(400).json({ error: `Insufficient charolas stock. Need ${totalEloteEnteroNeeded}, have ${charolasPackaging.stock}` });
-        }
+      // Also check charolas stock for Elote Entero
+      const charolasPackaging = packagingMap.get('charolas');
+      if (!charolasPackaging) {
+        return res.status(400).json({ error: 'Charolas packaging material not found' });
+      }
+
+      if (charolasPackaging.stock < totalEloteEnteroNeeded) {
+        return res.status(400).json({ error: `Insufficient charolas stock. Need ${totalEloteEnteroNeeded}, have ${charolasPackaging.stock}` });
       }
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      // Re-check stock levels inside transaction to prevent race conditions
+      const txPackagingMaterials = await tx.packagingMaterial.findMany();
+      const txPackagingMap = new Map(txPackagingMaterials.map(p => [p.name, p]));
+
+      // Double-check elote stock inside transaction
+      if (eloteItems.length > 0) {
+        const txElotePackaging = txPackagingMap.get('elote');
+        if (!txElotePackaging || txElotePackaging.stock < totalEloteOuncesNeeded) {
+          throw new Error(`Insufficient elote stock. Need ${totalEloteOuncesNeeded} oz, have ${txElotePackaging?.stock || 0} oz`);
+        }
+      }
+
+      // Double-check elote entero stock inside transaction
+      if (eloteEnteroItems.length > 0) {
+        const txEloteEnteroPackaging = txPackagingMap.get('elote entero');
+        const txCharolasPackaging = txPackagingMap.get('charolas');
+        
+        if (!txEloteEnteroPackaging || txEloteEnteroPackaging.stock < totalEloteEnteroNeeded) {
+          throw new Error(`Insufficient elote entero stock. Need ${totalEloteEnteroNeeded}, have ${txEloteEnteroPackaging?.stock || 0}`);
+        }
+        
+        if (!txCharolasPackaging || txCharolasPackaging.stock < totalEloteEnteroNeeded) {
+          throw new Error(`Insufficient charolas stock. Need ${totalEloteEnteroNeeded}, have ${txCharolasPackaging?.stock || 0}`);
+        }
+      }
+
       const sale = await tx.sale.create({
         data: {
           paymentMethod,
