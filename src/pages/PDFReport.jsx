@@ -48,7 +48,7 @@ const PDFReport = () => {
         currentY = 20;
       }
       
-              doc.setFillColor(rowIndex % 2 === 0 ? [255, 255, 255] : [248, 248, 248]);
+      doc.setFillColor(rowIndex % 2 === 0 ? [255, 255, 255] : [248, 248, 248]);
       doc.rect(10, currentY, maxWidth, rowHeight, 'F');
       doc.setFontSize(9);
       
