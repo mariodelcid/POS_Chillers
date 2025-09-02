@@ -33,12 +33,34 @@ export default function PDFReport() {
     setLoading(true);
     setError('');
     try {
-      console.log('PDF Report: Fetching data for date:', selectedDate);
+      console.log('🔍 PDF Report: Starting data fetch...');
+      console.log('🔍 PDF Report: Selected date:', selectedDate);
+      console.log('🔍 PDF Report: Selected date type:', typeof selectedDate);
+      
+      // Test the API call immediately
+      const testUrl = `/api/sales?startDate=${selectedDate}&endDate=${selectedDate}`;
+      console.log('🔍 PDF Report: Testing API call to:', testUrl);
       
       // Fetch sales data for the selected date
-      const salesResponse = await fetch(`/api/sales?startDate=${selectedDate}&endDate=${selectedDate}`);
+      const salesResponse = await fetch(testUrl);
+      console.log('🔍 PDF Report: Sales response status:', salesResponse.status);
+      
       if (!salesResponse.ok) throw new Error('Failed to fetch sales data');
       const sales = await salesResponse.json();
+      
+      console.log('🔍 PDF Report: Raw sales data received:', {
+        count: sales.length,
+        firstSale: sales[0] ? sales[0].createdAt : null,
+        lastSale: sales[sales.length - 1] ? sales[sales.length - 1].createdAt : null,
+        allDates: sales.map(s => s.createdAt),
+        sampleSales: sales.slice(0, 3).map(s => ({
+          id: s.id,
+          createdAt: s.createdAt,
+          totalCents: s.totalCents,
+          items: s.items?.length || 0
+        }))
+      });
+      
       setSalesData(sales);
 
       // Fetch inventory data
@@ -48,21 +70,31 @@ export default function PDFReport() {
       setInventoryData(inventory);
 
       // Fetch hours data for the selected date
-      const hoursResponse = await fetch(`/api/time-entries?startDate=${selectedDate}&endDate=${selectedDate}`);
+      const hoursUrl = `/api/time-entries?startDate=${selectedDate}&endDate=${selectedDate}`;
+      console.log('🔍 PDF Report: Hours API URL:', hoursUrl);
+      
+      const hoursResponse = await fetch(hoursUrl);
+      console.log('🔍 PDF Report: Hours response status:', hoursResponse.status);
+      
       if (!hoursResponse.ok) throw new Error('Failed to fetch hours data');
       const hours = await hoursResponse.json();
+      
+      console.log('🔍 PDF Report: Hours data received:', {
+        count: hours.length,
+        firstEntry: hours[0] ? hours[0].timestamp : null,
+        lastEntry: hours[hours.length - 1] ? hours[hours.length - 1].timestamp : null,
+        allTimestamps: hours.map(h => h.timestamp)
+      });
+      
       setHoursData(hours);
 
-      console.log('PDF Report: Fetched data for date:', selectedDate, { 
+      console.log('🔍 PDF Report: All data fetched successfully for date:', selectedDate, { 
         salesCount: sales.length, 
         inventoryCount: inventory.length, 
-        hoursCount: hours.length,
-        sales: sales,
-        inventory: inventory,
-        hours: hours 
+        hoursCount: hours.length
       });
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('❌ PDF Report: Error fetching data:', error);
       setError(`Error fetching data: ${error.message}`);
     } finally {
       setLoading(false);
