@@ -124,8 +124,12 @@ app.get('/api/sales', async (req, res) => {
         const localStartDate = new Date(startDate + 'T00:00:00');
         
         // Convert to UTC by accounting for timezone offset
-        // For America/Chicago (UTC-5), 00:00:00 local = 05:00:00 UTC
-        const utcStartDate = new Date(localStartDate.getTime() - (localStartDate.getTimezoneOffset() * 60000));
+        // For America/Chicago (UTC-6), 00:00:00 local = 06:00:00 UTC
+        const timezoneOffset = localStartDate.getTimezoneOffset();
+        const utcStartDate = new Date(localStartDate.getTime() - (timezoneOffset * 60000));
+        
+        // Manual verification - if timezone offset is wrong, force UTC-6
+        const manualUtcStartDate = new Date(startDate + 'T06:00:00.000Z');
         
         whereClause.createdAt.gte = utcStartDate;
         
@@ -133,9 +137,11 @@ app.get('/api/sales', async (req, res) => {
           startDate,
           localStartDate: localStartDate.toString(),
           localStartDateISO: localStartDate.toISOString(),
-          timezoneOffset: localStartDate.getTimezoneOffset(),
-          utcStartDate: utcStartDate.toString(),
-          utcStartDateISO: utcStartDate.toISOString()
+          detectedTimezoneOffset: timezoneOffset,
+          calculatedUtcStart: utcStartDate.toString(),
+          calculatedUtcStartISO: utcStartDate.toISOString(),
+          manualUtcStart: manualUtcStartDate.toString(),
+          manualUtcStartISO: manualUtcStartDate.toISOString()
         });
       }
       if (endDate) {
@@ -144,8 +150,14 @@ app.get('/api/sales', async (req, res) => {
         const localEndDate = new Date(endDate + 'T23:59:59.999');
         
         // Convert to UTC by accounting for timezone offset
-        // For America/Chicago (UTC-5), 23:59:59 local = 04:59:59 UTC (next day)
-        const utcEndDate = new Date(localEndDate.getTime() - (localEndDate.getTimezoneOffset() * 60000));
+        // For America/Chicago (UTC-6), 23:59:59 local = 05:59:59 UTC (next day)
+        const timezoneOffset = localEndDate.getTimezoneOffset();
+        const utcEndDate = new Date(localEndDate.getTime() - (timezoneOffset * 60000));
+        
+        // Manual verification - if timezone offset is wrong, force UTC-6
+        const nextDay = new Date(endDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const manualUtcEndDate = new Date(nextDay.toISOString().split('T')[0] + 'T05:59:59.999Z');
         
         whereClause.createdAt.lte = utcEndDate;
         
@@ -153,9 +165,11 @@ app.get('/api/sales', async (req, res) => {
           endDate,
           localEndDate: localEndDate.toString(),
           localEndDateISO: localEndDate.toISOString(),
-          timezoneOffset: localEndDate.getTimezoneOffset(),
-          utcEndDate: utcEndDate.toString(),
-          utcEndDateISO: utcEndDate.toISOString()
+          detectedTimezoneOffset: timezoneOffset,
+          calculatedUtcEnd: utcEndDate.toString(),
+          calculatedUtcEndISO: utcEndDate.toISOString(),
+          manualUtcEnd: manualUtcEndDate.toString(),
+          manualUtcEndISO: manualUtcEndDate.toISOString()
         });
       }
     }
