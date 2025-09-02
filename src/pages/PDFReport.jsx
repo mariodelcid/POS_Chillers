@@ -1,64 +1,91 @@
 import React, { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 
-// Helper function to get today's date in local timezone
-function getTodayLocal() {
-  const now = new Date();
-  return now.toISOString().split('T')[0];
-}
-
-// Helper function to check if a date is today in local timezone
-function isToday(dateString) {
-  const today = new Date();
-  const date = new Date(dateString);
-  
-  return date.getDate() === today.getDate() &&
-         date.getMonth() === today.getMonth() &&
-         date.getFullYear() === today.getFullYear();
-}
-
-export default function PDFReport() {
-  const [selectedDate, setSelectedDate] = useState(getTodayLocal());
+const PDFReport = () => {
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [salesData, setSalesData] = useState([]);
   const [inventoryData, setInventoryData] = useState([]);
   const [hoursData, setHoursData] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchData();
-  }, [selectedDate]);
+  // Helper function to convert local date to UTC-6 range
+  const getDateRange = (dateString) => {
+    const date = new Date(dateString);
+    
+    // For UTC-6 (America/Chicago), when user selects "2025-09-01":
+    // Start: 00:00:00 local = 06:00:00 UTC
+    // End: 23:59:59 local = 05:59:59 UTC (next day)
+    
+    const startDate = dateString;
+    const endDate = dateString;
+    
+    return { startDate, endDate };
+  };
+
+  // Helper function to create simple table in PDF
+  const createSimpleTable = (doc, data, headers, startY, maxWidth = 180) => {
+    const rowHeight = 8;
+    const colWidth = maxWidth / headers.length;
+    let currentY = startY;
+
+    // Draw headers
+    doc.setFillColor(240, 240, 240);
+    doc.rect(10, currentY, maxWidth, rowHeight, 'F');
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    
+    headers.forEach((header, index) => {
+      doc.text(header, 12 + (index * colWidth), currentY + 6);
+    });
+    
+    currentY += rowHeight;
+
+    // Draw data rows
+    data.forEach((row, rowIndex) => {
+      if (currentY > 250) {
+        doc.addPage();
+        currentY = 20;
+      }
+      
+      doc.setFillColor(rowIndex % 2 === 0 ? 255, 255, 255 : 248, 248, 248);
+      doc.rect(10, currentY, maxWidth, rowHeight, 'F');
+      doc.setFontSize(9);
+      
+      headers.forEach((header, colIndex) => {
+        const value = row[header] || '';
+        doc.text(String(value), 12 + (colIndex * colWidth), currentY + 6);
+      });
+      
+      currentY += rowHeight;
+    });
+
+    return currentY;
+  };
 
   const fetchData = async () => {
-    setLoading(true);
+    if (!selectedDate) return;
+    
+    setIsLoading(true);
     setError('');
+    
     try {
-      console.log('🔍 PDF Report: Starting data fetch...');
-      console.log('🔍 PDF Report: Selected date:', selectedDate);
-      console.log('🔍 PDF Report: Selected date type:', typeof selectedDate);
+      console.log('🔍 PDF Report: Starting data fetch for date:', selectedDate);
       
-      // Test the API call immediately
-      const testUrl = `/api/sales?startDate=${selectedDate}&endDate=${selectedDate}`;
-      console.log('🔍 PDF Report: Testing API call to:', testUrl);
+      const { startDate, endDate } = getDateRange(selectedDate);
       
-      // Fetch sales data for the selected date
-      const salesResponse = await fetch(testUrl);
-      console.log('🔍 PDF Report: Sales response status:', salesResponse.status);
+      // Fetch sales data
+      const salesUrl = `/api/sales?startDate=${startDate}&endDate=${endDate}`;
+      console.log('🔍 PDF Report: Sales API URL:', salesUrl);
       
+      const salesResponse = await fetch(salesUrl);
       if (!salesResponse.ok) throw new Error('Failed to fetch sales data');
       const sales = await salesResponse.json();
       
-      console.log('🔍 PDF Report: Raw sales data received:', {
+      console.log('🔍 PDF Report: Sales data received:', {
         count: sales.length,
         firstSale: sales[0] ? sales[0].createdAt : null,
-        lastSale: sales[sales.length - 1] ? sales[sales.length - 1].createdAt : null,
-        allDates: sales.map(s => s.createdAt),
-        sampleSales: sales.slice(0, 3).map(s => ({
-          id: s.id,
-          createdAt: s.createdAt,
-          totalCents: s.totalCents,
-          items: s.items?.length || 0
-        }))
+        lastSale: sales[sales.length - 1] ? sales[sales.length - 1].createdAt : null
       });
       
       setSalesData(sales);
@@ -69,447 +96,213 @@ export default function PDFReport() {
       const inventory = await inventoryResponse.json();
       setInventoryData(inventory);
 
-      // Fetch hours data for the selected date
-      const hoursUrl = `/api/time-entries?startDate=${selectedDate}&endDate=${selectedDate}`;
+      // Fetch hours data
+      const hoursUrl = `/api/time-entries?startDate=${startDate}&endDate=${endDate}`;
       console.log('🔍 PDF Report: Hours API URL:', hoursUrl);
       
       const hoursResponse = await fetch(hoursUrl);
-      console.log('🔍 PDF Report: Hours response status:', hoursResponse.status);
-      
       if (!hoursResponse.ok) throw new Error('Failed to fetch hours data');
       const hours = await hoursResponse.json();
       
       console.log('🔍 PDF Report: Hours data received:', {
         count: hours.length,
         firstEntry: hours[0] ? hours[0].timestamp : null,
-        lastEntry: hours[hours.length - 1] ? hours[hours.length - 1].timestamp : null,
-        allTimestamps: hours.map(h => h.timestamp)
+        lastEntry: hours[sales.length - 1] ? hours[sales.length - 1].timestamp : null
       });
       
       setHoursData(hours);
 
-      console.log('🔍 PDF Report: All data fetched successfully for date:', selectedDate, { 
-        salesCount: sales.length, 
-        inventoryCount: inventory.length, 
-        hoursCount: hours.length
-      });
+      console.log('🔍 PDF Report: All data fetched successfully');
+      
     } catch (error) {
-      console.error('❌ PDF Report: Error fetching data:', error);
-      setError(`Error fetching data: ${error.message}`);
+      console.error('Error fetching data:', error);
+      setError('Failed to fetch data: ' + error.message);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  // Helper function to create simple tables without autoTable
-  const createSimpleTable = (doc, headers, data, startY, margin) => {
-    let yPosition = startY;
-    const lineHeight = 8;
-    const colWidths = [30, 40, 80, 40]; // Adjust column widths as needed
-    
-    // Draw headers
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    let xPosition = margin;
-    headers.forEach((header, index) => {
-      doc.text(header, xPosition, yPosition);
-      xPosition += colWidths[index];
-    });
-    
-    yPosition += lineHeight;
-    
-    // Draw data rows
-    doc.setFont('helvetica', 'normal');
-    data.forEach(row => {
-      if (yPosition > doc.internal.pageSize.height - 40) {
-        doc.addPage();
-        yPosition = 20;
-      }
-      
-      xPosition = margin;
-      row.forEach((cell, index) => {
-        // Truncate long text to fit column
-        const maxWidth = colWidths[index] - 2;
-        const truncatedText = doc.splitTextToSize(String(cell), maxWidth);
-        doc.text(truncatedText, xPosition, yPosition);
-        xPosition += colWidths[index];
-      });
-      yPosition += lineHeight;
-    });
-    
-    return yPosition + 10;
-  };
-
-  // Helper function to calculate item statistics from sales data
-  const calculateItemStats = () => {
-    const itemStats = {};
-    
-    salesData.forEach(sale => {
-      const items = sale.items || [];
-      items.forEach(item => {
-        const itemName = item.item ? item.item.name : item.name;
-        if (!itemStats[itemName]) {
-          itemStats[itemName] = {
-            transactions: 0,
-            totalQuantity: 0,
-            totalRevenue: 0
-          };
-        }
-        itemStats[itemName].transactions += 1;
-        itemStats[itemName].totalQuantity += item.quantity || 1;
-        itemStats[itemName].totalRevenue += (item.priceCents || 0) * (item.quantity || 1);
-      });
-    });
-    
-    return itemStats;
-  };
-
-  // Helper function to calculate employee statistics
-  const calculateEmployeeStats = () => {
-    const employeeStats = {};
-    
-    // Calculate hours from time entries
-    hoursData.forEach(entry => {
-      if (!employeeStats[entry.employeeName]) {
-        employeeStats[entry.employeeName] = {
-          totalHours: 0,
-          clockIns: 0,
-          clockOuts: 0,
-          totalSales: 0
-        };
-      }
-      
-      if (entry.type === 'clock_in') {
-        employeeStats[entry.employeeName].clockIns += 1;
-      } else if (entry.type === 'clock_out') {
-        employeeStats[entry.employeeName].clockOuts += 1;
-      }
-    });
-    
-    // Calculate total hours for each employee
-    Object.keys(employeeStats).forEach(employeeName => {
-      const employee = employeeStats[employeeName];
-      const employeeHours = hoursData.filter(entry => entry.employeeName === employeeName);
-      
-      let totalHours = 0;
-      const clockIns = employeeHours.filter(entry => entry.type === 'clock_in')
-        .map(entry => new Date(entry.timestamp))
-        .sort((a, b) => a - b);
-      const clockOuts = employeeHours.filter(entry => entry.type === 'clock_out')
-        .map(entry => new Date(entry.timestamp))
-        .sort((a, b) => a - b);
-      
-      for (let i = 0; i < Math.min(clockIns.length, clockOuts.length); i++) {
-        const hours = (clockOuts[i] - clockIns[i]) / (1000 * 60 * 60);
-        totalHours += hours;
-      }
-      
-      employee.totalHours = totalHours;
-    });
-    
-    return employeeStats;
-  };
+  useEffect(() => {
+    fetchData();
+  }, [selectedDate]);
 
   const generatePDF = () => {
-    try {
-      console.log('Generating PDF with data:', { salesData, inventoryData, hoursData });
-      
-      const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.width;
-      const margin = 20;
-      let yPosition = 15; // Reduced from 20
+    if (!salesData.length && !inventoryData.length && !hoursData.length) {
+      alert('No data available for the selected date');
+      return;
+    }
 
-      // Title - smaller and more compact
-      doc.setFontSize(16); // Reduced from 20
-      doc.setFont('helvetica', 'bold');
-      doc.text('Chillers POS - Daily Report', pageWidth / 2, yPosition, { align: 'center' });
-      yPosition += 10; // Reduced from 15
+    const doc = new jsPDF();
+    let currentY = 20;
 
-      // Date - smaller and more compact
-      doc.setFontSize(12); // Reduced from 14
-      doc.setFont('helvetica', 'normal');
-      const formattedDate = new Date(selectedDate).toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-      // doc.text(`Date: ${formattedDate}`, margin, yPosition); // Moved to the right
-      // yPosition += 15; // Reduced from 20
+    // Title and date
+    doc.setFontSize(18);
+    doc.text('Daily Report', 10, currentY);
+    
+    doc.setFontSize(12);
+    doc.text(`Date: ${selectedDate}`, 120, currentY);
+    currentY += 20;
 
-      // Sales Summary - compact
-      doc.setFontSize(14); // Reduced from 16
-      doc.setFont('helvetica', 'bold');
-      doc.text('Sales Summary', margin, yPosition);
-      
-      // Date to the right of Sales Summary title
-      const dateText = `Date: ${formattedDate}`;
-      const dateWidth = doc.getTextWidth(dateText);
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'normal');
-      doc.text(dateText, pageWidth - margin - dateWidth, yPosition);
-      
-      yPosition += 8; // Reduced from 10
-
-      // Fix: Use totalCents instead of total, and handle the data structure correctly
-      const totalSales = salesData.reduce((sum, sale) => {
-        const saleTotal = sale.totalCents || sale.total || 0;
-        return sum + saleTotal;
-      }, 0);
+    // Sales Summary
+    if (salesData.length > 0) {
+      const totalRevenue = salesData.reduce((sum, sale) => sum + sale.totalCents, 0);
       const totalTransactions = salesData.length;
       
-      doc.setFontSize(11); // Reduced from 12
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Total Sales: $${(totalSales / 100).toFixed(2)}`, margin, yPosition);
-      yPosition += 6; // Reduced from 7
-      doc.text(`Total Transactions: ${totalTransactions}`, margin, yPosition);
-      yPosition += 12; // Reduced from 15
-
-      // Comprehensive Sales Details Table with Inventory Balance
-      if (salesData.length > 0) {
-        doc.setFontSize(13); // Reduced from 14
-        doc.setFont('helvetica', 'bold');
-        doc.text('Sales Details & Inventory Balance', margin, yPosition);
-        yPosition += 8; // Reduced from 10
-
-        // Group sales by item to show quantity sold per item
-        const itemSales = {};
-        let grandTotalRevenue = 0;
-        
-        // Debug: Log the first sale to see the data structure
-        if (salesData.length > 0) {
-          console.log('First sale structure:', salesData[0]);
-          console.log('First sale items:', salesData[0].items);
-          console.log('Inventory data:', inventoryData);
-        }
-        
-        salesData.forEach(sale => {
-          const items = sale.items || [];
-          items.forEach(item => {
-            const itemName = item.item ? item.item.name : item.name;
-            const quantity = item.quantity || 1;
-            // Fix: Use the correct fields from SaleItem model
-            const price = item.unitPriceCents || item.lineTotalCents || 0;
-            const itemRevenue = item.lineTotalCents || (price * quantity);
-            
-            // Debug: Log item details
-            console.log('Processing item:', { 
-              itemName, 
-              quantity, 
-              unitPriceCents: item.unitPriceCents,
-              lineTotalCents: item.lineTotalCents,
-              itemRevenue, 
-              item 
-            });
-            
-            if (!itemSales[itemName]) {
-              itemSales[itemName] = {
-                quantity: 0,
-                revenue: 0
-              };
-            }
-            itemSales[itemName].quantity += quantity;
-            itemSales[itemName].revenue += itemRevenue;
-            grandTotalRevenue += itemRevenue;
-          });
-        });
-
-        // Create sales table (without inventory balance)
-        const comprehensiveTableData = Object.entries(itemSales).map(([itemName, data]) => {
-          return [
-            itemName,
-            data.quantity,
-            `$${(data.revenue / 100).toFixed(2)}`
-          ];
-        });
-
-        yPosition = createSimpleTable(doc, ['Item', 'Qty Sold', 'Revenue'], comprehensiveTableData, yPosition, margin);
-        
-        // Add grand total
-        yPosition += 8; // Reduced spacing
-        doc.setFontSize(11); // Reduced from 12
-        doc.setFont('helvetica', 'bold');
-        doc.text(`Grand Total Revenue: $${(grandTotalRevenue / 100).toFixed(2)}`, margin, yPosition);
-        yPosition += 12; // Reduced from 15
-      }
-
-      // Separate Inventory Table
-      if (inventoryData.length > 0) {
-        doc.setFontSize(13); // Reduced from 14
-        doc.setFont('helvetica', 'bold');
-        doc.text('Inventory Balance', margin, yPosition);
-        yPosition += 8; // Reduced from 10
-
-        // Create inventory table with actual inventory items
-        const inventoryTableData = inventoryData.map(inventoryItem => {
-          let displayStock = inventoryItem.stock;
-          let unit = inventoryItem.unit || 'units';
-          
-          if (inventoryItem.name === 'elote') {
-            // Convert ounces to boxes for elote packaging
-            displayStock = (inventoryItem.stock / 480).toFixed(2);
-            unit = 'boxes';
-          }
-          
-          return [
-            inventoryItem.name,
-            `${displayStock} ${unit}`
-          ];
-        });
-
-        yPosition = createSimpleTable(doc, ['Inventory Item', 'Current Stock'], inventoryTableData, yPosition, margin);
-        yPosition += 12; // Reduced from 15
-      }
-
-      // Employee Hours Summary - compact
-      if (hoursData.length > 0) {
-        doc.setFontSize(13); // Reduced from 16
-        doc.setFont('helvetica', 'bold');
-        doc.text('Employee Hours Summary', margin, yPosition);
-        yPosition += 8; // Reduced from 10
-
-        const employeeStats = calculateEmployeeStats();
-        
-        const employeeTableData = Object.entries(employeeStats).map(([name, stats]) => [
-          name,
-          stats.totalHours.toFixed(2),
-          stats.clockIns,
-          stats.clockOuts
-        ]);
-
-        yPosition = createSimpleTable(doc, ['Employee', 'Hours', 'Ins', 'Outs'], employeeTableData, yPosition, margin);
-      }
-
-      // Footer
-      const pageCount = doc.internal.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(10);
-        doc.text(`Page ${i} of ${pageCount}`, pageWidth - margin, doc.internal.pageSize.height - 10);
-      }
-
-      // Save the PDF
-      const filename = `chillers-daily-report-${selectedDate}.pdf`;
-      doc.save(filename);
-      console.log('PDF generated successfully:', filename);
+      doc.setFontSize(14);
+      doc.text('Sales Summary', 10, currentY);
+      currentY += 10;
       
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert(`Error generating PDF: ${error.message}`);
+      doc.setFontSize(10);
+      doc.text(`Total Revenue: $${(totalRevenue / 100).toFixed(2)}`, 10, currentY);
+      currentY += 8;
+      doc.text(`Total Transactions: ${totalTransactions}`, 10, currentY);
+      currentY += 15;
+
+      // Sales Details Table
+      const salesTableData = salesData.flatMap(sale => 
+        sale.items.map(item => ({
+          'Item': item.item.name,
+          'Qty': item.quantity,
+          'Revenue': `$${(item.lineTotalCents / 100).toFixed(2)}`,
+          'Balance': item.item.stock || 'N/A'
+        }))
+      );
+
+      if (salesTableData.length > 0) {
+        doc.setFontSize(12);
+        doc.text('Sales Details', 10, currentY);
+        currentY += 10;
+        
+        const headers = ['Item', 'Qty', 'Revenue', 'Balance'];
+        currentY = createSimpleTable(doc, salesTableData, headers, currentY);
+        currentY += 10;
+      }
     }
+
+    // Inventory Summary
+    if (inventoryData.length > 0) {
+      if (currentY > 200) {
+        doc.addPage();
+        currentY = 20;
+      }
+      
+      doc.setFontSize(14);
+      doc.text('Inventory Balance', 10, currentY);
+      currentY += 10;
+      
+      const inventoryTableData = inventoryData.map(item => ({
+        'Item': item.name,
+        'Stock': item.name === 'elote' ? `${(item.stock / 480).toFixed(2)} boxes` : item.stock,
+        'Unit': item.unit
+      }));
+      
+      const headers = ['Item', 'Stock', 'Unit'];
+      currentY = createSimpleTable(doc, inventoryTableData, headers, currentY);
+      currentY += 10;
+    }
+
+    // Hours Summary
+    if (hoursData.length > 0) {
+      if (currentY > 200) {
+        doc.addPage();
+        currentY = 20;
+      }
+      
+      doc.setFontSize(14);
+      doc.text('Employee Hours', 10, currentY);
+      currentY += 10;
+      
+      // Group by employee
+      const employeeHours = {};
+      hoursData.forEach(entry => {
+        if (!employeeHours[entry.employeeName]) {
+          employeeHours[entry.employeeName] = [];
+        }
+        employeeHours[entry.employeeName].push(entry);
+      });
+      
+      const hoursTableData = Object.entries(employeeHours).map(([name, entries]) => {
+        const clockIns = entries.filter(e => e.type === 'clock_in').length;
+        const clockOuts = entries.filter(e => e.type === 'clock_out').length;
+        return {
+          'Employee': name,
+          'Clock Ins': clockIns,
+          'Clock Outs': clockOuts
+        };
+      });
+      
+      const headers = ['Employee', 'Clock Ins', 'Clock Outs'];
+      currentY = createSimpleTable(doc, hoursTableData, headers, currentY);
+    }
+
+    // Save PDF
+    doc.save(`daily-report-${selectedDate}.pdf`);
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
-      <h1 style={{ textAlign: 'center', marginBottom: '30px' }}>Daily Report Generator</h1>
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-6">Daily Report Generator</h1>
       
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>
-          Select Date:
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Select Date
         </label>
         <input
           type="date"
           value={selectedDate}
           onChange={(e) => setSelectedDate(e.target.value)}
-          style={{
-            padding: '10px',
-            fontSize: '16px',
-            border: '1px solid #ddd',
-            borderRadius: '4px',
-            width: '200px'
-          }}
+          className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
-      <div style={{ marginBottom: '20px' }}>
+      <div className="mb-6">
         <button
           onClick={generatePDF}
-          disabled={loading}
-          style={{
-            padding: '15px 30px',
-            fontSize: '16px',
-            backgroundColor: '#3498db',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: loading ? 'not-allowed' : 'pointer',
-            opacity: loading ? 0.6 : 1
-          }}
+          disabled={isLoading}
+          className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? 'Loading...' : 'Generate PDF Report'}
+          {isLoading ? 'Loading...' : 'Generate PDF Report'}
         </button>
       </div>
 
       {error && (
-        <div style={{ 
-          padding: '10px', 
-          backgroundColor: '#ffebee', 
-          color: '#c62828', 
-          borderRadius: '4px',
-          marginBottom: '20px'
-        }}>
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           {error}
         </div>
       )}
 
-      {loading && (
-        <div style={{ textAlign: 'center', color: '#666' }}>
-          Loading data for {selectedDate}...
+      {/* Data Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <h3 className="font-semibold text-blue-800">Sales</h3>
+          <p className="text-2xl font-bold text-blue-600">{salesData.length}</p>
+          <p className="text-sm text-blue-600">
+            ${(salesData.reduce((sum, sale) => sum + sale.totalCents, 0) / 100).toFixed(2)}
+          </p>
         </div>
-      )}
-
-      {!loading && !error && (
-        <div style={{ marginTop: '30px' }}>
-          <h3>Report Preview for {new Date(selectedDate).toLocaleDateString()}</h3>
-          
-          <div style={{ marginBottom: '20px' }}>
-            <h4>Sales Summary</h4>
-            <p>Total Sales: ${(salesData.reduce((sum, sale) => {
-              const saleTotal = sale.totalCents || sale.total || 0;
-              return sum + saleTotal;
-            }, 0) / 100).toFixed(2)}</p>
-            <p>Total Transactions: {salesData.length}</p>
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <h4>Inventory Items</h4>
-            <p>Total Items: {inventoryData.length}</p>
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <h4>Employee Hours</h4>
-            <p>Total Entries: {hoursData.length}</p>
-          </div>
-
-          <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-            <h4>Debug Info</h4>
-            <p><strong>Sales Data:</strong> {salesData.length} records</p>
-            <p><strong>Inventory Data:</strong> {inventoryData.length} records</p>
-            <p><strong>Hours Data:</strong> {hoursData.length} records</p>
-            <p><strong>Selected Date:</strong> {selectedDate}</p>
-          </div>
-
-          {/* Debug Section */}
-          <div className="debug-section" style={{ 
-            backgroundColor: '#f5f5f5', 
-            padding: '15px', 
-            margin: '20px 0', 
-            borderRadius: '5px',
-            border: '1px solid #ddd'
-          }}>
-            <h4>🔍 Debug Information</h4>
-            <p><strong>Selected Date:</strong> {selectedDate}</p>
-            <p><strong>Selected Date Type:</strong> {typeof selectedDate}</p>
-            <p><strong>Sales API URL:</strong> /api/sales?startDate={selectedDate}&endDate={selectedDate}</p>
-            <p><strong>Sales Data Count:</strong> {salesData.length} records</p>
-            <p><strong>First Sale Date:</strong> {salesData[0] ? new Date(salesData[0].createdAt).toLocaleString() : 'None'}</p>
-            <p><strong>Last Sale Date:</strong> {salesData[salesData.length - 1] ? new Date(salesData[salesData.length - 1].createdAt).toLocaleString() : 'None'}</p>
-            <p><strong>Hours Data Count:</strong> {hoursData.length} records</p>
-            <p><strong>First Time Entry:</strong> {hoursData[0] ? new Date(hoursData[0].timestamp).toLocaleString() : 'None'}</p>
-            <p><strong>Last Time Entry:</strong> {hoursData[hoursData.length - 1] ? new Date(hoursData[hoursData.length - 1].timestamp).toLocaleString() : 'None'}</p>
-          </div>
+        
+        <div className="bg-green-50 p-4 rounded-lg">
+          <h3 className="font-semibold text-green-800">Inventory Items</h3>
+          <p className="text-2xl font-bold text-green-600">{inventoryData.length}</p>
         </div>
-      )}
+        
+        <div className="bg-purple-50 p-4 rounded-lg">
+          <h3 className="font-semibold text-purple-800">Time Entries</h3>
+          <p className="text-2xl font-bold text-purple-600">{hoursData.length}</p>
+        </div>
+      </div>
+
+      {/* Debug Information */}
+      <div className="bg-gray-50 p-4 rounded-lg">
+        <h3 className="font-semibold text-gray-800 mb-2">Debug Information</h3>
+        <p className="text-sm text-gray-600">Selected Date: {selectedDate}</p>
+        <p className="text-sm text-gray-600">Sales Count: {salesData.length}</p>
+        <p className="text-sm text-gray-600">Inventory Count: {inventoryData.length}</p>
+        <p className="text-sm text-gray-600">Hours Count: {hoursData.length}</p>
+        <p className="text-sm text-gray-600">Check browser console for detailed API logs</p>
+      </div>
     </div>
   );
-}
+};
+
+export default PDFReport;
