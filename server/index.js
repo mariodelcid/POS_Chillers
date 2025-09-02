@@ -305,38 +305,6 @@ app.post('/api/sales', async (req, res) => {
       }
     }
 
-    // Check elote entero stock
-    const eloteEnteroItems = items.filter(line => {
-      const dbItem = idToItem.get(line.itemId);
-      return dbItem && dbItem.name === 'Elote Entero';
-    });
-
-    if (eloteEnteroItems.length > 0) {
-      const eloteEnteroPackaging = packagingMap.get('elote entero');
-      if (!eloteEnteroPackaging) {
-        return res.status(400).json({ error: 'Elote entero packaging material not found' });
-      }
-
-      let totalEloteEnteroNeeded = 0;
-      for (const line of eloteEnteroItems) {
-        totalEloteEnteroNeeded += line.quantity;
-      }
-
-      if (eloteEnteroPackaging.stock < totalEloteEnteroNeeded) {
-        return res.status(400).json({ error: `Insufficient elote entero stock. Need ${totalEloteEnteroNeeded}, have ${eloteEnteroPackaging.stock}` });
-      }
-
-      // Also check charolas stock for Elote Entero
-      const charolasPackaging = packagingMap.get('charolas');
-      if (!charolasPackaging) {
-        return res.status(400).json({ error: 'Charolas packaging material not found' });
-      }
-
-      if (charolasPackaging.stock < totalEloteEnteroNeeded) {
-        return res.status(400).json({ error: `Insufficient charolas stock. Need ${totalEloteEnteroNeeded}, have ${charolasPackaging.stock}` });
-      }
-    }
-
     const result = await prisma.$transaction(async (tx) => {
       // Re-check stock levels inside transaction to prevent race conditions
       const txPackagingMaterials = await tx.packagingMaterial.findMany();
@@ -347,20 +315,6 @@ app.post('/api/sales', async (req, res) => {
         const txElotePackaging = txPackagingMap.get('elote');
         if (!txElotePackaging || txElotePackaging.stock < totalEloteOuncesNeeded) {
           throw new Error(`Insufficient elote stock. Need ${totalEloteOuncesNeeded} oz, have ${txElotePackaging?.stock || 0} oz`);
-        }
-      }
-
-      // Double-check elote entero stock inside transaction
-      if (eloteEnteroItems.length > 0) {
-        const txEloteEnteroPackaging = txPackagingMap.get('elote entero');
-        const txCharolasPackaging = txPackagingMap.get('charolas');
-        
-        if (!txEloteEnteroPackaging || txEloteEnteroPackaging.stock < totalEloteEnteroNeeded) {
-          throw new Error(`Insufficient elote entero stock. Need ${totalEloteEnteroNeeded}, have ${txEloteEnteroPackaging?.stock || 0}`);
-        }
-        
-        if (!txCharolasPackaging || txCharolasPackaging.stock < totalEloteEnteroNeeded) {
-          throw new Error(`Insufficient charolas stock. Need ${totalEloteEnteroNeeded}, have ${txCharolasPackaging?.stock || 0}`);
         }
       }
 
@@ -405,13 +359,6 @@ app.post('/api/sales', async (req, res) => {
         } else if (dbItem.name === 'Elote Grande') {
           const current = packagingUsage.get('elote') || 0;
           packagingUsage.set('elote', current + (line.quantity * 14)); // 14 oz per elote grande
-        } else if (dbItem.name === 'Elote Entero') {
-          // Elote Entero deducts from both charolas and elote entero
-          const currentCharolas = packagingUsage.get('charolas') || 0;
-          packagingUsage.set('charolas', currentCharolas + line.quantity);
-          
-          const currentEloteEntero = packagingUsage.get('elote entero') || 0;
-          packagingUsage.set('elote entero', currentEloteEntero + line.quantity);
         }
       }
 
@@ -428,8 +375,16 @@ app.post('/api/sales', async (req, res) => {
 
     res.json({ ok: true, saleId: result.id, totalCents, changeDueCents });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('❌ Error in /api/sales POST:', err);
+    console.error('❌ Error details:', {
+      message: err.message,
+      stack: err.stack,
+      name: err.name
+    });
+    res.status(500).json({ 
+      error: err.message || 'Server error',
+      details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 });
 
