@@ -116,60 +116,37 @@ app.get('/api/sales', async (req, res) => {
     if (startDate || endDate) {
       whereClause.createdAt = {};
       if (startDate) {
-        // Convert local date to UTC range that covers the full local day
+        // Force UTC-6 (America/Chicago) timezone conversion
         // When user selects "2025-09-01", we need to cover their local 00:00:00 to 23:59:59
-        // In UTC, this translates to a different range due to timezone conversion
+        // In UTC-6, 00:00:00 local = 06:00:00 UTC
         
-        // Create the start of the selected date in local timezone
-        const localStartDate = new Date(startDate + 'T00:00:00');
-        
-        // Convert to UTC by accounting for timezone offset
-        // For America/Chicago (UTC-6), 00:00:00 local = 06:00:00 UTC
-        const timezoneOffset = localStartDate.getTimezoneOffset();
-        const utcStartDate = new Date(localStartDate.getTime() - (timezoneOffset * 60000));
-        
-        // Manual verification - if timezone offset is wrong, force UTC-6
-        const manualUtcStartDate = new Date(startDate + 'T06:00:00.000Z');
+        // Create the start of the selected date in UTC-6
+        const utcStartDate = new Date(startDate + 'T06:00:00.000Z');
         
         whereClause.createdAt.gte = utcStartDate;
         
-        console.log('Sales API - Date Conversion:', { 
+        console.log('Sales API - Date Conversion (UTC-6):', { 
           startDate,
-          localStartDate: localStartDate.toString(),
-          localStartDateISO: localStartDate.toISOString(),
-          detectedTimezoneOffset: timezoneOffset,
-          calculatedUtcStart: utcStartDate.toString(),
-          calculatedUtcStartISO: utcStartDate.toISOString(),
-          manualUtcStart: manualUtcStartDate.toString(),
-          manualUtcStartISO: manualUtcStartDate.toISOString()
+          utcStartDate: utcStartDate.toString(),
+          utcStartDateISO: utcStartDate.toISOString()
         });
       }
       if (endDate) {
-        // Convert local date to UTC range that covers the full local day
-        // Create the end of the selected date in local timezone
-        const localEndDate = new Date(endDate + 'T23:59:59.999');
+        // Force UTC-6 (America/Chicago) timezone conversion
+        // When user selects "2025-09-01", we need to cover their local 23:59:59
+        // In UTC-6, 23:59:59 local = 05:59:59 UTC (next day)
         
-        // Convert to UTC by accounting for timezone offset
-        // For America/Chicago (UTC-6), 23:59:59 local = 05:59:59 UTC (next day)
-        const timezoneOffset = localEndDate.getTimezoneOffset();
-        const utcEndDate = new Date(localEndDate.getTime() - (timezoneOffset * 60000));
-        
-        // Manual verification - if timezone offset is wrong, force UTC-6
+        // Create the end of the selected date in UTC-6
         const nextDay = new Date(endDate);
         nextDay.setDate(nextDay.getDate() + 1);
-        const manualUtcEndDate = new Date(nextDay.toISOString().split('T')[0] + 'T05:59:59.999Z');
+        const utcEndDate = new Date(nextDay.toISOString().split('T')[0] + 'T05:59:59.999Z');
         
         whereClause.createdAt.lte = utcEndDate;
         
-        console.log('Sales API - Date Conversion:', { 
+        console.log('Sales API - Date Conversion (UTC-6):', { 
           endDate,
-          localEndDate: localEndDate.toString(),
-          localEndDateISO: localEndDate.toISOString(),
-          detectedTimezoneOffset: timezoneOffset,
-          calculatedUtcEnd: utcEndDate.toString(),
-          calculatedUtcEndISO: utcEndDate.toISOString(),
-          manualUtcEnd: manualUtcEndDate.toString(),
-          manualUtcEndISO: manualUtcEndDate.toISOString()
+          utcEndDate: utcEndDate.toString(),
+          utcEndDateISO: utcEndDate.toISOString()
         });
       }
     }
@@ -213,14 +190,20 @@ app.get('/api/sales/stats', async (req, res) => {
     if (startDate || endDate) {
       whereClause.createdAt = {};
       if (startDate) {
-        // Use date-only comparison (start of day in local timezone)
-        const startDateTime = new Date(startDate + 'T00:00:00');
-        whereClause.createdAt.gte = startDateTime;
+        // Force UTC-6 (America/Chicago) timezone conversion
+        // When user selects "2025-09-01", we need to cover their local 00:00:00 to 23:59:59
+        // In UTC-6, 00:00:00 local = 06:00:00 UTC
+        const utcStartDate = new Date(startDate + 'T06:00:00.000Z');
+        whereClause.createdAt.gte = utcStartDate;
       }
       if (endDate) {
-        // Use date-only comparison (end of day in local timezone)
-        const endDateTime = new Date(endDate + 'T23:59:59.999');
-        whereClause.createdAt.lte = endDateTime;
+        // Force UTC-6 (America/Chicago) timezone conversion
+        // When user selects "2025-09-01", we need to cover their local 23:59:59
+        // In UTC-6, 23:59:59 local = 05:59:59 UTC (next day)
+        const nextDay = new Date(endDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const utcEndDate = new Date(nextDay.toISOString().split('T')[0] + 'T05:59:59.999Z');
+        whereClause.createdAt.lte = utcEndDate;
       }
     }
 
@@ -451,14 +434,20 @@ app.get('/api/purchases', async (req, res) => {
     if (startDate || endDate) {
       whereClause.createdAt = {};
       if (startDate) {
-        // Use date-only comparison (start of day in local timezone)
-        const startDateTime = new Date(startDate + 'T00:00:00');
-        whereClause.createdAt.gte = startDateTime;
+        // Force UTC-6 (America/Chicago) timezone conversion
+        // When user selects "2025-09-01", we need to cover their local 00:00:00 to 23:59:59
+        // In UTC-6, 00:00:00 local = 06:00:00 UTC
+        const utcStartDate = new Date(startDate + 'T06:00:00.000Z');
+        whereClause.createdAt.gte = utcStartDate;
       }
       if (endDate) {
-        // Use date-only comparison (end of day in local timezone)
-        const endDateTime = new Date(endDate + 'T23:59:59.999');
-        whereClause.createdAt.lte = endDateTime;
+        // Force UTC-6 (America/Chicago) timezone conversion
+        // When user selects "2025-09-01", we need to cover their local 23:59:59
+        // In UTC-6, 23:59:59 local = 05:59:59 UTC (next day)
+        const nextDay = new Date(endDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const utcEndDate = new Date(nextDay.toISOString().split('T')[0] + 'T05:59:59.999Z');
+        whereClause.createdAt.lte = utcEndDate;
       }
     }
 
@@ -566,25 +555,29 @@ app.get('/api/time-entries', async (req, res) => {
     if (startDate || endDate) {
       whereClause.timestamp = {};
       if (startDate) {
-        // Create date in local timezone without timezone conversion
-        const startDateTime = new Date(startDate + 'T00:00:00.000');
-        whereClause.timestamp.gte = startDateTime;
-        console.log('Time Entries API - Start Date:', { 
+        // Force UTC-6 (America/Chicago) timezone conversion
+        // When user selects "2025-09-01", we need to cover their local 00:00:00 to 23:59:59
+        // In UTC-6, 00:00:00 local = 06:00:00 UTC
+        const utcStartDate = new Date(startDate + 'T06:00:00.000Z');
+        whereClause.timestamp.gte = utcStartDate;
+        console.log('Time Entries API - Start Date (UTC-6):', { 
           startDate, 
-          startDateTime, 
-          startDateTimeISO: startDateTime.toISOString(),
-          startDateTimeLocal: startDateTime.toString()
+          utcStartDate, 
+          utcStartDateISO: utcStartDate.toISOString()
         });
       }
       if (endDate) {
-        // Create date in local timezone without timezone conversion
-        const endDateTime = new Date(endDate + 'T23:59:59.999');
-        whereClause.timestamp.lte = endDateTime;
-        console.log('Time Entries API - End Date:', { 
+        // Force UTC-6 (America/Chicago) timezone conversion
+        // When user selects "2025-09-01", we need to cover their local 23:59:59
+        // In UTC-6, 23:59:59 local = 05:59:59 UTC (next day)
+        const nextDay = new Date(endDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const utcEndDate = new Date(nextDay.toISOString().split('T')[0] + 'T05:59:59.999Z');
+        whereClause.timestamp.lte = utcEndDate;
+        console.log('Time Entries API - End Date (UTC-6):', { 
           endDate, 
-          endDateTime, 
-          endDateTimeISO: endDateTime.toISOString(),
-          endDateTimeLocal: endDateTime.toString()
+          utcEndDate, 
+          utcEndDateISO: utcEndDate.toISOString()
         });
       }
     }
