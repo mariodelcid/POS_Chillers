@@ -65,7 +65,7 @@ const itemPackagingMapping = [
   // Elotes in cups
   { itemName: 'Elote Chico', packaging: 'elote chico' },
   { itemName: 'Elote Grande', packaging: 'elote grande' },
-  // Elote Entero doesn't have direct packaging - it deducts from both charolas and elote entero
+  { itemName: 'Elote Entero', packaging: 'elote entero' },
   
   // Fresa con crema
   { itemName: 'Fresa Con Crema 16 oz', packaging: '16clear' },
