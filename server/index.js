@@ -116,25 +116,36 @@ app.get('/api/sales', async (req, res) => {
     if (startDate || endDate) {
       whereClause.createdAt = {};
       if (startDate) {
-        // Create date in local timezone without timezone conversion
+        // Create date in local timezone and adjust for timezone offset
+        // When user selects "2025-09-01", we want all sales from their local 00:00:00 to 23:59:59
         const startDateTime = new Date(startDate + 'T00:00:00.000');
-        whereClause.createdAt.gte = startDateTime;
+        // Adjust for timezone offset to ensure we get the full local day
+        const timezoneOffset = startDateTime.getTimezoneOffset() * 60000; // Convert to milliseconds
+        const adjustedStartDateTime = new Date(startDateTime.getTime() - timezoneOffset);
+        whereClause.createdAt.gte = adjustedStartDateTime;
         console.log('Sales API - Start Date:', { 
           startDate, 
           startDateTime, 
+          timezoneOffset: timezoneOffset / 60000, // Show offset in minutes
+          adjustedStartDateTime,
           startDateTimeISO: startDateTime.toISOString(),
-          startDateTimeLocal: startDateTime.toString()
+          adjustedStartDateTimeISO: adjustedStartDateTime.toISOString()
         });
       }
       if (endDate) {
-        // Create date in local timezone without timezone conversion
+        // Create date in local timezone and adjust for timezone offset
         const endDateTime = new Date(endDate + 'T23:59:59.999');
-        whereClause.createdAt.lte = endDateTime;
+        // Adjust for timezone offset to ensure we get the full local day
+        const timezoneOffset = endDateTime.getTimezoneOffset() * 60000; // Convert to milliseconds
+        const adjustedEndDateTime = new Date(endDateTime.getTime() - timezoneOffset);
+        whereClause.createdAt.lte = adjustedEndDateTime;
         console.log('Sales API - End Date:', { 
           endDate, 
           endDateTime, 
+          timezoneOffset: timezoneOffset / 60000, // Show offset in minutes
+          adjustedEndDateTime,
           endDateTimeISO: endDateTime.toISOString(),
-          endDateTimeLocal: endDateTime.toString()
+          adjustedEndDateTimeISO: adjustedEndDateTime.toISOString()
         });
       }
     }
