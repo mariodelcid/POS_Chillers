@@ -131,17 +131,31 @@ export default function POS() {
     setSubmitting(true);
     setMessage('');
     try {
+      console.log('🔄 Starting order completion...', { cart, paymentMethod, tenderCents });
+      
+      const requestBody = {
+        items: cart.map((l) => ({ itemId: l.itemId, quantity: l.quantity })),
+        paymentMethod,
+        amountTenderedCents: paymentMethod === 'cash' ? tenderCents : undefined,
+      };
+      
+      console.log('📤 Sending request:', requestBody);
+      
       const res = await fetch('/api/sales', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: cart.map((l) => ({ itemId: l.itemId, quantity: l.quantity })),
-          paymentMethod,
-          amountTenderedCents: paymentMethod === 'cash' ? tenderCents : undefined,
-        }),
+        body: JSON.stringify(requestBody),
       });
+      
+      console.log('📥 Response status:', res.status, res.statusText);
+      
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to complete order');
+      console.log('📥 Response data:', data);
+      
+      if (!res.ok) {
+        console.error('❌ Server error:', data);
+        throw new Error(data.error || `Server error: ${res.status} ${res.statusText}`);
+      }
       
       // Show celebration overlay
       setCelebrationAmount(centsToUSD(data.totalCents));
@@ -161,7 +175,8 @@ export default function POS() {
       // refresh items to show updated stock on inventory page too if needed
       fetch('/api/items').then((r) => r.json()).then(setItems);
     } catch (e) {
-      setMessage(e.message);
+      console.error('❌ Error in completeOrder:', e);
+      setMessage(`Error: ${e.message}`);
     } finally {
       setSubmitting(false);
     }
