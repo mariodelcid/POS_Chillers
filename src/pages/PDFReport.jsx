@@ -243,26 +243,60 @@ const PDFReport = () => {
         doc.text('Employee Hours', 10, currentY);
         currentY += 10;
         
-        // Group by employee
+        // Group by employee and calculate actual hours worked
         const employeeHours = {};
         hoursData.forEach(entry => {
-          if (!employeeHours[entry.employeeName]) {
-            employeeHours[entry.employeeName] = [];
+          const employeeName = entry.employeeName;
+          if (!employeeHours[employeeName]) {
+            employeeHours[employeeName] = {
+              clockIns: [],
+              clockOuts: [],
+              totalHours: 0
+            };
           }
-          employeeHours[entry.employeeName].push(entry);
+          
+          if (entry.type === 'clock_in') {
+            employeeHours[employeeName].clockIns.push(new Date(entry.timestamp));
+          } else if (entry.type === 'clock_out') {
+            employeeHours[employeeName].clockOuts.push(new Date(entry.timestamp));
+          }
         });
         
-        const hoursTableData = Object.entries(employeeHours).map(([name, entries]) => {
-          const clockIns = entries.filter(e => e.type === 'clock_in').length;
-          const clockOuts = entries.filter(e => e.type === 'clock_out').length;
-          return {
-            'Employee': name,
-            'Clock Ins': clockIns,
-            'Clock Outs': clockOuts
-          };
+        // Calculate actual hours worked for each employee
+        Object.keys(employeeHours).forEach(employeeName => {
+          const employee = employeeHours[employeeName];
+          
+          // Sort clock ins and outs chronologically
+          employee.clockIns.sort((a, b) => a - b);
+          employee.clockOuts.sort((a, b) => a - b);
+          
+          // Calculate total hours by pairing clock ins with clock outs
+          let totalHours = 0;
+          const minPairs = Math.min(employee.clockIns.length, employee.clockOuts.length);
+          
+          for (let i = 0; i < minPairs; i++) {
+            const clockIn = employee.clockIns[i];
+            const clockOut = employee.clockOuts[i];
+            
+            // Calculate hours between clock in and clock out
+            const hoursWorked = (clockOut - clockIn) / (1000 * 60 * 60);
+            totalHours += hoursWorked;
+          }
+          
+          employee.totalHours = totalHours;
         });
         
-        const headers = ['Employee', 'Clock Ins', 'Clock Outs'];
+        // Create hours table data
+        const hoursTableData = Object.entries(employeeHours).map(([name, data]) => ({
+          'Employee': name,
+          'Clock Ins': data.clockIns.length,
+          'Clock Outs': data.clockOuts.length,
+          'Hours Worked': data.totalHours.toFixed(2)
+        }));
+        
+        console.log('🔍 PDF Report: Hours calculation results:', hoursTableData);
+        
+        const headers = ['Employee', 'Clock Ins', 'Clock Outs', 'Hours Worked'];
         currentY = createSimpleTable(doc, hoursTableData, headers, currentY);
       }
 
