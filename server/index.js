@@ -359,6 +359,13 @@ app.post('/api/sales', async (req, res) => {
         } else if (dbItem.name === 'Elote Grande') {
           const current = packagingUsage.get('elote') || 0;
           packagingUsage.set('elote', current + (line.quantity * 14)); // 14 oz per elote grande
+        } else if (dbItem.name === 'Elote Entero') {
+          // Elote Entero deducts from both charolas and elote entero
+          const currentCharolas = packagingUsage.get('charolas') || 0;
+          packagingUsage.set('charolas', currentCharolas + line.quantity);
+          
+          const currentEloteEntero = packagingUsage.get('elote entero') || 0;
+          packagingUsage.set('elote entero', currentEloteEntero + line.quantity);
         }
       }
 
