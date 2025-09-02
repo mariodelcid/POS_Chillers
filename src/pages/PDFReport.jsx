@@ -172,17 +172,33 @@ const PDFReport = () => {
         currentY += 15;
 
         // Sales Details Table
-        const salesTableData = salesData.flatMap(sale => 
-          sale.items.map(item => ({
-            'Item': item.item.name,
-            'Qty': item.quantity,
-            'Revenue': `$${(item.lineTotalCents / 100).toFixed(2)}`,
-            'Balance': item.item.stock || 'N/A'
-          }))
-        );
+        // Group sales by item to get total quantities and revenues
+        const itemSales = {};
+        salesData.forEach(sale => {
+          sale.items.forEach(item => {
+            const itemName = item.item.name;
+            if (!itemSales[itemName]) {
+              itemSales[itemName] = {
+                quantity: 0,
+                revenue: 0,
+                stock: item.item.stock || 'N/A'
+              };
+            }
+            itemSales[itemName].quantity += item.quantity;
+            itemSales[itemName].revenue += item.lineTotalCents;
+          });
+        });
+
+        const salesTableData = Object.entries(itemSales).map(([itemName, data]) => ({
+          'Item': itemName,
+          'Qty': data.quantity,
+          'Revenue': `$${(data.revenue / 100).toFixed(2)}`,
+          'Balance': data.stock
+        }));
 
         if (salesTableData.length > 0) {
           console.log('🔍 PDF Report: Creating sales table with', salesTableData.length, 'rows');
+          console.log('🔍 PDF Report: Sample sales data:', salesTableData.slice(0, 3));
           doc.setFontSize(12);
           doc.text('Sales Details', 10, currentY);
           currentY += 10;
