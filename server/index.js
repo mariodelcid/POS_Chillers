@@ -23,6 +23,22 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Test endpoint to debug server issues
+app.get('/api/test', (req, res) => {
+  try {
+    res.json({ 
+      message: 'Server is working',
+      timestamp: new Date().toISOString(),
+      prismaStatus: 'Prisma client initialized'
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Test failed',
+      details: error.message 
+    });
+  }
+});
+
 // Items
 app.get('/api/items', async (_req, res) => {
   const items = await prisma.item.findMany({ orderBy: [{ category: 'asc' }, { name: 'asc' }] });
