@@ -3,6 +3,8 @@ import jsPDF from 'jspdf';
 
 const PDFReport = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedWeek, setSelectedWeek] = useState('');
+  const [reportType, setReportType] = useState('daily'); // 'daily' or 'weekly'
   const [salesData, setSalesData] = useState([]);
   const [inventoryData, setInventoryData] = useState([]);
   const [hoursData, setHoursData] = useState([]);
@@ -98,15 +100,17 @@ const PDFReport = () => {
   };
 
   const fetchData = async () => {
-    if (!selectedDate) return;
+    if (!selectedDate && !selectedWeek) return;
     
     setIsLoading(true);
     setError('');
     
     try {
-      console.log('🔍 PDF Report: Starting data fetch for date:', selectedDate);
+      const dateToUse = reportType === 'weekly' ? selectedWeek : selectedDate;
+      console.log('🔍 PDF Report: Starting data fetch for:', { reportType, dateToUse });
       
-      const { startDate, endDate } = getDateRange(selectedDate);
+      const { startDate, endDate } = getDateRange(dateToUse);
+      console.log('🔍 PDF Report: Date range calculated:', { startDate, endDate });
       
       // Fetch sales data
       const salesUrl = `/api/sales?startDate=${startDate}&endDate=${endDate}`;
@@ -158,7 +162,7 @@ const PDFReport = () => {
 
   useEffect(() => {
     fetchData();
-  }, [selectedDate]);
+  }, [selectedDate, selectedWeek, reportType]);
 
   const generatePDF = () => {
     console.log('🔍 PDF Report: Generate PDF button clicked');
@@ -369,16 +373,57 @@ const PDFReport = () => {
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">Daily Report Generator</h1>
       
+      {/* Report Type Selection */}
       <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Select Date
-        </label>
-        <input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        <div className="flex space-x-4 mb-4">
+          <label className="flex items-center">
+            <input
+              type="radio"
+              value="daily"
+              checked={reportType === 'daily'}
+              onChange={(e) => setReportType(e.target.value)}
+              className="mr-2"
+            />
+            Daily Report
+          </label>
+          <label className="flex items-center">
+            <input
+              type="radio"
+              value="weekly"
+              checked={reportType === 'weekly'}
+              onChange={(e) => setReportType(e.target.value)}
+              className="mr-2"
+            />
+            Weekly Report
+          </label>
+        </div>
+        
+        {reportType === 'daily' ? (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select Date
+            </label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        ) : (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select Week (e.g., 2025-W35)
+            </label>
+            <input
+              type="text"
+              value={selectedWeek}
+              onChange={(e) => setSelectedWeek(e.target.value)}
+              placeholder="2025-W35"
+              className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        )}
       </div>
 
       <div className="mb-6">
