@@ -116,16 +116,26 @@ app.get('/api/sales', async (req, res) => {
     if (startDate || endDate) {
       whereClause.createdAt = {};
       if (startDate) {
-        // Use date-only comparison (start of day in local timezone)
-        const startDateTime = new Date(startDate + 'T00:00:00');
+        // Create date in local timezone without timezone conversion
+        const startDateTime = new Date(startDate + 'T00:00:00.000');
         whereClause.createdAt.gte = startDateTime;
-        console.log('Sales API - Start Date:', { startDate, startDateTime });
+        console.log('Sales API - Start Date:', { 
+          startDate, 
+          startDateTime, 
+          startDateTimeISO: startDateTime.toISOString(),
+          startDateTimeLocal: startDateTime.toString()
+        });
       }
       if (endDate) {
-        // Use date-only comparison (end of day in local timezone)
+        // Create date in local timezone without timezone conversion
         const endDateTime = new Date(endDate + 'T23:59:59.999');
         whereClause.createdAt.lte = endDateTime;
-        console.log('Sales API - End Date:', { endDate, endDateTime });
+        console.log('Sales API - End Date:', { 
+          endDate, 
+          endDateTime, 
+          endDateTimeISO: endDateTime.toISOString(),
+          endDateTimeLocal: endDateTime.toString()
+        });
       }
     }
 
@@ -521,14 +531,26 @@ app.get('/api/time-entries', async (req, res) => {
     if (startDate || endDate) {
       whereClause.timestamp = {};
       if (startDate) {
-        // Use date-only comparison (start of day in local timezone)
-        const startDateTime = new Date(startDate + 'T00:00:00');
+        // Create date in local timezone without timezone conversion
+        const startDateTime = new Date(startDate + 'T00:00:00.000');
         whereClause.timestamp.gte = startDateTime;
+        console.log('Time Entries API - Start Date:', { 
+          startDate, 
+          startDateTime, 
+          startDateTimeISO: startDateTime.toISOString(),
+          startDateTimeLocal: startDateTime.toString()
+        });
       }
       if (endDate) {
-        // Use date-only comparison (end of day in local timezone)
+        // Create date in local timezone without timezone conversion
         const endDateTime = new Date(endDate + 'T23:59:59.999');
         whereClause.timestamp.lte = endDateTime;
+        console.log('Time Entries API - End Date:', { 
+          endDate, 
+          endDateTime, 
+          endDateTimeISO: endDateTime.toISOString(),
+          endDateTimeLocal: endDateTime.toString()
+        });
       }
     }
 
