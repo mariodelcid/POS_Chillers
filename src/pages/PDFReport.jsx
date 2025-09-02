@@ -456,6 +456,26 @@ export default function PDFReport() {
             <p><strong>Hours Data:</strong> {hoursData.length} records</p>
             <p><strong>Selected Date:</strong> {selectedDate}</p>
           </div>
+
+          {/* Debug Section */}
+          <div className="debug-section" style={{ 
+            backgroundColor: '#f5f5f5', 
+            padding: '15px', 
+            margin: '20px 0', 
+            borderRadius: '5px',
+            border: '1px solid #ddd'
+          }}>
+            <h4>🔍 Debug Information</h4>
+            <p><strong>Selected Date:</strong> {selectedDate}</p>
+            <p><strong>Selected Date Type:</strong> {typeof selectedDate}</p>
+            <p><strong>Sales API URL:</strong> /api/sales?startDate={selectedDate}&endDate={selectedDate}</p>
+            <p><strong>Sales Data Count:</strong> {salesData.length} records</p>
+            <p><strong>First Sale Date:</strong> {salesData[0] ? new Date(salesData[0].createdAt).toLocaleString() : 'None'}</p>
+            <p><strong>Last Sale Date:</strong> {salesData[salesData.length - 1] ? new Date(salesData[salesData.length - 1].createdAt).toLocaleString() : 'None'}</p>
+            <p><strong>Hours Data Count:</strong> {hoursData.length} records</p>
+            <p><strong>First Time Entry:</strong> {hoursData[0] ? new Date(hoursData[0].timestamp).toLocaleString() : 'None'}</p>
+            <p><strong>Last Time Entry:</strong> {hoursData[hoursData.length - 1] ? new Date(hoursData[hoursData.length - 1].timestamp).toLocaleString() : 'None'}</p>
+          </div>
         </div>
       )}
     </div>
