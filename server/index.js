@@ -116,38 +116,46 @@ app.get('/api/sales', async (req, res) => {
     if (startDate || endDate) {
       whereClause.createdAt = {};
       if (startDate) {
-        // Create date in local timezone and adjust for timezone offset
-        // When user selects "2025-09-01", we want all sales from their local 00:00:00 to 23:59:59
-        const startDateTime = new Date(startDate + 'T00:00:00.000');
-        // Adjust for timezone offset to ensure we get the full local day
-        const timezoneOffset = startDateTime.getTimezoneOffset() * 60000; // Convert to milliseconds
-        const adjustedStartDateTime = new Date(startDateTime.getTime() - timezoneOffset);
-        whereClause.createdAt.gte = adjustedStartDateTime;
+        // Convert local date to UTC range that covers the full local day
+        // When user selects "2025-09-01", we need to cover their local 00:00:00 to 23:59:59
+        // In UTC, this translates to a different range due to timezone conversion
         
-        console.log('Sales API - Start Date:', { 
-          startDate, 
-          startDateTime, 
-          timezoneOffset: timezoneOffset / 60000, // Show offset in minutes
-          adjustedStartDateTime,
-          startDateTimeISO: startDateTime.toISOString(),
-          adjustedStartDateTimeISO: adjustedStartDateTime.toISOString()
+        // Create the start of the selected date in local timezone
+        const localStartDate = new Date(startDate + 'T00:00:00');
+        
+        // Convert to UTC by accounting for timezone offset
+        // For America/Chicago (UTC-5), 00:00:00 local = 05:00:00 UTC
+        const utcStartDate = new Date(localStartDate.getTime() - (localStartDate.getTimezoneOffset() * 60000));
+        
+        whereClause.createdAt.gte = utcStartDate;
+        
+        console.log('Sales API - Date Conversion:', { 
+          startDate,
+          localStartDate: localStartDate.toString(),
+          localStartDateISO: localStartDate.toISOString(),
+          timezoneOffset: localStartDate.getTimezoneOffset(),
+          utcStartDate: utcStartDate.toString(),
+          utcStartDateISO: utcStartDate.toISOString()
         });
       }
       if (endDate) {
-        // Create date in local timezone and adjust for timezone offset
-        const endDateTime = new Date(endDate + 'T23:59:59.999');
-        // Adjust for timezone offset to ensure we get the full local day
-        const timezoneOffset = endDateTime.getTimezoneOffset() * 60000; // Convert to milliseconds
-        const adjustedEndDateTime = new Date(endDateTime.getTime() - timezoneOffset);
-        whereClause.createdAt.lte = adjustedEndDateTime;
+        // Convert local date to UTC range that covers the full local day
+        // Create the end of the selected date in local timezone
+        const localEndDate = new Date(endDate + 'T23:59:59.999');
         
-        console.log('Sales API - End Date:', { 
-          endDate, 
-          endDateTime, 
-          timezoneOffset: timezoneOffset / 60000, // Show offset in minutes
-          adjustedEndDateTime,
-          endDateTimeISO: endDateTime.toISOString(),
-          adjustedEndDateTimeISO: adjustedEndDateTime.toISOString()
+        // Convert to UTC by accounting for timezone offset
+        // For America/Chicago (UTC-5), 23:59:59 local = 04:59:59 UTC (next day)
+        const utcEndDate = new Date(localEndDate.getTime() - (localEndDate.getTimezoneOffset() * 60000));
+        
+        whereClause.createdAt.lte = utcEndDate;
+        
+        console.log('Sales API - Date Conversion:', { 
+          endDate,
+          localEndDate: localEndDate.toString(),
+          localEndDateISO: localEndDate.toISOString(),
+          timezoneOffset: localEndDate.getTimezoneOffset(),
+          utcEndDate: utcEndDate.toString(),
+          utcEndDateISO: utcEndDate.toISOString()
         });
       }
     }
