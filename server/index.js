@@ -312,13 +312,13 @@ app.post('/api/sales', async (req, res) => {
       return dbItem && (dbItem.name === 'Elote Chico' || dbItem.name === 'Elote Grande');
     });
 
+    let totalEloteOuncesNeeded = 0;
     if (eloteItems.length > 0) {
       const elotePackaging = packagingMap.get('elote');
       if (!elotePackaging) {
         return res.status(400).json({ error: 'Elote packaging material not found' });
       }
 
-      let totalEloteOuncesNeeded = 0;
       for (const line of eloteItems) {
         const dbItem = idToItem.get(line.itemId);
         if (dbItem.name === 'Elote Chico') {
