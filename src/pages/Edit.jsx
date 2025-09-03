@@ -1,97 +1,192 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 
-function Edit() {
+function centsToUSD(cents) {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+function formatDateTime(dateString) {
+  // Convert UTC to local timezone for display
+  const date = new Date(dateString);
+  return date.toLocaleString();
+}
+
+function formatDate(dateString) {
+  // Convert UTC to local timezone for display
+  const date = new Date(dateString);
+  return date.toLocaleDateString();
+}
+
+// Helper function to get today's date in local timezone
+function getTodayLocal() {
+  const now = new Date();
+  return now.toISOString().split('T')[0];
+}
+
+// Helper function to check if a date is today in local timezone
+function isToday(dateString) {
+  const today = new Date();
+  const date = new Date(dateString);
+  
+  return date.getDate() === today.getDate() &&
+         date.getMonth() === today.getMonth() &&
+         date.getFullYear() === today.getFullYear();
+}
+
+export default function Edit() {
   const [sales, setSales] = useState([]);
   const [purchases, setPurchases] = useState([]);
-  const [timeEntries, setTimeEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('summary'); // 'summary', 'items', 'transactions'
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [loading, setLoading] = useState(false);
   const [editingSale, setEditingSale] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [saleToDelete, setSaleToDelete] = useState(null);
 
-  // Get today's date in YYYY-MM-DD format
-  const today = new Date().toISOString().split('T')[0];
-
-  useEffect(() => {
-    setStartDate(today);
-    setEndDate(today);
-  }, [today]);
-
-  useEffect(() => {
-    if (startDate && endDate) {
-      fetchData();
-    }
-  }, [startDate, endDate]);
-
-  async function fetchData() {
+  // Function to fetch data with date filters
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const [salesRes, purchasesRes, timeRes] = await Promise.all([
-        fetch(`/api/sales?startDate=${startDate}&endDate=${endDate}`),
-        fetch(`/api/purchases?startDate=${startDate}&endDate=${endDate}`),
-        fetch(`/api/time-entries?startDate=${startDate}&endDate=${endDate}`)
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      
+      const [salesResponse, purchasesResponse] = await Promise.all([
+        fetch(`/api/sales?${params.toString()}`),
+        fetch(`/api/purchases?${params.toString()}`)
       ]);
-
-      const salesData = await salesRes.json();
-      const purchasesData = await purchasesRes.json();
-      const timeData = await timeRes.json();
-
+      
+      const [salesData, purchasesData] = await Promise.all([
+        salesResponse.json(),
+        purchasesResponse.json()
+      ]);
+      
       setSales(salesData);
       setPurchases(purchasesData);
-      setTimeEntries(timeData);
-    } catch (error) {
-      console.error('Error fetching data:', error);
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  function centsToUSD(cents) {
-    return `$${(cents / 100).toFixed(2)}`;
-  }
+  // Fetch data when component mounts or date filters change
+  useEffect(() => {
+    fetchData();
+  }, [startDate, endDate]);
 
-  function formatDate(dateString) {
-    return new Date(dateString).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  }
+  // Handle date filter changes
+  const handleDateChange = (type, value) => {
+    if (type === 'start') {
+      setStartDate(value);
+    } else {
+      setEndDate(value);
+    }
+  };
 
-  function formatTime(timestamp) {
-    return new Date(timestamp).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  }
+  // Reset date filters
+  const resetFilters = () => {
+    setStartDate('');
+    setEndDate('');
+  };
 
-  // Calculate totals
-  const totalSales = sales.reduce((sum, sale) => sum + sale.totalCents, 0);
-  const cashSales = sales.filter(s => s.paymentMethod === 'cash').reduce((sum, sale) => sum + sale.totalCents, 0);
-  const creditSales = sales.filter(s => s.paymentMethod === 'credit').reduce((sum, sale) => sum + sale.totalCents, 0);
-  const totalPurchases = purchases.reduce((sum, purchase) => sum + purchase.amountCents, 0);
-  const netCash = cashSales - totalPurchases;
+  // Get today's date in YYYY-MM-DD format for max attribute
+  const today = getTodayLocal();
 
-  // Group sales by item for summary
-  const itemSummary = {};
-  sales.forEach(sale => {
-    sale.items.forEach(item => {
-      const itemName = item.item.name;
-      if (!itemSummary[itemName]) {
-        itemSummary[itemName] = { quantity: 0, revenue: 0, category: item.item.category };
+  // Calculate daily summaries
+  const dailySummary = useMemo(() => {
+    const dailyTotals = new Map();
+    
+    // Process sales
+    sales.forEach((sale) => {
+      // Convert UTC date to local timezone for grouping
+      const localDate = new Date(sale.createdAt);
+      const date = localDate.toLocaleDateString();
+      
+      if (!dailyTotals.has(date)) {
+        dailyTotals.set(date, { 
+          cash: 0, 
+          credit: 0, 
+          totalSales: 0,
+          purchases: 0,
+          netCash: 0,
+          isToday: false
+        });
       }
-      itemSummary[itemName].quantity += item.quantity;
-      itemSummary[itemName].revenue += item.lineTotalCents;
+      const dayData = dailyTotals.get(date);
+      if (sale.paymentMethod === 'cash') {
+        dayData.cash += sale.totalCents;
+      } else {
+        dayData.credit += sale.totalCents;
+      }
+      dayData.totalSales += 1;
+      
+      // Mark if this is today
+      if (isToday(sale.createdAt)) {
+        dayData.isToday = true;
+      }
     });
-  });
 
-  const sortedItems = Object.entries(itemSummary)
-    .map(([name, stats]) => ({ name, ...stats }))
-    .sort((a, b) => b.revenue - a.revenue);
+    // Process purchases
+    purchases.forEach((purchase) => {
+      // Convert UTC date to local timezone for grouping
+      const localDate = new Date(purchase.createdAt);
+      const date = localDate.toLocaleDateString();
+      
+      if (!dailyTotals.has(date)) {
+        dailyTotals.set(date, { 
+          cash: 0, 
+          credit: 0, 
+          totalSales: 0,
+          purchases: 0,
+          netCash: 0,
+          isToday: false
+        });
+      }
+      const dayData = dailyTotals.get(date);
+      dayData.purchases += purchase.amountCents;
+    });
+
+    return Array.from(dailyTotals.entries())
+      .map(([date, data]) => ({ 
+        date, 
+        ...data, 
+        total: data.cash + data.credit,
+        netCash: data.cash - data.purchases
+      }))
+      .sort((a, b) => {
+        // Sort by date, with today first
+        if (a.isToday) return -1;
+        if (b.isToday) return 1;
+        return new Date(b.date) - new Date(a.date);
+      });
+  }, [sales, purchases]);
+
+  // Calculate item summaries
+  const itemSummary = useMemo(() => {
+    const itemTotals = new Map();
+    
+    sales.forEach((sale) => {
+      sale.items.forEach((saleItem) => {
+        const itemName = saleItem.item.name;
+        if (!itemTotals.has(itemName)) {
+          itemTotals.set(itemName, { 
+            name: itemName, 
+            category: saleItem.item.category,
+            quantity: 0, 
+            revenue: 0 
+          });
+        }
+        const itemData = itemTotals.get(itemName);
+        itemData.quantity += saleItem.quantity;
+        itemData.revenue += saleItem.lineTotalCents;
+      });
+    });
+
+    return Array.from(itemTotals.values())
+      .sort((a, b) => b.quantity - a.quantity);
+  }, [sales]);
 
   // Edit transaction functions
   const handleEditSale = (sale) => {
@@ -117,6 +212,8 @@ function Edit() {
         setSales(sales.filter(s => s.id !== saleToDelete.id));
         setShowDeleteModal(false);
         setSaleToDelete(null);
+        // Refresh data
+        fetchData();
       } else {
         console.error('Failed to delete sale');
       }
@@ -140,6 +237,8 @@ function Edit() {
         setSales(sales.map(s => s.id === editedSale.id ? editedSale : s));
         setShowEditModal(false);
         setEditingSale(null);
+        // Refresh data
+        fetchData();
       } else {
         console.error('Failed to update sale');
       }
@@ -148,121 +247,578 @@ function Edit() {
     }
   };
 
+  if (loading) return <div style={{ padding: 16 }}>Loading sales...</div>;
+
   return (
-    <div className="container mx-auto p-4 max-w-6xl">
-      <h1 className="text-3xl font-bold mb-6 text-center">📊 Sales Report - Edit Mode</h1>
+    <div style={{ padding: 16 }}>
+      <h3 style={{ marginTop: 0 }}>Sales Reports - Edit Mode</h3>
       
-      {/* Date Selection */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div className="flex flex-wrap gap-4 items-center justify-center">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+      {/* Date Filters */}
+      <div style={{ 
+        display: 'flex', 
+        gap: 16, 
+        marginBottom: 24, 
+        padding: '16px', 
+        backgroundColor: '#f8fafc', 
+        borderRadius: '8px',
+        alignItems: 'center',
+        flexWrap: 'wrap'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label htmlFor="startDate" style={{ fontWeight: 600, fontSize: '0.9em' }}>From:</label>
+          <input
+            id="startDate"
+            type="date"
+            value={startDate}
+            onChange={(e) => handleDateChange('start', e.target.value)}
+            max={today}
+            style={{
+              padding: '8px 12px',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              fontSize: '0.9em'
+            }}
+          />
+        </div>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label htmlFor="endDate" style={{ fontWeight: 600, fontSize: '0.9em' }}>To:</label>
+          <input
+            id="endDate"
+            type="date"
+            value={endDate}
+            onChange={(e) => handleDateChange('end', e.target.value)}
+            max={today}
+            min={startDate}
+            style={{
+              padding: '8px 12px',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              fontSize: '0.9em'
+            }}
+          />
+        </div>
+        
+        <button
+          onClick={resetFilters}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: '#6b7280',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '0.9em'
+          }}
+        >
+          Reset Filters
+        </button>
+        
+        {(startDate || endDate) && (
+          <div style={{ 
+            fontSize: '0.9em', 
+            color: '#059669', 
+            fontWeight: 600,
+            backgroundColor: '#d1fae5',
+            padding: '4px 12px',
+            borderRadius: '6px'
+          }}>
+            Filtered by date range
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+        )}
+        
+        {/* Timezone Info */}
+        <div style={{ 
+          fontSize: '0.8em', 
+          color: '#6b7280', 
+          backgroundColor: '#f3f4f6',
+          padding: '4px 8px',
+          borderRadius: '4px',
+          marginLeft: 'auto'
+        }}>
+          Timezone: {Intl.DateTimeFormat().resolvedOptions().timeZone}
+        </div>
+        
+        {/* Quick Date Presets */}
+        <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
           <button
-            onClick={fetchData}
-            disabled={loading}
-            className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 disabled:opacity-50"
+            onClick={() => {
+              const today = getTodayLocal();
+              setStartDate(today);
+              setEndDate(today);
+            }}
+            style={{
+              padding: '6px 12px',
+              backgroundColor: '#3b82f6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '0.8em'
+            }}
           >
-            {loading ? 'Loading...' : 'Refresh'}
+            Today
+          </button>
+          <button
+            onClick={() => {
+              const yesterday = new Date();
+              yesterday.setDate(yesterday.getDate() - 1);
+              const yesterdayStr = yesterday.toISOString().split('T')[0];
+              setStartDate(yesterdayStr);
+              setEndDate(yesterdayStr);
+            }}
+            style={{
+              padding: '6px 12px',
+              backgroundColor: '#8b5cf6',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '0.8em'
+            }}
+          >
+            Yesterday
+          </button>
+          <button
+            onClick={() => {
+              const now = new Date();
+              const startOfWeek = new Date(now);
+              startOfWeek.setDate(now.getDate() - now.getDay());
+              const endOfWeek = new Date(now);
+              endOfWeek.setDate(now.getDate() + (6 - now.getDay()));
+              
+              setStartDate(startOfWeek.toISOString().split('T')[0]);
+              setEndDate(endOfWeek.toISOString().split('T')[0]);
+            }}
+            style={{
+              padding: '6px 12px',
+              backgroundColor: '#10b981',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '0.8em'
+            }}
+          >
+            This Week
+          </button>
+          <button
+            onClick={() => {
+              const now = new Date();
+              const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+              const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+              
+              setStartDate(startOfMonth.toISOString().split('T')[0]);
+              setEndDate(endOfMonth.toISOString().split('T')[0]);
+            }}
+            style={{
+              padding: '6px 12px',
+              backgroundColor: '#f59e0b',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '0.8em'
+            }}
+          >
+            This Month
           </button>
         </div>
       </div>
+      
+      {/* Filtered Data Summary */}
+      {(startDate || endDate) && (
+        <div style={{ 
+          marginBottom: 24, 
+          padding: '16px', 
+          backgroundColor: '#eff6ff', 
+          borderRadius: '8px',
+          border: '1px solid #dbeafe'
+        }}>
+          <h4 style={{ margin: '0 0 12px 0', color: '#1e40af' }}>Filtered Data Summary</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.9em', color: '#6b7280', marginBottom: '4px' }}>Date Range</div>
+              <div style={{ fontWeight: 600, color: '#1e40af' }}>
+                {startDate && endDate ? `${startDate} to ${endDate}` : startDate ? `From ${startDate}` : `Until ${endDate}`}
+              </div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.9em', color: '#6b7280', marginBottom: '4px' }}>Total Sales</div>
+              <div style={{ fontWeight: 600, color: '#059669' }}>
+                {centsToUSD(sales.reduce((sum, sale) => sum + sale.totalCents, 0))}
+              </div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.9em', color: '#6b7280', marginBottom: '4px' }}>Transactions</div>
+              <div style={{ fontWeight: 600, color: '#7c3aed' }}>
+                {sales.length}
+              </div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.9em', color: '#6b7280', marginBottom: '4px' }}>Total Purchases</div>
+              <div style={{ fontWeight: 600, color: '#dc2626' }}>
+                {centsToUSD(purchases.reduce((sum, purchase) => sum + purchase.amountCents, 0))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow-md p-6 text-center">
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">Total Sales</h3>
-          <p className="text-3xl font-bold text-green-600">{centsToUSD(totalSales)}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-6 text-center">
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">Cash Sales</h3>
-          <p className="text-3xl font-bold text-blue-600">{centsToUSD(cashSales)}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-6 text-center">
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">Credit Sales</h3>
-          <p className="text-3xl font-bold text-purple-600">{centsToUSD(creditSales)}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-6 text-center">
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">Net Cash</h3>
-          <p className={`text-3xl font-bold ${netCash >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {centsToUSD(netCash)}
-          </p>
-        </div>
+      {/* Tabs */}
+      <div style={{ 
+        display: 'flex', 
+        gap: 8, 
+        marginBottom: 24, 
+        borderBottom: '2px solid #e5e7eb' 
+      }}>
+        <button
+          onClick={() => setActiveTab('summary')}
+          style={{
+            padding: '12px 24px',
+            backgroundColor: activeTab === 'summary' ? '#3b82f6' : 'transparent',
+            color: activeTab === 'summary' ? 'white' : '#6b7280',
+            border: 'none',
+            borderRadius: '8px 8px 0 0',
+            cursor: 'pointer',
+            fontWeight: 600,
+            fontSize: '0.9em'
+          }}
+        >
+          Daily Summary
+        </button>
+        <button
+          onClick={() => setActiveTab('items')}
+          style={{
+            padding: '12px 24px',
+            backgroundColor: activeTab === 'items' ? '#3b82f6' : 'transparent',
+            color: activeTab === 'items' ? 'white' : '#6b7280',
+            border: 'none',
+            borderRadius: '8px 8px 0 0',
+            cursor: 'pointer',
+            fontWeight: 600,
+            fontSize: '0.9em'
+          }}
+        >
+          Top Items
+        </button>
+        <button
+          onClick={() => setActiveTab('transactions')}
+          style={{
+            padding: '12px 24px',
+            backgroundColor: activeTab === 'transactions' ? '#3b82f6' : 'transparent',
+            color: activeTab === 'transactions' ? 'white' : '#6b7280',
+            border: 'none',
+            borderRadius: '8px 8px 0 0',
+            cursor: 'pointer',
+            fontWeight: 600,
+            fontSize: '0.9em'
+          }}
+        >
+          Transactions
+        </button>
       </div>
 
-      {/* Sales Transactions */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 className="text-2xl font-bold mb-4">Sales Transactions</h2>
-        {loading ? (
-          <p className="text-center text-gray-500">Loading...</p>
-        ) : sales.length === 0 ? (
-          <p className="text-center text-gray-500">No sales found for selected dates</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+      {/* Tab Content */}
+      {activeTab === 'summary' && (
+        <div>
+          <h4 style={{ marginBottom: 16 }}>Daily Sales Summary</h4>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+            gap: 16 
+          }}>
+            {dailySummary.map((day, index) => (
+              <div key={index} style={{
+                padding: '16px',
+                backgroundColor: day.isToday ? '#fef3c7' : 'white',
+                border: day.isToday ? '2px solid #f59e0b' : '1px solid #e5e7eb',
+                borderRadius: '8px',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+              }}>
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  marginBottom: 12 
+                }}>
+                  <h5 style={{ 
+                    margin: 0, 
+                    color: day.isToday ? '#92400e' : '#111827',
+                    fontWeight: 600
+                  }}>
+                    {day.date}
+                  </h5>
+                  {day.isToday && (
+                    <span style={{
+                      backgroundColor: '#f59e0b',
+                      color: 'white',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      fontSize: '0.7em',
+                      fontWeight: 600
+                    }}>
+                      TODAY
+                    </span>
+                  )}
+                </div>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.8em', color: '#6b7280', marginBottom: '2px' }}>Cash</div>
+                    <div style={{ fontWeight: 600, color: '#059669' }}>
+                      {centsToUSD(day.cash)}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.8em', color: '#6b7280', marginBottom: '2px' }}>Credit</div>
+                    <div style={{ fontWeight: 600, color: '#7c3aed' }}>
+                      {centsToUSD(day.credit)}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.8em', color: '#6b7280', marginBottom: '2px' }}>Total</div>
+                    <div style={{ fontWeight: 600, color: '#1e40af' }}>
+                      {centsToUSD(day.total)}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.8em', color: '#6b7280', marginBottom: '2px' }}>Net Cash</div>
+                    <div style={{ 
+                      fontWeight: 600, 
+                      color: day.netCash >= 0 ? '#059669' : '#dc2626' 
+                    }}>
+                      {centsToUSD(day.netCash)}
+                    </div>
+                  </div>
+                </div>
+                
+                <div style={{ 
+                  marginTop: 12, 
+                  padding: '8px', 
+                  backgroundColor: '#f3f4f6', 
+                  borderRadius: '4px',
+                  fontSize: '0.8em',
+                  color: '#6b7280'
+                }}>
+                  {day.totalSales} sales • {centsToUSD(day.purchases)} purchases
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'items' && (
+        <div>
+          <h4 style={{ marginBottom: 16 }}>Top Selling Items</h4>
+          <div style={{ 
+            backgroundColor: 'white', 
+            border: '1px solid #e5e7eb', 
+            borderRadius: '8px',
+            overflow: 'hidden'
+          }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f9fafb' }}>
+                  <th style={{ 
+                    padding: '12px 16px', 
+                    textAlign: 'left', 
+                    borderBottom: '1px solid #e5e7eb',
+                    fontWeight: 600,
+                    color: '#374151'
+                  }}>
+                    Item
+                  </th>
+                  <th style={{ 
+                    padding: '12px 16px', 
+                    textAlign: 'left', 
+                    borderBottom: '1px solid #e5e7eb',
+                    fontWeight: 600,
+                    color: '#374151'
+                  }}>
+                    Category
+                  </th>
+                  <th style={{ 
+                    padding: '12px 16px', 
+                    textAlign: 'right', 
+                    borderBottom: '1px solid #e5e7eb',
+                    fontWeight: 600,
+                    color: '#374151'
+                  }}>
+                    Quantity
+                  </th>
+                  <th style={{ 
+                    padding: '12px 16px', 
+                    textAlign: 'right', 
+                    borderBottom: '1px solid #e5e7eb',
+                    fontWeight: 600,
+                    color: '#374151'
+                  }}>
+                    Revenue
+                  </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {sales.map((sale) => (
-                  <tr key={sale.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatDate(sale.createdAt)}
+              <tbody>
+                {itemSummary.map((item, index) => (
+                  <tr key={index} style={{ 
+                    borderBottom: '1px solid #f3f4f6',
+                    backgroundColor: index % 2 === 0 ? 'white' : '#f9fafb'
+                  }}>
+                    <td style={{ padding: '12px 16px', fontWeight: 500 }}>
+                      {item.name}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      <div className="space-y-1">
+                    <td style={{ padding: '12px 16px', color: '#6b7280' }}>
+                      {item.category}
+                    </td>
+                    <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600 }}>
+                      {item.quantity}
+                    </td>
+                    <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600, color: '#059669' }}>
+                      {centsToUSD(item.revenue)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'transactions' && (
+        <div>
+          <h4 style={{ marginBottom: 16 }}>Sales Transactions</h4>
+          <div style={{ 
+            backgroundColor: 'white', 
+            border: '1px solid #e5e7eb', 
+            borderRadius: '8px',
+            overflow: 'hidden'
+          }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f9fafb' }}>
+                  <th style={{ 
+                    padding: '12px 16px', 
+                    textAlign: 'left', 
+                    borderBottom: '1px solid #e5e7eb',
+                    fontWeight: 600,
+                    color: '#374151'
+                  }}>
+                    Time
+                  </th>
+                  <th style={{ 
+                    padding: '12px 16px', 
+                    textAlign: 'left', 
+                    borderBottom: '1px solid #e5e7eb',
+                    fontWeight: 600,
+                    color: '#374151'
+                  }}>
+                    Items
+                  </th>
+                  <th style={{ 
+                    padding: '12px 16px', 
+                    textAlign: 'right', 
+                    borderBottom: '1px solid #e5e7eb',
+                    fontWeight: 600,
+                    color: '#374151'
+                  }}>
+                    Total
+                  </th>
+                  <th style={{ 
+                    padding: '12px 16px', 
+                    textAlign: 'center', 
+                    borderBottom: '1px solid #e5e7eb',
+                    fontWeight: 600,
+                    color: '#374151'
+                  }}>
+                    Payment
+                  </th>
+                  <th style={{ 
+                    padding: '12px 16px', 
+                    textAlign: 'center', 
+                    borderBottom: '1px solid #e5e7eb',
+                    fontWeight: 600,
+                    color: '#374151'
+                  }}>
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sales.map((sale) => (
+                  <tr key={sale.id} style={{ 
+                    borderBottom: '1px solid #f3f4f6',
+                    backgroundColor: 'white'
+                  }}>
+                    <td style={{ padding: '12px 16px', fontSize: '0.9em' }}>
+                      {formatDateTime(sale.createdAt)}
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ fontSize: '0.9em' }}>
                         {sale.items.map((item, index) => (
-                          <div key={index} className="flex justify-between">
+                          <div key={index} style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between',
+                            marginBottom: index < sale.items.length - 1 ? '4px' : 0
+                          }}>
                             <span>{item.quantity}x {item.item.name}</span>
-                            <span className="text-gray-500">{centsToUSD(item.lineTotalCents)}</span>
+                            <span style={{ color: '#6b7280' }}>
+                              {centsToUSD(item.lineTotalCents)}
+                            </span>
                           </div>
                         ))}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td style={{ 
+                      padding: '12px 16px', 
+                      textAlign: 'right', 
+                      fontWeight: 600,
+                      fontSize: '0.9em'
+                    }}>
                       {centsToUSD(sale.totalCents)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        sale.paymentMethod === 'cash' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-purple-100 text-purple-800'
-                      }`}>
+                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        fontSize: '0.8em',
+                        fontWeight: 600,
+                        backgroundColor: sale.paymentMethod === 'cash' ? '#d1fae5' : '#ede9fe',
+                        color: sale.paymentMethod === 'cash' ? '#065f46' : '#5b21b6'
+                      }}>
                         {sale.paymentMethod.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
+                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                         <button
                           onClick={() => handleEditSale(sale)}
-                          className="text-blue-600 hover:text-blue-900 bg-blue-100 hover:bg-blue-200 px-3 py-1 rounded-md text-xs"
+                          style={{
+                            padding: '4px 8px',
+                            backgroundColor: '#dbeafe',
+                            color: '#1e40af',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '0.8em',
+                            fontWeight: 500
+                          }}
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => handleDeleteSale(sale)}
-                          className="text-red-600 hover:text-red-900 bg-red-100 hover:bg-red-200 px-3 py-1 rounded-md text-xs"
+                          style={{
+                            padding: '4px 8px',
+                            backgroundColor: '#fee2e2',
+                            color: '#dc2626',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '0.8em',
+                            fontWeight: 500
+                          }}
                         >
                           Delete
                         </button>
@@ -273,159 +829,118 @@ function Edit() {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
-
-      {/* Top Selling Items */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 className="text-2xl font-bold mb-4">Top Selling Items</h2>
-        {sortedItems.length === 0 ? (
-          <p className="text-center text-gray-500">No items sold</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {sortedItems.map((item, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.category}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.quantity}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{centsToUSD(item.revenue)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Purchases */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 className="text-2xl font-bold mb-4">Purchases</h2>
-        {purchases.length === 0 ? (
-          <p className="text-center text-gray-500">No purchases found for selected dates</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {purchases.map((purchase) => (
-                  <tr key={purchase.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatDate(purchase.createdAt)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-600">
-                      {centsToUSD(purchase.amountCents)}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">{purchase.description}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Time Entries */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 className="text-2xl font-bold mb-4">Employee Time Entries</h2>
-        {timeEntries.length === 0 ? (
-          <p className="text-center text-gray-500">No time entries found for selected dates</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {timeEntries.map((entry) => (
-                  <tr key={entry.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{entry.employeeName}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        entry.type === 'clock_in' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {entry.type === 'clock_in' ? 'CLOCK IN' : 'CLOCK OUT'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatTime(entry.timestamp)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Edit Sale Modal */}
       {showEditModal && editingSale && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-bold mb-4">Edit Sale #{editingSale.id}</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Total Amount (cents)</label>
-                <input
-                  type="number"
-                  value={editingSale.totalCents}
-                  onChange={(e) => setEditingSale({
-                    ...editingSale,
-                    totalCents: parseInt(e.target.value)
-                  })}
-                  className="border border-gray-300 rounded-md px-3 py-2 w-full"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
-                <select
-                  value={editingSale.paymentMethod}
-                  onChange={(e) => setEditingSale({
-                    ...editingSale,
-                    paymentMethod: e.target.value
-                  })}
-                  className="border border-gray-300 rounded-md px-3 py-2 w-full"
-                >
-                  <option value="cash">Cash</option>
-                  <option value="credit">Credit</option>
-                </select>
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => saveEditedSale(editingSale)}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 flex-1"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => {
-                    setShowEditModal(false);
-                    setEditingSale(null);
-                  }}
-                  className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 flex-1"
-                >
-                  Cancel
-                </button>
-              </div>
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '24px',
+            borderRadius: '8px',
+            maxWidth: '400px',
+            width: '90%',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
+          }}>
+            <h3 style={{ margin: '0 0 16px 0' }}>Edit Sale #{editingSale.id}</h3>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '8px', 
+                fontWeight: 600,
+                color: '#374151'
+              }}>
+                Total Amount (cents)
+              </label>
+              <input
+                type="number"
+                value={editingSale.totalCents}
+                onChange={(e) => setEditingSale({
+                  ...editingSale,
+                  totalCents: parseInt(e.target.value)
+                })}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  fontSize: '0.9em'
+                }}
+              />
+            </div>
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '8px', 
+                fontWeight: 600,
+                color: '#374151'
+              }}>
+                Payment Method
+              </label>
+              <select
+                value={editingSale.paymentMethod}
+                onChange={(e) => setEditingSale({
+                  ...editingSale,
+                  paymentMethod: e.target.value
+                })}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  fontSize: '0.9em'
+                }}
+              >
+                <option value="cash">Cash</option>
+                <option value="credit">Credit</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => saveEditedSale(editingSale)}
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                Save
+              </button>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingSale(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  backgroundColor: '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>
@@ -433,17 +948,48 @@ function Edit() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && saleToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-bold mb-4 text-red-600">Delete Sale</h3>
-            <p className="text-gray-700 mb-4">
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '24px',
+            borderRadius: '8px',
+            maxWidth: '400px',
+            width: '90%',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
+          }}>
+            <h3 style={{ margin: '0 0 16px 0', color: '#dc2626' }}>Delete Sale</h3>
+            <p style={{ 
+              margin: '0 0 24px 0', 
+              color: '#374151',
+              lineHeight: '1.5'
+            }}>
               Are you sure you want to delete sale #{saleToDelete.id} for {centsToUSD(saleToDelete.totalCents)}?
               This action cannot be undone.
             </p>
-            <div className="flex space-x-2">
+            <div style={{ display: 'flex', gap: '12px' }}>
               <button
                 onClick={confirmDeleteSale}
-                className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 flex-1"
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
               >
                 Delete
               </button>
@@ -452,7 +998,16 @@ function Edit() {
                   setShowDeleteModal(false);
                   setSaleToDelete(null);
                 }}
-                className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 flex-1"
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  backgroundColor: '#6b7280',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
               >
                 Cancel
               </button>
@@ -463,5 +1018,3 @@ function Edit() {
     </div>
   );
 }
-
-export default Edit;
