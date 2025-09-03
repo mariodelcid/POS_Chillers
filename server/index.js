@@ -423,6 +423,65 @@ app.post('/api/sales', async (req, res) => {
   }
 });
 
+// Update sale
+app.put('/api/sales/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { totalCents, paymentMethod } = req.body;
+    
+    if (!totalCents || !paymentMethod) {
+      return res.status(400).json({ error: 'totalCents and paymentMethod are required' });
+    }
+    
+    if (!['cash', 'credit'].includes(paymentMethod)) {
+      return res.status(400).json({ error: 'Invalid payment method' });
+    }
+    
+    const updatedSale = await prisma.sale.update({
+      where: { id: parseInt(id) },
+      data: {
+        totalCents: parseInt(totalCents),
+        paymentMethod,
+        subtotalCents: parseInt(totalCents), // Assuming no tax for simplicity
+        taxCents: 0
+      }
+    });
+    
+    res.json({ ok: true, sale: updatedSale });
+  } catch (err) {
+    console.error('❌ Error updating sale:', err);
+    res.status(500).json({ 
+      error: err.message || 'Server error',
+      details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
+  }
+});
+
+// Delete sale
+app.delete('/api/sales/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // First delete related sale items
+    await prisma.saleItem.deleteMany({
+      where: { saleId: parseInt(id) }
+    });
+    
+    // Then delete the sale
+    await prisma.sale.delete({
+      where: { id: parseInt(id) }
+    });
+    
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('❌ Error deleting sale:', err);
+    res.status(500).json({ 
+      error: err.message || 'Server error',
+      details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
+  }
+});
+
 // Get purchases history
 app.get('/api/purchases', async (req, res) => {
   try {
