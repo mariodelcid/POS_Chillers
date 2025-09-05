@@ -17,7 +17,8 @@ function getStartOfWeek(date) {
   const d = new Date(date);
   const day = d.getDay();
   const diff = d.getDate() - day; // Adjust to Sunday
-  return new Date(d.setDate(diff));
+  d.setDate(diff);
+  return d;
 }
 
 // Helper function to get the end of week (Saturday)
@@ -25,7 +26,8 @@ function getEndOfWeek(date) {
   const d = new Date(date);
   const day = d.getDay();
   const diff = d.getDate() - day + 6; // Adjust to Saturday
-  return new Date(d.setDate(diff));
+  d.setDate(diff);
+  return d;
 }
 
 // Helper function to calculate hours between two timestamps

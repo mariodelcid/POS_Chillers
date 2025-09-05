@@ -524,15 +524,21 @@ app.get('/api/purchases', async (req, res) => {
 // Create purchase
 app.post('/api/purchases', async (req, res) => {
   try {
-    const { amountCents, description } = req.body;
+    const { amountCents, description, paymentMethod } = req.body;
     if (typeof amountCents !== 'number' || amountCents <= 0) {
       return res.status(400).json({ error: 'Invalid amount' });
     }
 
+    if (!['cash', 'card'].includes(paymentMethod)) {
+      return res.status(400).json({ error: 'Invalid payment method' });
+    }
+
     const purchase = await prisma.purchase.create({
       data: {
-        amountCents,
+        amountCents: parseInt(amountCents),
         description: description || 'Daily purchase',
+        paymentMethod: paymentMethod || 'cash',
+        receiptUrl: null, // File upload disabled for now
       },
     });
 
@@ -681,6 +687,99 @@ app.post('/api/time-entries', async (req, res) => {
     res.json({ ok: true, timeEntryId: timeEntry.id });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get accounting entries
+app.get('/api/accounting', async (req, res) => {
+  try {
+    const entries = await prisma.accountingEntry.findMany({
+      orderBy: { date: 'desc' },
+    });
+    res.json(entries);
+  } catch (error) {
+    console.error('Error fetching accounting entries:', error);
+    res.status(500).json({ error: 'Failed to fetch accounting entries' });
+  }
+});
+
+// Create accounting entry
+app.post('/api/accounting', async (req, res) => {
+  try {
+    const { date, cashSales, creditSales, squareFees, salesTax, deposits, taxPayments } = req.body;
+    
+    if (!date) {
+      return res.status(400).json({ error: 'Date is required' });
+    }
+
+    // Convert date to start of day in local timezone
+    const entryDate = new Date(date + 'T00:00:00.000Z');
+    
+    const entry = await prisma.accountingEntry.create({
+      data: {
+        date: entryDate,
+        cashSales: parseInt(cashSales) || 0,
+        creditSales: parseInt(creditSales) || 0,
+        squareFees: parseInt(squareFees) || 0,
+        salesTax: parseInt(salesTax) || 0,
+        deposits: parseInt(deposits) || 0,
+        taxPayments: parseInt(taxPayments) || 0,
+      },
+    });
+
+    res.json({ ok: true, entryId: entry.id });
+  } catch (err) {
+    console.error('Error creating accounting entry:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update accounting entry
+app.put('/api/accounting/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { date, cashSales, creditSales, squareFees, salesTax, deposits, taxPayments } = req.body;
+    
+    if (!date) {
+      return res.status(400).json({ error: 'Date is required' });
+    }
+
+    // Convert date to start of day in local timezone
+    const entryDate = new Date(date + 'T00:00:00.000Z');
+    
+    const entry = await prisma.accountingEntry.update({
+      where: { id: parseInt(id) },
+      data: {
+        date: entryDate,
+        cashSales: parseInt(cashSales) || 0,
+        creditSales: parseInt(creditSales) || 0,
+        squareFees: parseInt(squareFees) || 0,
+        salesTax: parseInt(salesTax) || 0,
+        deposits: parseInt(deposits) || 0,
+        taxPayments: parseInt(taxPayments) || 0,
+      },
+    });
+
+    res.json({ ok: true, entry });
+  } catch (err) {
+    console.error('Error updating accounting entry:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete accounting entry
+app.delete('/api/accounting/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    await prisma.accountingEntry.delete({
+      where: { id: parseInt(id) }
+    });
+    
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error deleting accounting entry:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

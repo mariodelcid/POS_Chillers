@@ -7,6 +7,7 @@ import Sales from './pages/Sales.jsx';
 import Hours from './pages/Hours.jsx';
 import PDFReport from './pages/PDFReport.jsx';
 import Edit from './pages/Edit.jsx';
+import Accounting from './pages/Accounting.jsx';
 import App from './pages/App.jsx';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -21,6 +22,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="reports" element={<PDFReport />} />
         </Route>
         <Route path="/edit" element={<Edit />} />
+        <Route path="/accounting" element={<Accounting />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>

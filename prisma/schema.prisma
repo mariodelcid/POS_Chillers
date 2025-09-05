@@ -55,10 +55,12 @@ model SaleItem {
 }
 
 model Purchase {
-  id          Int      @id @default(autoincrement())
-  amountCents Int
-  description String
-  createdAt   DateTime @default(now())
+  id              Int      @id @default(autoincrement())
+  amountCents     Int
+  description     String
+  paymentMethod   String   @default("cash") // "cash" or "card"
+  receiptUrl      String?  // URL to uploaded receipt file
+  createdAt       DateTime @default(now())
 }
 
 model TimeEntry {
@@ -68,6 +70,22 @@ model TimeEntry {
   timestamp    DateTime @default(now())
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model AccountingEntry {
+  id              Int      @id @default(autoincrement())
+  date            DateTime @unique // Date for this accounting entry (start of day in local timezone)
+  cashSales       Int      @default(0) // Total cash sales for the day
+  creditSales     Int      @default(0) // Total credit sales for the day
+  squareFees      Int      @default(0) // Square processing fees
+  salesTax        Int      @default(0) // Sales tax collected
+  deposits        Int      @default(0) // Cash deposits made
+  taxPayments     Int      @default(0) // Tax payments made
+  netCash         Int      @default(0) // Calculated: cashSales - deposits - taxPayments
+  netCredit       Int      @default(0) // Calculated: creditSales - squareFees
+  balance         Int      @default(0) // Running balance
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 

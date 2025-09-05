@@ -1,7 +1,10 @@
 import React from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
 export default function App() {
+  const location = useLocation();
+  const showAccounting = location.pathname.includes('accounting');
+
   return (
     <div style={{ fontFamily: 'system-ui, sans-serif', display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <header style={{ display: 'flex', gap: 16, alignItems: 'center', padding: 12, borderBottom: '1px solid #eee' }}>
@@ -18,6 +21,11 @@ export default function App() {
         <NavLink to="/reports" style={{ textDecoration: 'none' }}>
           Reports
         </NavLink>
+        {showAccounting && (
+          <NavLink to="/accounting" style={{ textDecoration: 'none', color: '#059669', fontWeight: '600' }}>
+            Accounting
+          </NavLink>
+        )}
       </header>
       <main style={{ flex: 1, overflow: 'auto' }}>
         <Outlet />

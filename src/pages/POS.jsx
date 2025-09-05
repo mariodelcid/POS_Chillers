@@ -13,6 +13,8 @@ export default function POS() {
   const [message, setMessage] = useState('');
   const [purchaseAmount, setPurchaseAmount] = useState('');
   const [showPurchaseInput, setShowPurchaseInput] = useState(false);
+  const [purchasePaymentMethod, setPurchasePaymentMethod] = useState('cash');
+  const [purchaseReceipt, setPurchaseReceipt] = useState(null);
   const [showClockIn, setShowClockIn] = useState(false);
   const [showClockOut, setShowClockOut] = useState(false);
   const [employeeName, setEmployeeName] = useState('');
@@ -198,18 +200,22 @@ export default function POS() {
     setMessage('');
     try {
       const purchaseCents = Math.round(parseFloat(purchaseAmount) * 100);
+
       const res = await fetch('/api/purchases', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amountCents: purchaseCents,
-          description: 'Daily purchase'
+          description: 'Daily purchase',
+          paymentMethod: purchasePaymentMethod,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to record purchase');
-      setMessage(`Purchase recorded: ${centsToUSD(purchaseCents)}`);
+      setMessage(`Purchase recorded: ${centsToUSD(purchaseCents)} (${purchasePaymentMethod})`);
       setPurchaseAmount('');
+      setPurchasePaymentMethod('cash');
+      setPurchaseReceipt(null);
       setShowPurchaseInput(false);
     } catch (e) {
       setMessage(e.message);
@@ -914,6 +920,94 @@ export default function POS() {
                     fontWeight: '600'
                   }}
                 />
+              </div>
+              
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '8px', 
+                  fontWeight: '600', 
+                  color: '#dc2626' 
+                }}>
+                  Payment Method
+                </label>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <label style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '6px',
+                    padding: '8px 12px',
+                    border: `2px solid ${purchasePaymentMethod === 'cash' ? '#dc2626' : '#d1d5db'}`,
+                    borderRadius: '6px',
+                    backgroundColor: purchasePaymentMethod === 'cash' ? '#fef2f2' : '#ffffff',
+                    cursor: 'pointer',
+                    fontWeight: '500'
+                  }}>
+                    <input 
+                      type="radio" 
+                      name="purchasePaymentMethod" 
+                      value="cash" 
+                      checked={purchasePaymentMethod === 'cash'} 
+                      onChange={(e) => setPurchasePaymentMethod(e.target.value)}
+                      style={{ margin: 0 }}
+                    />
+                    💵 Cash
+                  </label>
+                  <label style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '6px',
+                    padding: '8px 12px',
+                    border: `2px solid ${purchasePaymentMethod === 'card' ? '#dc2626' : '#d1d5db'}`,
+                    borderRadius: '6px',
+                    backgroundColor: purchasePaymentMethod === 'card' ? '#fef2f2' : '#ffffff',
+                    cursor: 'pointer',
+                    fontWeight: '500'
+                  }}>
+                    <input 
+                      type="radio" 
+                      name="purchasePaymentMethod" 
+                      value="card" 
+                      checked={purchasePaymentMethod === 'card'} 
+                      onChange={(e) => setPurchasePaymentMethod(e.target.value)}
+                      style={{ margin: 0 }}
+                    />
+                    💳 Card
+                  </label>
+                </div>
+              </div>
+              
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '8px', 
+                  fontWeight: '600', 
+                  color: '#dc2626' 
+                }}>
+                  Receipt (Optional)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => setPurchaseReceipt(e.target.files[0] || null)}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    border: '1px solid #dc2626',
+                    borderRadius: '6px',
+                    fontSize: '14px'
+                  }}
+                />
+                {purchaseReceipt && (
+                  <div style={{ 
+                    marginTop: '4px', 
+                    fontSize: '12px', 
+                    color: '#059669',
+                    fontWeight: '500'
+                  }}>
+                    Selected: {purchaseReceipt.name}
+                  </div>
+                )}
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button 
