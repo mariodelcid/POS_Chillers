@@ -18,6 +18,7 @@ function getStartOfWeek(date) {
   const day = d.getDay();
   const diff = d.getDate() - day; // Adjust to Sunday
   d.setDate(diff);
+  d.setHours(0, 0, 0, 0); // Set to start of day
   return d;
 }
 
@@ -27,6 +28,7 @@ function getEndOfWeek(date) {
   const day = d.getDay();
   const diff = d.getDate() - day + 6; // Adjust to Saturday
   d.setDate(diff);
+  d.setHours(23, 59, 59, 999); // Set to end of day
   return d;
 }
 
@@ -53,11 +55,18 @@ export default function Hours() {
       const response = await fetch('/api/time-entries');
       const data = await response.json();
       
-      // Add date field to each entry for easier filtering
-      const processedData = data.map(entry => ({
-        ...entry,
-        date: new Date(entry.timestamp).toISOString().split('T')[0]
-      }));
+      // Add date field to each entry for easier filtering (using local timezone)
+      const processedData = data.map(entry => {
+        const localDate = new Date(entry.timestamp);
+        // Convert to local date string (YYYY-MM-DD format)
+        const year = localDate.getFullYear();
+        const month = String(localDate.getMonth() + 1).padStart(2, '0');
+        const day = String(localDate.getDate()).padStart(2, '0');
+        return {
+          ...entry,
+          date: `${year}-${month}-${day}`
+        };
+      });
       
       setTimeEntries(processedData);
     } catch (err) {
@@ -228,10 +237,10 @@ export default function Hours() {
     const weekEnd = getEndOfWeek(selectedWeek);
     
     const weekEntries = timeEntries.filter(entry => {
-      const entryDate = new Date(entry.date);
+      // Compare date strings directly since both are in YYYY-MM-DD format
       return entry.employeeName === selectedEmployee && 
-             entryDate >= weekStart && 
-             entryDate <= weekEnd;
+             entry.date >= weekStart.toISOString().split('T')[0] && 
+             entry.date <= weekEnd.toISOString().split('T')[0];
     }).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     
     const dailyData = {};
