@@ -462,14 +462,70 @@ app.delete('/api/sales/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    // First delete related sale items
-    await prisma.saleItem.deleteMany({
-      where: { saleId: parseInt(id) }
+    // First, get the sale with its items to calculate packaging replenishment
+    const sale = await prisma.sale.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        items: {
+          include: {
+            item: true
+          }
+        }
+      }
     });
     
-    // Then delete the sale
-    await prisma.sale.delete({
-      where: { id: parseInt(id) }
+    if (!sale) {
+      return res.status(404).json({ error: 'Sale not found' });
+    }
+    
+    // Calculate packaging materials to replenish
+    const packagingReplenishment = new Map();
+    
+    for (const saleItem of sale.items) {
+      const item = saleItem.item;
+      
+      // Replenish regular packaging materials
+      if (item.packaging) {
+        const current = packagingReplenishment.get(item.packaging) || 0;
+        packagingReplenishment.set(item.packaging, current + saleItem.quantity);
+      }
+      
+      // Replenish elote inventory (ounces)
+      if (item.name === 'Elote Chico') {
+        const current = packagingReplenishment.get('elote') || 0;
+        packagingReplenishment.set('elote', current + (saleItem.quantity * 8)); // 8 oz per elote chico
+      } else if (item.name === 'Elote Grande') {
+        const current = packagingReplenishment.get('elote') || 0;
+        packagingReplenishment.set('elote', current + (saleItem.quantity * 14)); // 14 oz per elote grande
+      } else if (item.name === 'Elote Entero') {
+        // Elote Entero replenishes both charolas and elote entero
+        const currentCharolas = packagingReplenishment.get('charolas') || 0;
+        packagingReplenishment.set('charolas', currentCharolas + saleItem.quantity);
+        
+        const currentEloteEntero = packagingReplenishment.get('elote entero') || 0;
+        packagingReplenishment.set('elote entero', currentEloteEntero + saleItem.quantity);
+      }
+    }
+    
+    // Use transaction to ensure atomicity
+    await prisma.$transaction(async (tx) => {
+      // Replenish packaging materials
+      for (const [packagingName, quantity] of packagingReplenishment) {
+        await tx.packagingMaterial.updateMany({
+          where: { name: packagingName },
+          data: { stock: { increment: quantity } },
+        });
+      }
+      
+      // Delete related sale items
+      await tx.saleItem.deleteMany({
+        where: { saleId: parseInt(id) }
+      });
+      
+      // Delete the sale
+      await tx.sale.delete({
+        where: { id: parseInt(id) }
+      });
     });
     
     res.json({ ok: true });
