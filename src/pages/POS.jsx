@@ -24,6 +24,25 @@ export default function POS() {
 
   useEffect(() => {
     fetch('/api/items').then((r) => r.json()).then(setItems);
+    
+    // Handle Square payment callback
+    const urlParams = new URLSearchParams(window.location.search);
+    const squareCallback = urlParams.get('square_callback');
+    const status = urlParams.get('status');
+    const transactionId = urlParams.get('transaction_id');
+    
+    if (squareCallback === '1') {
+      // Clean up URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      if (status === 'success' || status === 'COMPLETED') {
+        setMessage('✅ Payment successful! Transaction ID: ' + (transactionId || 'N/A') + '. Click "Complete Order" to finalize the sale.');
+      } else if (status === 'error' || status === 'FAILED') {
+        setMessage('❌ Payment failed. Please try again or use cash payment.');
+      } else {
+        setMessage('Payment processed. Status: ' + (status || 'unknown') + '. Click "Complete Order" to finalize the sale.');
+      }
+    }
   }, []);
 
   const grouped = useMemo(() => {
@@ -771,58 +790,117 @@ export default function POS() {
          {paymentMethod === 'credit' && (
            <button 
              disabled={cart.length === 0 || submitting} 
-             onClick={() => {
-               // Platform detection
-               const isAndroid = /Android/i.test(navigator.userAgent);
-               const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-               const isDesktop = !isAndroid && !isIOS;
-               
-               if (isAndroid) {
-                 // Android: Open Square Point of Sale app
-                 console.log('Opening Square POS for Android...');
+             onClick={async () => {
+               try {
+                 // Platform detection
+                 const isAndroid = /Android/i.test(navigator.userAgent);
+                 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                 const isDesktop = !isAndroid && !isIOS;
                  
-                 const posUrl = 
-                   "intent:#Intent;" +
-                   "action=com.squareup.pos.action.CHARGE;" +
-                   "package=com.squareup;" +
-                   "S.com.squareup.pos.WEB_CALLBACK_URI=" + 'https://pos-production-751e.up.railway.app/' + ";" +
-                   "S.com.squareup.pos.CLIENT_ID=" + 'sq0idp-PbznJFG3brzaUpfhFZD3mg' + ";" +
-                   "S.com.squareup.pos.API_VERSION=" + 'v2.0' + ";" +
-                   "i.com.squareup.pos.TOTAL_AMOUNT=" + totalCents + ";" +
-                   "S.com.squareup.pos.CURRENCY_CODE=" + 'USD' + ";" +
-                   "S.com.squareup.pos.TENDER_TYPES=com.squareup.pos.TENDER_CARD,com.squareup.pos.TENDER_CARD_ON_FILE,com.squareup.pos.TENDER_CASH,com.squareup.pos.TENDER_OTHER;" +
-                   "end";
+                 // Ensure we have a valid total
+                 if (!totalCents || totalCents <= 0) {
+                   setMessage('Error: Invalid order total. Please add items to cart.');
+                   return;
+                 }
                  
-                 console.log('Android POS URL:', posUrl);
-                 window.open(posUrl);
-                 
-                 setMessage('Square POS opened. After payment is processed, return here and click "Complete Order".');
-                 
-                               } else if (isIOS) {
-                  // iOS: Use Square's official payment link (most reliable method)
-                  console.log('Opening Square payment for iOS...');
-                  
-                  // For iOS, we'll use Square's web payment which is more reliable
-                  // The square:// URL scheme often causes download prompts or doesn't work
-                  const paymentUrl = `https://square.link/u/${'sq0idp-PbznJFG3brzaUpfhFZD3mg'}?amount=${totalCents}&currency=USD`;
-                  
-                  console.log('iOS Square payment URL:', paymentUrl);
-                  
-                  // Open Square's official payment link in new tab for iOS
-                  window.open(paymentUrl, '_blank');
-                  
-                  setMessage('Square payment opened. After payment is processed, return here and click "Complete Order".');
-                 
-                               } else if (isDesktop) {
-                  // Desktop: Use Square's official payment link
-                  console.log('Opening Square payment for desktop...');
-                  
-                  const paymentUrl = `https://square.link/u/${'sq0idp-PbznJFG3brzaUpfhFZD3mg'}?amount=${totalCents}&currency=USD`;
-                  
-                  console.log('Desktop Square payment URL:', paymentUrl);
-                  window.open(paymentUrl, '_blank');
-                  
-                  setMessage('Square payment opened. After payment is processed, return here and click "Complete Order".');
+                 if (isAndroid) {
+                   // Android: Open Square Point of Sale app using intent URL
+                   console.log('Opening Square POS for Android...');
+                   
+                   // Build callback URL - ensure it uses HTTPS and current origin
+                   let callbackUrl = window.location.origin + '/square-callback';
+                   
+                   // Force HTTPS if not already present (for production)
+                   if (callbackUrl.startsWith('http://') && window.location.hostname !== 'localhost') {
+                     callbackUrl = callbackUrl.replace('http://', 'https://');
+                   }
+                   
+                   console.log('Current origin:', window.location.origin);
+                   console.log('Current hostname:', window.location.hostname);
+                   console.log('Callback URL:', callbackUrl);
+                   console.log('Total amount (cents):', totalCents);
+                   
+                   // Verify callback URL is accessible (optional check)
+                   try {
+                     fetch(callbackUrl, { method: 'HEAD', mode: 'no-cors' })
+                       .then(() => console.log('Callback URL is accessible'))
+                       .catch(() => console.warn('Could not verify callback URL accessibility'));
+                   } catch (e) {
+                     console.warn('Callback URL check failed:', e);
+                   }
+                   
+                   // Build the Android intent URL
+                   const posUrl = 
+                     "intent:#Intent;" +
+                     "action=com.squareup.pos.action.CHARGE;" +
+                     "package=com.squareup;" +
+                     "S.com.squareup.pos.WEB_CALLBACK_URI=" + encodeURIComponent(callbackUrl) + ";" +
+                     "S.com.squareup.pos.CLIENT_ID=" + 'sandbox-sq0idb-rRFOfYReHf_fovMjRZOCbg' + ";" +
+                     "S.com.squareup.pos.API_VERSION=" + 'v2.0' + ";" +
+                     "i.com.squareup.pos.TOTAL_AMOUNT=" + totalCents + ";" +
+                     "S.com.squareup.pos.CURRENCY_CODE=" + 'USD' + ";" +
+                     "S.com.squareup.pos.TENDER_TYPES=com.squareup.pos.TENDER_CARD,com.squareup.pos.TENDER_CARD_ON_FILE,com.squareup.pos.TENDER_CASH,com.squareup.pos.TENDER_OTHER;" +
+                     "end";
+                   
+                   console.log('Full Android POS Intent URL:', posUrl);
+                   console.log('Decoded callback URI:', decodeURIComponent(encodeURIComponent(callbackUrl)));
+                   
+                   // Try to open Square POS app
+                   try {
+                     // For Android intents, use location.href directly as it's more reliable
+                     window.location.href = posUrl;
+                     
+                     // Set a timeout to detect if Square app didn't open
+                     setTimeout(() => {
+                       // If we're still on the same page after 2 seconds, Square might not have opened
+                       console.warn('Square POS might not have opened. Check if app is installed.');
+                     }, 2000);
+                     
+                     setMessage(`Opening Square POS app... Callback URL: ${callbackUrl}. Make sure the Square Point of Sale app is installed.`);
+                   } catch (error) {
+                     console.error('Error opening Square POS:', error);
+                     setMessage(`Error opening Square POS: ${error.message}. Please ensure the Square Point of Sale app is installed and the callback URL (${callbackUrl}) is registered in Square Developer Dashboard.`);
+                   }
+                   
+                 } else if (isIOS) {
+                   // iOS: Use Square's official payment link
+                   console.log('Opening Square payment for iOS...');
+                   
+                   // Square payment links expect amount in cents
+                   const paymentUrl = `https://square.link/u/sandbox-sq0idb-rRFOfYReHf_fovMjRZOCbg?amount=${totalCents}&currency=USD`;
+                   
+                   console.log('iOS Square payment URL:', paymentUrl);
+                   
+                   // Try window.open first, fallback to location.href if blocked
+                   const popup = window.open(paymentUrl, '_blank');
+                   if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+                     // Popup blocked, try location.href
+                     window.location.href = paymentUrl;
+                   }
+                   
+                   setMessage('Opening Square payment... Complete payment and return here to click "Complete Order".');
+                   
+                 } else if (isDesktop) {
+                   // Desktop: Use Square's official payment link
+                   console.log('Opening Square payment for desktop...');
+                   
+                   // Square payment links expect amount in cents
+                   const paymentUrl = `https://square.link/u/sandbox-sq0idb-rRFOfYReHf_fovMjRZOCbg?amount=${totalCents}&currency=USD`;
+                   
+                   console.log('Desktop Square payment URL:', paymentUrl);
+                   
+                   // Try window.open first, fallback to location.href if blocked
+                   const popup = window.open(paymentUrl, '_blank');
+                   if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+                     // Popup blocked, try location.href
+                     window.location.href = paymentUrl;
+                   }
+                   
+                   setMessage('Opening Square payment in new window... Complete payment and return here to click "Complete Order".');
+                 }
+               } catch (error) {
+                 console.error('Error opening Square payment:', error);
+                 setMessage(`Error: ${error.message}. Please try again or contact support.`);
                }
              }} 
              style={{ 

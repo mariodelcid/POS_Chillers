@@ -840,7 +840,40 @@ app.delete('/api/accounting/:id', async (req, res) => {
   }
 });
 
-
+// Square payment callback handler for Android POS app
+// This route handles the callback from Square after payment is processed
+app.get('/square-callback', (req, res) => {
+  try {
+    const { transaction_id, status, amount, currency, payment_id, error } = req.query;
+    
+    console.log('Square callback received:', { 
+      transaction_id, 
+      status, 
+      amount, 
+      currency, 
+      payment_id,
+      error,
+      allParams: req.query 
+    });
+    
+    // Determine status from various possible parameters
+    let paymentStatus = status || 'unknown';
+    if (error) {
+      paymentStatus = 'error';
+    } else if (payment_id && !error) {
+      paymentStatus = 'success';
+    }
+    
+    // Redirect back to POS page with payment status
+    // The frontend will handle showing the success/error message
+    const redirectUrl = `/?square_callback=1&status=${encodeURIComponent(paymentStatus)}&transaction_id=${encodeURIComponent(transaction_id || payment_id || '')}`;
+    res.redirect(redirectUrl);
+  } catch (error) {
+    console.error('Error handling Square callback:', error);
+    // Still redirect to POS page even if there's an error
+    res.redirect('/?square_callback=1&status=error');
+  }
+});
 
 // Serve frontend
 const __filename = fileURLToPath(import.meta.url);
