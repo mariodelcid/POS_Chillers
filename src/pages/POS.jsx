@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
+
 function centsToUSD(cents) { return `$${(cents / 100).toFixed(2)}`; }
+
 export default function POS() {
   const [items, setItems] = useState([]);
   const [cart, setCart] = useState([]);
@@ -20,7 +22,6 @@ export default function POS() {
   useEffect(() => {
     fetch('/api/items').then((r) => r.json()).then(setItems);
 
-    // Handle Square payment callback - auto-complete the sale
     const urlParams = new URLSearchParams(window.location.search);
     const squareCallback = urlParams.get('square_callback');
     const status = urlParams.get('status');
@@ -28,15 +29,12 @@ export default function POS() {
 
     if (squareCallback === '1') {
       window.history.replaceState({}, document.title, window.location.pathname);
-
-      // Restore saved cart from localStorage
       const savedCart = JSON.parse(localStorage.getItem('pendingSquareCart') || 'null');
       const savedPaymentMethod = localStorage.getItem('pendingSquarePaymentMethod') || 'credit';
       localStorage.removeItem('pendingSquareCart');
       localStorage.removeItem('pendingSquarePaymentMethod');
 
       if ((status === 'ok' || status === 'success' || status === 'COMPLETED') && savedCart && savedCart.length > 0) {
-        // Auto-complete the sale
         const autoComplete = async () => {
           try {
             const res = await fetch('/api/sales', {
@@ -64,7 +62,6 @@ export default function POS() {
         };
         autoComplete();
       } else if (status === 'cancel' || status === 'CANCELED') {
-        // Payment was cancelled - restore cart so they can try again
         if (savedCart) setCart(savedCart);
         setPaymentMethod('credit');
         setMessage('Payment was cancelled. Your cart has been restored.');
@@ -124,13 +121,17 @@ export default function POS() {
       return [...prev, { itemId: item.id, name: item.name, priceCents: item.priceCents, quantity: 1 }];
     });
   }
+
   function updateQty(itemId, delta) {
     setCart((prev) =>
       prev.map((l) => (l.itemId === itemId ? { ...l, quantity: Math.max(0, l.quantity + delta) } : l))
-          .filter((l) => l.quantity > 0)
+        .filter((l) => l.quantity > 0)
     );
   }
-  function removeFromCart(itemId) { setCart((prev) => prev.filter((l) => l.itemId !== itemId)); }
+
+  function removeFromCart(itemId) {
+    setCart((prev) => prev.filter((l) => l.itemId !== itemId));
+  }
 
   function playCashDrawerSound() {
     const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
@@ -138,7 +139,10 @@ export default function POS() {
     audio.play().catch(e => console.log('Audio play failed:', e));
   }
 
-  const handleCreditSelection = () => { setPaymentMethod('credit'); setMessage(''); };
+  const handleCreditSelection = () => {
+    setPaymentMethod('credit');
+    setMessage('');
+  };
 
   async function completeOrder() {
     setSubmitting(true);
@@ -170,11 +174,19 @@ export default function POS() {
     }
   }
 
-  function clearCart() { setCart([]); setTender(''); setMessage(''); }
+  function clearCart() {
+    setCart([]);
+    setTender('');
+    setMessage('');
+  }
 
   async function recordPurchase() {
-    if (!purchaseAmount || parseFloat(purchaseAmount) <= 0) { setMessage('Please enter a valid purchase amount'); return; }
-    setSubmitting(true); setMessage('');
+    if (!purchaseAmount || parseFloat(purchaseAmount) <= 0) {
+      setMessage('Please enter a valid purchase amount');
+      return;
+    }
+    setSubmitting(true);
+    setMessage('');
     try {
       const purchaseCents = Math.round(parseFloat(purchaseAmount) * 100);
       const res = await fetch('/api/purchases', {
@@ -185,14 +197,25 @@ export default function POS() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to record purchase');
       setMessage(`Purchase recorded: ${centsToUSD(purchaseCents)} (${purchasePaymentMethod})`);
-      setPurchaseAmount(''); setPurchasePaymentMethod('cash'); setPurchaseReceipt(null); setShowPurchaseInput(false);
-    } catch (e) { setMessage(e.message); } finally { setSubmitting(false); }
+      setPurchaseAmount('');
+      setPurchasePaymentMethod('cash');
+      setPurchaseReceipt(null);
+      setShowPurchaseInput(false);
+    } catch (e) {
+      setMessage(e.message);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const handleClockIn = async () => {
     if (!employeeName.trim()) { alert('Please enter employee name'); return; }
     try {
-      const response = await fetch('/api/time-entries', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ employeeName: employeeName.trim(), type: 'clock_in', timestamp: new Date().toISOString() }) });
+      const response = await fetch('/api/time-entries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employeeName: employeeName.trim(), type: 'clock_in', timestamp: new Date().toISOString() })
+      });
       if (response.ok) { alert(`Employee ${employeeName} clocked in successfully!`); setEmployeeName(''); setShowClockIn(false); }
       else alert('Failed to clock in. Please try again.');
     } catch { alert('Failed to clock in. Please try again.'); }
@@ -201,13 +224,35 @@ export default function POS() {
   const handleClockOut = async () => {
     if (!employeeName.trim()) { alert('Please enter employee name'); return; }
     try {
-      const response = await fetch('/api/time-entries', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ employeeName: employeeName.trim(), type: 'clock_out', timestamp: new Date().toISOString() }) });
+      const response = await fetch('/api/time-entries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employeeName: employeeName.trim(), type: 'clock_out', timestamp: new Date().toISOString() })
+      });
       if (response.ok) { alert(`Employee ${employeeName} clocked out successfully!`); setEmployeeName(''); setShowClockOut(false); }
       else alert('Failed to clock out. Please try again.');
     } catch { alert('Failed to clock out. Please try again.'); }
   };
 
   const quickTenderAmounts = [5, 10, 20, 50, 100];
+
+  function buildSquareIntentUrl(amountCents) {
+    const callbackUrl = 'https://texasstores.up.railway.app/square-callback';
+    const cancelUrl = callbackUrl + '?status=cancel';
+    const appId = import.meta.env.VITE_SQUARE_APPLICATION_ID || 'sq0idp-Ebcvj7QSCwSoum4AWqNSDA';
+    const params = [
+      'scheme=squareup',
+      'package=com.squareup',
+      'S.com.squareup.pos.WEB_CALLBACK_URI=' + encodeURIComponent(callbackUrl),
+      'S.com.squareup.pos.CLIENT_ID=' + appId,
+      'S.com.squareup.pos.API_VERSION=v2.0',
+      'i.com.squareup.pos.TOTAL_AMOUNT=' + amountCents,
+      'S.com.squareup.pos.CURRENCY_CODE=USD',
+      'S.com.squareup.pos.TENDER_TYPES=com.squareup.pos.TENDER_CARD,com.squareup.pos.TENDER_CARD_ON_FILE,com.squareup.pos.TENDER_CASH,com.squareup.pos.TENDER_OTHER',
+      'S.browser_fallback_url=' + encodeURIComponent(cancelUrl),
+    ];
+    return 'intent://pos.actions.charge/#Intent;' + params.join(';') + ';end';
+  }
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', height: 'calc(100vh - 60px)', gap: 0 }}>
@@ -224,7 +269,6 @@ export default function POS() {
         @keyframes scaleIn { 0%{transform:scale(0.5);opacity:0} 100%{transform:scale(1);opacity:1} }
       `}</style>
 
-      {/* Left - Items */}
       <div style={{ display:'flex', flexDirection:'column', borderRight:'2px solid #e5e7eb', height:'100%', overflow:'hidden' }}>
         <div style={{ padding:'20px', overflow:'auto', flex:1, backgroundColor:'#fff', height:'100%' }}>
           {grouped.map(({ category, list }) => (
@@ -241,8 +285,7 @@ export default function POS() {
                   else if(it.category==='MILK SHAKES'){bg='#fee2e2';border='#ef4444';}
                   else if(it.category==='BOBAS'){bg='#fdf2f8';border='#ec4899';}
                   return (
-                    <button key={it.id} onClick={() => addToCart(it)}
-                      style={{ padding:'12px', textAlign:'left', border:`2px solid ${border}`, borderRadius:'12px', background:bg, cursor:'pointer', fontSize:'16px', transition:'all 0.2s', display:'flex', flexDirection:'column', gap:'4px', minHeight:'80px', justifyContent:'center' }}
+                    <button key={it.id} onClick={() => addToCart(it)} style={{ padding:'12px', textAlign:'left', border:`2px solid ${border}`, borderRadius:'12px', background:bg, cursor:'pointer', fontSize:'16px', transition:'all 0.2s', display:'flex', flexDirection:'column', gap:'4px', minHeight:'80px', justifyContent:'center' }}
                       onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';}}
                       onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow='none';}}
                     >
@@ -257,7 +300,6 @@ export default function POS() {
         </div>
       </div>
 
-      {/* Right - Cart & Checkout */}
       <div style={{ display:'flex', flexDirection:'column', backgroundColor:'#f8fafc', padding:'20px', height:'100%', overflow:'auto' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px', paddingBottom:'16px', borderBottom:'2px solid #e5e7eb' }}>
           <h2 style={{ margin:0, fontSize:'24px', fontWeight:'700', color:'#1f2937' }}>Current Order</h2>
@@ -310,13 +352,11 @@ export default function POS() {
             <div>
               <div style={{ marginBottom:'12px' }}>
                 <label style={{ display:'block', marginBottom:'8px', fontWeight:'500' }}>Amount Tendered:</label>
-                <input type="number" step="0.01" value={tender} onChange={(e)=>setTender(e.target.value)} placeholder="0.00"
-                  style={{ width:'100%', padding:'12px', border:'1px solid #d1d5db', borderRadius:'8px', fontSize:'18px', fontWeight:'600' }} />
+                <input type="number" step="0.01" value={tender} onChange={(e)=>setTender(e.target.value)} placeholder="0.00" style={{ width:'100%', padding:'12px', border:'1px solid #d1d5db', borderRadius:'8px', fontSize:'18px', fontWeight:'600' }} />
               </div>
               <div style={{ display:'flex', gap:'8px', marginBottom:'12px', flexWrap:'wrap' }}>
                 {quickTenderAmounts.map(a=>(
-                  <button key={a} onClick={()=>setTender(a.toString())}
-                    style={{ padding:'8px 12px', border:'1px solid #d1d5db', borderRadius:'6px', backgroundColor:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:'500' }}>
+                  <button key={a} onClick={()=>setTender(a.toString())} style={{ padding:'8px 12px', border:'1px solid #d1d5db', borderRadius:'6px', backgroundColor:'#fff', cursor:'pointer', fontSize:'14px', fontWeight:'500' }}>
                     ${a}
                   </button>
                 ))}
@@ -328,6 +368,7 @@ export default function POS() {
               )}
             </div>
           )}
+
           {paymentMethod==='credit' && (
             <div style={{ padding:'16px', backgroundColor:'#f0fdf4', borderRadius:'8px', border:'1px solid #22c55e', textAlign:'center' }}>
               <div style={{ fontSize:'48px', marginBottom:'12px' }}>💳</div>
@@ -337,39 +378,16 @@ export default function POS() {
           )}
         </div>
 
-        {/* Process Credit Card Button */}
         {paymentMethod==='credit' && (
           <button
             disabled={cart.length===0 || submitting}
-            onClick={async () => {
-              try {
-                if (!totalCents || totalCents <= 0) { setMessage('Please add items to cart first.'); return; }
-                // Save cart to localStorage so we can auto-complete when Square returns
-                localStorage.setItem('pendingSquareCart', JSON.stringify(cart));
-                localStorage.setItem('pendingSquarePaymentMethod', 'credit');
-                // Clear cart from state (it is saved)
-                setCart([]);
-                let callbackUrl = window.location.origin + '/square-callback';
-                if (callbackUrl.startsWith('http://') && window.location.hostname !== 'localhost') {
-                  callbackUrl = callbackUrl.replace('http://', 'https://');
-                }
-                // Android intent - browser_target=_self forces Square to return to same Chrome tab
-                const posUrl =
-                  'intent:#Intent;' +
-                  'action=com.squareup.pos.action.CHARGE;' +
-                  'package=com.squareup;' +
-                  'S.com.squareup.pos.WEB_CALLBACK_URI=' + encodeURIComponent(callbackUrl) + ';' +
-                  'S.com.squareup.pos.CLIENT_ID=' + import.meta.env.VITE_SQUARE_APPLICATION_ID + ';' +
-                  'S.com.squareup.pos.API_VERSION=v2.0;' +
-                  'i.com.squareup.pos.TOTAL_AMOUNT=' + totalCents + ';' +
-                  'S.com.squareup.pos.CURRENCY_CODE=USD;' +
-                  'S.com.squareup.pos.TENDER_TYPES=com.squareup.pos.TENDER_CARD,com.squareup.pos.TENDER_CARD_ON_FILE,com.squareup.pos.TENDER_CASH,com.squareup.pos.TENDER_OTHER;' +
-                  'S.browser_fallback_url=' + encodeURIComponent(callbackUrl + '?status=cancel') + ';' +
-                  'end';
-                window.location.href = posUrl;
-              } catch (error) {
-                setMessage('Error: ' + error.message);
-              }
+            onClick={() => {
+              if (!totalCents || totalCents <= 0) { setMessage('Please add items to cart first.'); return; }
+              localStorage.setItem('pendingSquareCart', JSON.stringify(cart));
+              localStorage.setItem('pendingSquarePaymentMethod', 'credit');
+              setCart([]);
+              const intentUrl = buildSquareIntentUrl(totalCents);
+              window.location.href = intentUrl;
             }}
             style={{ width:'100%', padding:'16px', background:cart.length===0||submitting?'#9ca3af':'#3b82f6', color:'#fff', border:'none', borderRadius:'12px', fontSize:'18px', fontWeight:'700', cursor:cart.length===0||submitting?'not-allowed':'pointer', transition:'all 0.2s', marginBottom:'12px' }}
           >
@@ -377,7 +395,6 @@ export default function POS() {
           </button>
         )}
 
-        {/* Complete Order - only for cash */}
         {paymentMethod==='cash' && (
           <button
             disabled={cart.length===0 || submitting || tenderCents < totalCents}
@@ -388,19 +405,16 @@ export default function POS() {
           </button>
         )}
 
-        {/* Compras */}
         <div style={{ marginBottom:'12px' }}>
           {!showPurchaseInput ? (
-            <button onClick={()=>setShowPurchaseInput(true)}
-              style={{ width:'100%', padding:'16px', background:'#dc2626', color:'#fff', border:'none', borderRadius:'12px', fontSize:'18px', fontWeight:'700', cursor:'pointer', transition:'all 0.2s' }}>
+            <button onClick={()=>setShowPurchaseInput(true)} style={{ width:'100%', padding:'16px', background:'#dc2626', color:'#fff', border:'none', borderRadius:'12px', fontSize:'18px', fontWeight:'700', cursor:'pointer', transition:'all 0.2s' }}>
               Compras
             </button>
           ) : (
             <div style={{ padding:'16px', border:'2px solid #dc2626', borderRadius:'12px', backgroundColor:'#fef2f2' }}>
               <div style={{ marginBottom:'12px' }}>
                 <label style={{ display:'block', marginBottom:'8px', fontWeight:'600', color:'#dc2626' }}>Purchase Amount ($)</label>
-                <input type="number" step="0.01" min="0" value={purchaseAmount} onChange={e=>setPurchaseAmount(e.target.value)} placeholder="0.00"
-                  style={{ width:'100%', padding:'12px', border:'1px solid #dc2626', borderRadius:'8px', fontSize:'16px', fontWeight:'600' }} />
+                <input type="number" step="0.01" min="0" value={purchaseAmount} onChange={e=>setPurchaseAmount(e.target.value)} placeholder="0.00" style={{ width:'100%', padding:'12px', border:'1px solid #dc2626', borderRadius:'8px', fontSize:'16px', fontWeight:'600' }} />
               </div>
               <div style={{ marginBottom:'12px' }}>
                 <label style={{ display:'block', marginBottom:'8px', fontWeight:'600', color:'#dc2626' }}>Payment Method</label>
@@ -415,17 +429,14 @@ export default function POS() {
               </div>
               <div style={{ marginBottom:'12px' }}>
                 <label style={{ display:'block', marginBottom:'8px', fontWeight:'600', color:'#dc2626' }}>Receipt (Optional)</label>
-                <input type="file" accept="image/*,.pdf" onChange={e=>setPurchaseReceipt(e.target.files[0]||null)}
-                  style={{ width:'100%', padding:'8px', border:'1px solid #dc2626', borderRadius:'6px', fontSize:'14px' }} />
+                <input type="file" accept="image/*,.pdf" onChange={e=>setPurchaseReceipt(e.target.files[0]||null)} style={{ width:'100%', padding:'8px', border:'1px solid #dc2626', borderRadius:'6px', fontSize:'14px' }} />
                 {purchaseReceipt && <div style={{ marginTop:'4px', fontSize:'12px', color:'#059669', fontWeight:'500' }}>Selected: {purchaseReceipt.name}</div>}
               </div>
               <div style={{ display:'flex', gap:'8px' }}>
-                <button onClick={recordPurchase} disabled={submitting||!purchaseAmount}
-                  style={{ flex:1, padding:'12px', background:submitting||!purchaseAmount?'#9ca3af':'#dc2626', color:'#fff', border:'none', borderRadius:'8px', fontSize:'16px', fontWeight:'600', cursor:submitting||!purchaseAmount?'not-allowed':'pointer' }}>
+                <button onClick={recordPurchase} disabled={submitting||!purchaseAmount} style={{ flex:1, padding:'12px', background:submitting||!purchaseAmount?'#9ca3af':'#dc2626', color:'#fff', border:'none', borderRadius:'8px', fontSize:'16px', fontWeight:'600', cursor:submitting||!purchaseAmount?'not-allowed':'pointer' }}>
                   {submitting ? 'Recording...' : 'Record Purchase'}
                 </button>
-                <button onClick={()=>{setShowPurchaseInput(false);setPurchaseAmount('');}}
-                  style={{ padding:'12px 16px', background:'#6b7280', color:'#fff', border:'none', borderRadius:'8px', fontSize:'16px', fontWeight:'600', cursor:'pointer' }}>
+                <button onClick={()=>{setShowPurchaseInput(false);setPurchaseAmount('');}} style={{ padding:'12px 16px', background:'#6b7280', color:'#fff', border:'none', borderRadius:'8px', fontSize:'16px', fontWeight:'600', cursor:'pointer' }}>
                   Cancel
                 </button>
               </div>
@@ -439,7 +450,6 @@ export default function POS() {
           </div>
         )}
 
-        {/* Employee Time Tracking */}
         <div style={{ marginTop:'24px', padding:'16px', backgroundColor:'#f8fafc', borderRadius:'8px', border:'1px solid #e5e7eb' }}>
           <h4 style={{ margin:'0 0 16px 0' }}>Employee Time Tracking</h4>
           <div style={{ display:'flex', gap:12, marginBottom:16 }}>
@@ -450,9 +460,7 @@ export default function POS() {
             <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
               <div style={{ backgroundColor:'white', padding:'24px', borderRadius:'8px', minWidth:'300px' }}>
                 <h4 style={{ margin:'0 0 16px 0' }}>Clock In</h4>
-                <input type="text" placeholder="Enter employee name" value={employeeName} onChange={e=>setEmployeeName(e.target.value)}
-                  style={{ width:'100%', padding:'8px 12px', border:'1px solid #d1d5db', borderRadius:'6px', marginBottom:'16px' }}
-                  onKeyPress={e=>e.key==='Enter'&&handleClockIn()} />
+                <input type="text" placeholder="Enter employee name" value={employeeName} onChange={e=>setEmployeeName(e.target.value)} style={{ width:'100%', padding:'8px 12px', border:'1px solid #d1d5db', borderRadius:'6px', marginBottom:'16px' }} onKeyPress={e=>e.key==='Enter'&&handleClockIn()} />
                 <div style={{ display:'flex', gap:8 }}>
                   <button onClick={handleClockIn} style={{ padding:'8px 16px', backgroundColor:'#059669', color:'white', border:'none', borderRadius:'6px', cursor:'pointer' }}>Clock In</button>
                   <button onClick={()=>{setShowClockIn(false);setEmployeeName('');}} style={{ padding:'8px 16px', backgroundColor:'#6b7280', color:'white', border:'none', borderRadius:'6px', cursor:'pointer' }}>Cancel</button>
@@ -464,9 +472,7 @@ export default function POS() {
             <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
               <div style={{ backgroundColor:'white', padding:'24px', borderRadius:'8px', minWidth:'300px' }}>
                 <h4 style={{ margin:'0 0 16px 0' }}>Clock Out</h4>
-                <input type="text" placeholder="Enter employee name" value={employeeName} onChange={e=>setEmployeeName(e.target.value)}
-                  style={{ width:'100%', padding:'8px 12px', border:'1px solid #d1d5db', borderRadius:'6px', marginBottom:'16px' }}
-                  onKeyPress={e=>e.key==='Enter'&&handleClockOut()} />
+                <input type="text" placeholder="Enter employee name" value={employeeName} onChange={e=>setEmployeeName(e.target.value)} style={{ width:'100%', padding:'8px 12px', border:'1px solid #d1d5db', borderRadius:'6px', marginBottom:'16px' }} onKeyPress={e=>e.key==='Enter'&&handleClockOut()} />
                 <div style={{ display:'flex', gap:8 }}>
                   <button onClick={handleClockOut} style={{ padding:'8px 16px', backgroundColor:'#dc2626', color:'white', border:'none', borderRadius:'6px', cursor:'pointer' }}>Clock Out</button>
                   <button onClick={()=>{setShowClockOut(false);setEmployeeName('');}} style={{ padding:'8px 16px', backgroundColor:'#6b7280', color:'white', border:'none', borderRadius:'6px', cursor:'pointer' }}>Cancel</button>
