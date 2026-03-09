@@ -835,7 +835,7 @@ export default function POS() {
                      "action=com.squareup.pos.action.CHARGE;" +
                      "package=com.squareup;" +
                      "S.com.squareup.pos.WEB_CALLBACK_URI=" + encodeURIComponent(callbackUrl) + ";" +
-                     "S.com.squareup.pos.CLIENT_ID=" + 'sandbox-sq0idb-rRFOfYReHf_fovMjRZOCbg' + ";" +
+                     "S.com.squareup.pos.CLIENT_ID=" + '${import.meta.env.VITE_SQUARE_APPLICATION_ID}' + ";" +
                      "S.com.squareup.pos.API_VERSION=" + 'v2.0' + ";" +
                      "i.com.squareup.pos.TOTAL_AMOUNT=" + totalCents + ";" +
                      "S.com.squareup.pos.CURRENCY_CODE=" + 'USD' + ";" +
@@ -867,7 +867,7 @@ export default function POS() {
                    console.log('Opening Square payment for iOS...');
                    
                    // Square payment links expect amount in cents
-                   const paymentUrl = `https://square.link/u/sandbox-sq0idb-rRFOfYReHf_fovMjRZOCbg?amount=${totalCents}&currency=USD`;
+                   const paymentUrl = `https://square.link/u/${import.meta.env.VITE_SQUARE_APPLICATION_ID}?amount=${totalCents}&currency=USD`;
                    
                    console.log('iOS Square payment URL:', paymentUrl);
                    
@@ -885,7 +885,7 @@ export default function POS() {
                    console.log('Opening Square payment for desktop...');
                    
                    // Square payment links expect amount in cents
-                   const paymentUrl = `https://square.link/u/sandbox-sq0idb-rRFOfYReHf_fovMjRZOCbg?amount=${totalCents}&currency=USD`;
+                   const paymentUrl = `https://square.link/u/${import.meta.env.VITE_SQUARE_APPLICATION_ID}?amount=${totalCents}&currency=USD`;
                    
                    console.log('Desktop Square payment URL:', paymentUrl);
                    
