@@ -614,8 +614,8 @@ app.post('/api/square-payment', async (req, res) => {
       return res.status(400).json({ error: 'Amount, source ID, and idempotency key are required' });
     }
     
-    // Convert cents to dollars for Square API
-    const amount = Math.round(amountCents / 100);
+    // Amount in cents (Square API uses smallest currency unit)
+    const amount = Math.round(amountCents); // Square API expects cents (smallest currency unit)
     
     const paymentRequest = {
       sourceId: sourceId,
