@@ -835,7 +835,7 @@ export default function POS() {
                      "action=com.squareup.pos.action.CHARGE;" +
                      "package=com.squareup;" +
                      "S.com.squareup.pos.WEB_CALLBACK_URI=" + encodeURIComponent(callbackUrl) + ";" +
-                     "S.com.squareup.pos.CLIENT_ID=" + '${import.meta.env.VITE_SQUARE_APPLICATION_ID}' + ";" +
+                     "S.com.squareup.pos.CLIENT_ID=" + import.meta.env.VITE_SQUARE_APPLICATION_ID + ";" +
                      "S.com.squareup.pos.API_VERSION=" + 'v2.0' + ";" +
                      "i.com.squareup.pos.TOTAL_AMOUNT=" + totalCents + ";" +
                      "S.com.squareup.pos.CURRENCY_CODE=" + 'USD' + ";" +
