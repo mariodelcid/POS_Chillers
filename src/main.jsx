@@ -10,6 +10,18 @@ import Edit from './pages/Edit.jsx';
 import Accounting from './pages/Accounting.jsx';
 import App from './pages/App.jsx';
 
+// Handles Square POS callback - reads status params and redirects back to POS
+function SquareCallback() {
+  const params = new URLSearchParams(window.location.search);
+  const status = params.get('status');
+  const transactionId = params.get('transaction_id');
+  const redirectUrl = '/?square_callback=1' +
+    (status ? '&status=' + encodeURIComponent(status) : '') +
+    (transactionId ? '&transaction_id=' + encodeURIComponent(transactionId) : '');
+  window.location.replace(redirectUrl);
+  return null;
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
@@ -23,9 +35,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         </Route>
         <Route path="/edit" element={<Edit />} />
         <Route path="/accounting" element={<Accounting />} />
+        <Route path="/square-callback" element={<SquareCallback />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>
 );
-
-
