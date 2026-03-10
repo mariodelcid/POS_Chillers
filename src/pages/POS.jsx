@@ -246,11 +246,6 @@ export default function POS() {
     callback_url: callbackUrl,
     version: '1.3',
   });
-  const isAndroid = /Android/i.test(navigator.userAgent);
-  if (isAndroid) {
-    // Use intent:// without package constraint - finds any app registered for squareup:// scheme
-    return 'intent://pos/charge?' + params.toString() + '#Intent;scheme=squareup;end';
-  }
   return 'squareup://pos/charge?' + params.toString();
 }
 
@@ -387,7 +382,12 @@ export default function POS() {
               localStorage.setItem('pendingSquarePaymentMethod', 'credit');
               setCart([]);
               const squareUrl = buildSquareIntentUrl(totalCents);
-              window.location.href = squareUrl;
+          const a = document.createElement('a');
+          a.href = squareUrl;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => document.body.removeChild(a), 100);
             }}
             style={{ width:'100%', padding:'16px', background:cart.length===0||submitting?'#9ca3af':'#3b82f6', color:'#fff', border:'none', borderRadius:'12px', fontSize:'18px', fontWeight:'700', cursor:cart.length===0||submitting?'not-allowed':'pointer', transition:'all 0.2s', marginBottom:'12px' }}
           >
