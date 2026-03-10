@@ -239,20 +239,30 @@ export default function POS() {
   function buildSquareUrl(amountCents) {
   const callbackUrl = 'https://texasstores.up.railway.app/square-callback';
   const appId = 'sq0idp-Ebcvj7QSCwSoum4AWqNSDA';
-  const params = new URLSearchParams({
-    amount_money: amountCents,
-    currency_code: 'USD',
-    client_id: appId,
-    callback_url: callbackUrl,
-    version: '1.3',
-  });
   const isAndroid = /Android/i.test(navigator.userAgent);
   if (isAndroid) {
-    // Android: use HTTPS App Link - Square app intercepts this via Android App Links
-    return 'https://squareup.com/pos/charge?' + params.toString();
+    // Android: intent URL using Square POS API extras format
+    return (
+      'intent:#Intent' +
+      ';action=com.squareup.pos.action.CHARGE' +
+      ';package=com.squareup' +
+      ';S.com.squareup.pos.WEB_CALLBACK_URI=' + encodeURIComponent(callbackUrl) +
+      ';S.com.squareup.pos.CLIENT_ID=' + appId +
+      ';S.com.squareup.pos.API_VERSION=v2.0' +
+      ';i.com.squareup.pos.TOTAL_AMOUNT=' + amountCents +
+      ';S.com.squareup.pos.CURRENCY_CODE=USD' +
+      ';S.com.squareup.pos.TENDER_TYPES=com.squareup.pos.TENDER_CARD,com.squareup.pos.TENDER_CARD_ON_FILE' +
+      ';end'
+    );
   }
-  // iOS: use custom URL scheme
-  return 'squareup://pos/charge?' + params.toString();
+  // iOS: square-commerce-v1 URL scheme with JSON data payload
+  const iosParams = {
+    amount_money: { amount: amountCents, currency_code: 'USD' },
+    callback_url: callbackUrl,
+    client_id: appId,
+    version: '1.3',
+  };
+  return 'square-commerce-v1://payment/create?data=' + encodeURIComponent(JSON.stringify(iosParams));
 }
 
   return (
