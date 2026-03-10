@@ -248,7 +248,8 @@ export default function POS() {
   });
   const isAndroid = /Android/i.test(navigator.userAgent);
   if (isAndroid) {
-    return 'intent://pos/charge?' + params.toString() + '#Intent;scheme=squareup;package=com.squareup;end';
+    // Use intent:// without package constraint - finds any app registered for squareup:// scheme
+    return 'intent://pos/charge?' + params.toString() + '#Intent;scheme=squareup;end';
   }
   return 'squareup://pos/charge?' + params.toString();
 }
