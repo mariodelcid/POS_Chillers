@@ -10,14 +10,32 @@ import Edit from './pages/Edit.jsx';
 import Accounting from './pages/Accounting.jsx';
 import App from './pages/App.jsx';
 
-// Handles Square POS callback - reads status params and redirects back to POS
+// Handles Square POS callback - reads Square's actual params and redirects to POS
 function SquareCallback() {
   const params = new URLSearchParams(window.location.search);
-  const status = params.get('status');
-  const transactionId = params.get('transaction_id');
+  // Square sends com.squareup.pos.CLIENT_TRANSACTION_ID on success
+  const transactionId = params.get('com.squareup.pos.CLIENT_TRANSACTION_ID') ||
+                        params.get('com.squareup.pos.SERVER_TRANSACTION_ID') ||
+                        params.get('transaction_id');
+  // Square sends com.squareup.pos.ERROR_CODE on failure/cancel
+  const errorCode = params.get('com.squareup.pos.ERROR_CODE') || params.get('error_code');
+  const errorDesc = params.get('com.squareup.pos.ERROR_DESCRIPTION') || params.get('error_description');
+
+  let status;
+  if (transactionId) {
+    status = 'ok';
+  } else if (errorCode === 'CANCELED') {
+    status = 'cancel';
+  } else if (errorCode) {
+    status = 'error';
+  } else {
+    status = 'ok'; // fallback: if Square returned us at all with no error, treat as success
+  }
+
   const redirectUrl = '/?square_callback=1' +
-    (status ? '&status=' + encodeURIComponent(status) : '') +
-    (transactionId ? '&transaction_id=' + encodeURIComponent(transactionId) : '');
+    '&status=' + encodeURIComponent(status) +
+    (transactionId ? '&transaction_id=' + encodeURIComponent(transactionId) : '') +
+    (errorCode ? '&error_code=' + encodeURIComponent(errorCode) : '');
   window.location.replace(redirectUrl);
   return null;
 }
