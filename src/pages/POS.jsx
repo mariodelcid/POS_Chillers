@@ -241,7 +241,7 @@ export default function POS() {
     const cancelUrl = callbackUrl + '?status=cancel';
     const appId = import.meta.env.VITE_SQUARE_APPLICATION_ID || 'sq0idp-Ebcvj7QSCwSoum4AWqNSDA';
     const params = [
-      'scheme=squareup',
+      'action=com.squareup.pos.action.CHARGE',
       'package=com.squareup',
       'S.com.squareup.pos.WEB_CALLBACK_URI=' + encodeURIComponent(callbackUrl),
       'S.com.squareup.pos.CLIENT_ID=' + appId,
@@ -251,7 +251,7 @@ export default function POS() {
       'S.com.squareup.pos.TENDER_TYPES=com.squareup.pos.TENDER_CARD,com.squareup.pos.TENDER_CARD_ON_FILE,com.squareup.pos.TENDER_CASH,com.squareup.pos.TENDER_OTHER',
       'S.browser_fallback_url=' + encodeURIComponent(cancelUrl),
     ];
-    return 'intent://pos.actions.charge/#Intent;' + params.join(';') + ';end';
+    return 'intent:#Intent;' + params.join(';') + ';end';
   }
 
   return (
