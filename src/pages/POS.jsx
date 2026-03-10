@@ -237,17 +237,21 @@ export default function POS() {
   const quickTenderAmounts = [5, 10, 20, 50, 100];
 
   function buildSquareIntentUrl(amountCents) {
-    const callbackUrl = 'https://texasstores.up.railway.app/square-callback';
-    const appId = 'sq0idp-Ebcvj7QSCwSoum4AWqNSDA';
-    const params = new URLSearchParams({
-      amount_money: amountCents,
-      currency_code: 'USD',
-      client_id: appId,
-      callback_url: callbackUrl,
-      version: '1.3',
-    });
-    return 'squareup://pos/charge?' + params.toString();
+  const callbackUrl = 'https://texasstores.up.railway.app/square-callback';
+  const appId = 'sq0idp-Ebcvj7QSCwSoum4AWqNSDA';
+  const params = new URLSearchParams({
+    amount_money: amountCents,
+    currency_code: 'USD',
+    client_id: appId,
+    callback_url: callbackUrl,
+    version: '1.3',
+  });
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  if (isAndroid) {
+    return 'intent://pos/charge?' + params.toString() + '#Intent;scheme=squareup;package=com.squareup;end';
   }
+  return 'squareup://pos/charge?' + params.toString();
+}
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', height: 'calc(100vh - 60px)', gap: 0 }}>
