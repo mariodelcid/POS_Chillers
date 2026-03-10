@@ -10,27 +10,16 @@ import Edit from './pages/Edit.jsx';
 import Accounting from './pages/Accounting.jsx';
 import App from './pages/App.jsx';
 
-// Handles Square POS callback - reads Square's actual params and redirects to POS
+// Handles Square POS callback
+// Square POS (squareup://pos/charge) sends back:
+//   ?status=ok&transaction_id=XXX  on success
+//   ?status=cancel                  on cancel
+//   ?status=error&error_code=XXX    on error
 function SquareCallback() {
   const params = new URLSearchParams(window.location.search);
-  // Square sends com.squareup.pos.CLIENT_TRANSACTION_ID on success
-  const transactionId = params.get('com.squareup.pos.CLIENT_TRANSACTION_ID') ||
-                        params.get('com.squareup.pos.SERVER_TRANSACTION_ID') ||
-                        params.get('transaction_id');
-  // Square sends com.squareup.pos.ERROR_CODE on failure/cancel
-  const errorCode = params.get('com.squareup.pos.ERROR_CODE') || params.get('error_code');
-  const errorDesc = params.get('com.squareup.pos.ERROR_DESCRIPTION') || params.get('error_description');
-
-  let status;
-  if (transactionId) {
-    status = 'ok';
-  } else if (errorCode === 'CANCELED') {
-    status = 'cancel';
-  } else if (errorCode) {
-    status = 'error';
-  } else {
-    status = 'ok'; // fallback: if Square returned us at all with no error, treat as success
-  }
+  const status = params.get('status') || 'ok';
+  const transactionId = params.get('transaction_id') || '';
+  const errorCode = params.get('error_code') || '';
 
   const redirectUrl = '/?square_callback=1' +
     '&status=' + encodeURIComponent(status) +
