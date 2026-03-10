@@ -236,7 +236,7 @@ export default function POS() {
 
   const quickTenderAmounts = [5, 10, 20, 50, 100];
 
-  function buildSquareIntentUrl(amountCents) {
+  function buildSquareUrl(amountCents) {
   const callbackUrl = 'https://texasstores.up.railway.app/square-callback';
   const appId = 'sq0idp-Ebcvj7QSCwSoum4AWqNSDA';
   const params = new URLSearchParams({
@@ -246,6 +246,12 @@ export default function POS() {
     callback_url: callbackUrl,
     version: '1.3',
   });
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  if (isAndroid) {
+    // Android: use HTTPS App Link - Square app intercepts this via Android App Links
+    return 'https://squareup.com/pos/charge?' + params.toString();
+  }
+  // iOS: use custom URL scheme
   return 'squareup://pos/charge?' + params.toString();
 }
 
@@ -381,13 +387,8 @@ export default function POS() {
               localStorage.setItem('pendingSquareCart', JSON.stringify(cart));
               localStorage.setItem('pendingSquarePaymentMethod', 'credit');
               setCart([]);
-              const squareUrl = buildSquareIntentUrl(totalCents);
-          const a = document.createElement('a');
-          a.href = squareUrl;
-          a.style.display = 'none';
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(() => document.body.removeChild(a), 100);
+              const squareUrl = buildSquareUrl(totalCents);
+          window.location.href = squareUrl;
             }}
             style={{ width:'100%', padding:'16px', background:cart.length===0||submitting?'#9ca3af':'#3b82f6', color:'#fff', border:'none', borderRadius:'12px', fontSize:'18px', fontWeight:'700', cursor:cart.length===0||submitting?'not-allowed':'pointer', transition:'all 0.2s', marginBottom:'12px' }}
           >
