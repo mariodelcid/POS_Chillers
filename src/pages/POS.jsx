@@ -238,8 +238,7 @@ export default function POS() {
 
   function buildSquareIntentUrl(amountCents) {
     const callbackUrl = 'https://texasstores.up.railway.app/square-callback';
-    const cancelUrl = callbackUrl + '?status=cancel';
-    const appId = import.meta.env.VITE_SQUARE_APPLICATION_ID || 'sq0idp-Ebcvj7QSCwSoum4AWqNSDA';
+    const appId = 'sq0idp-Ebcvj7QSCwSoum4AWqNSDA';
     const params = [
       'action=com.squareup.pos.action.CHARGE',
       'package=com.squareup',
@@ -249,7 +248,7 @@ export default function POS() {
       'i.com.squareup.pos.TOTAL_AMOUNT=' + amountCents,
       'S.com.squareup.pos.CURRENCY_CODE=USD',
       'S.com.squareup.pos.TENDER_TYPES=com.squareup.pos.TENDER_CARD,com.squareup.pos.TENDER_CARD_ON_FILE,com.squareup.pos.TENDER_CASH,com.squareup.pos.TENDER_OTHER',
-      'S.browser_fallback_url=' + encodeURIComponent(cancelUrl),
+      'S.browser_fallback_url=' + encodeURIComponent(callbackUrl + '?com.squareup.pos.ERROR_CODE=CANCELED'),
     ];
     return 'intent:#Intent;' + params.join(';') + ';end';
   }
@@ -387,7 +386,12 @@ export default function POS() {
               localStorage.setItem('pendingSquarePaymentMethod', 'credit');
               setCart([]);
               const intentUrl = buildSquareIntentUrl(totalCents);
-              window.location.href = intentUrl;
+              // Use anchor click — required by Android Chrome to trigger intent:// URLs
+              const a = document.createElement('a');
+              a.href = intentUrl;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
             }}
             style={{ width:'100%', padding:'16px', background:cart.length===0||submitting?'#9ca3af':'#3b82f6', color:'#fff', border:'none', borderRadius:'12px', fontSize:'18px', fontWeight:'700', cursor:cart.length===0||submitting?'not-allowed':'pointer', transition:'all 0.2s', marginBottom:'12px' }}
           >
