@@ -18,6 +18,7 @@ export default function POS() {
   const [employeeName, setEmployeeName] = useState('');
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationAmount, setCelebrationAmount] = useState('');
+  const [showSquareConfirm, setShowSquareConfirm] = useState(false);
 
   useEffect(() => {
     fetch('/api/items').then((r) => r.json()).then(setItems);
@@ -81,7 +82,7 @@ export default function POS() {
       if (!map.has(it.category)) map.set(it.category, []);
       map.get(it.category).push(it);
     }
-    const snacksOrder = ['Elote Chico', 'Elote Grande', 'Elote Entero', 'Takis', 'Cheetos', 'Conchitas', 'Tostitos'];
+    const snacksOrder = ['Elote Chico', 'Elote Grande', 'Elote Entero', 'Takis', 'Cheetos', 'Conchitas', 'Tostitos', 'Doritos'];
     const categoryOrder = ['SNACKS', 'CHAMOYADAS', 'REFRESHERS', 'MILK SHAKES', 'BOBAS'];
     const sortedCategories = Array.from(map.entries()).sort(([a], [b]) => {
       const aIndex = categoryOrder.indexOf(a);
@@ -276,6 +277,30 @@ export default function POS() {
         </div>
       )}
       <style>{`
+      {showSquareConfirm && (
+        <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(0,0,0,0.85)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9998 }}>
+          <div style={{ backgroundColor:'#fff', borderRadius:'16px', padding:'40px', maxWidth:'420px', width:'90%', textAlign:'center', boxShadow:'0 20px 60px rgba(0,0,0,0.5)' }}>
+            <div style={{ fontSize:'64px', marginBottom:'16px' }}>💳</div>
+            <h2 style={{ margin:'0 0 12px 0', fontSize:'24px', fontWeight:'700', color:'#1f2937' }}>Square Up Transaction</h2>
+            <p style={{ margin:'0 0 8px 0', fontSize:'18px', color:'#374151' }}>Did the Square Up device successfully process the transaction?</p>
+            <p style={{ margin:'0 0 28px 0', fontSize:'20px', fontWeight:'700', color:'#059669' }}>{centsToUSD(totalCents)}</p>
+            <div style={{ display:'flex', gap:'16px', justifyContent:'center' }}>
+              <button
+                onClick={() => { setShowSquareConfirm(false); completeOrder(); }}
+                style={{ padding:'14px 32px', backgroundColor:'#059669', color:'#fff', border:'none', borderRadius:'10px', fontSize:'18px', fontWeight:'700', cursor:'pointer' }}
+              >
+                Yes, Approved ✓
+              </button>
+              <button
+                onClick={() => setShowSquareConfirm(false)}
+                style={{ padding:'14px 32px', backgroundColor:'#dc2626', color:'#fff', border:'none', borderRadius:'10px', fontSize:'18px', fontWeight:'700', cursor:'pointer' }}
+              >
+                No, Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
         @keyframes fadeInOut { 0%{opacity:0} 20%{opacity:1} 80%{opacity:1} 100%{opacity:0} }
         @keyframes scaleIn { 0%{transform:scale(0.5);opacity:0} 100%{transform:scale(1);opacity:1} }
       `}</style>
@@ -384,7 +409,7 @@ export default function POS() {
             <div style={{ padding:'16px', backgroundColor:'#f0fdf4', borderRadius:'8px', border:'1px solid #22c55e', textAlign:'center' }}>
               <div style={{ fontSize:'48px', marginBottom:'12px' }}>💳</div>
               <div style={{ fontSize:'18px', fontWeight:'600', color:'#059669', marginBottom:'4px' }}>Credit Payment Ready</div>
-              <div style={{ fontSize:'13px', color:'#6b7280' }}>Tap "Process Credit Card" — Square will open, charge the card, then return here automatically</div>
+              <div style={{ fontSize:'13px', color:'#6b7280' }}>Tap "Charge Credit Card" → confirm the Square device processed the transaction to complete the sale</div>
             </div>
           )}
         </div>
@@ -394,15 +419,11 @@ export default function POS() {
             disabled={cart.length===0 || submitting}
             onClick={() => {
               if (!totalCents || totalCents <= 0) { setMessage('Please add items to cart first.'); return; }
-              localStorage.setItem('pendingSquareCart', JSON.stringify(cart));
-              localStorage.setItem('pendingSquarePaymentMethod', 'credit');
-              setCart([]);
-              const squareUrl = buildSquareUrl(totalCents);
-          window.location.href = squareUrl;
+              setShowSquareConfirm(true);
             }}
             style={{ width:'100%', padding:'16px', background:cart.length===0||submitting?'#9ca3af':'#3b82f6', color:'#fff', border:'none', borderRadius:'12px', fontSize:'18px', fontWeight:'700', cursor:cart.length===0||submitting?'not-allowed':'pointer', transition:'all 0.2s', marginBottom:'12px' }}
           >
-            Process Credit Card
+            Charge Credit Card
           </button>
         )}
 
