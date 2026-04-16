@@ -279,7 +279,7 @@ export default function POS() {
       {showSquareConfirm && (
         <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, backgroundColor:'rgba(0,0,0,0.85)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9998 }}>
           <div style={{ backgroundColor:'#fff', borderRadius:'16px', padding:'40px', maxWidth:'420px', width:'90%', textAlign:'center', boxShadow:'0 20px 60px rgba(0,0,0,0.5)' }}>
-            <div style={{ fontSize:'64px', marginBottom:'16px' }}>ð³</div>
+
             <h2 style={{ margin:'0 0 12px 0', fontSize:'24px', fontWeight:'700', color:'#1f2937' }}>Square Up Transaction</h2>
             <p style={{ margin:'0 0 8px 0', fontSize:'18px', color:'#374151' }}>Did the Square Up device successfully process the transaction?</p>
             <p style={{ margin:'0 0 28px 0', fontSize:'20px', fontWeight:'700', color:'#059669' }}>{centsToUSD(totalCents)}</p>
@@ -288,7 +288,7 @@ export default function POS() {
                 onClick={() => { setShowSquareConfirm(false); completeOrder(); }}
                 style={{ padding:'14px 32px', backgroundColor:'#059669', color:'#fff', border:'none', borderRadius:'10px', fontSize:'18px', fontWeight:'700', cursor:'pointer' }}
               >
-                Yes, Approved â
+                Yes, Approved
               </button>
               <button
                 onClick={() => setShowSquareConfirm(false)}
@@ -407,9 +407,9 @@ export default function POS() {
 
           {paymentMethod==='credit' && (
             <div style={{ padding:'16px', backgroundColor:'#f0fdf4', borderRadius:'8px', border:'1px solid #22c55e', textAlign:'center' }}>
-              <div style={{ fontSize:'48px', marginBottom:'12px' }}>ð³</div>
+              <div style={{ fontSize:'40px', marginBottom:'12px' }}>[ CC ]</div>
               <div style={{ fontSize:'18px', fontWeight:'600', color:'#059669', marginBottom:'4px' }}>Credit Payment Ready</div>
-              <div style={{ fontSize:'13px', color:'#6b7280' }}>Tap "Charge Credit Card" â confirm the Square device processed the transaction to complete the sale</div>
+              <div style={{ fontSize:'13px', color:'#6b7280' }}>Tap "Charge Credit Card" and confirm the Square device processed the transaction</div>
             </div>
           )}
         </div>
