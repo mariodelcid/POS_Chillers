@@ -12,6 +12,7 @@ const items = [
   { name: 'Cheetos', category: 'SNACKS', priceCents: 700 },
   { name: 'Conchitas', category: 'SNACKS', priceCents: 700 },
   { name: 'Tostitos', category: 'SNACKS', priceCents: 700 },
+  { name: 'Doritos', category: 'SNACKS', priceCents: 700 },
   { name: 'Crepas', category: 'SNACKS', priceCents: 800 },
   { name: 'Fresa Con Crema 16 oz', category: 'SNACKS', priceCents: 700 },
   { name: 'Sopa', category: 'SNACKS', priceCents: 500 },
