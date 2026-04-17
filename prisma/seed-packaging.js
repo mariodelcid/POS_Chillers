@@ -15,6 +15,7 @@ const packagingMaterials = [
   { name: 'sopas', stock: 200 },
   { name: 'takis', stock: 100 },
   { name: 'tostitos', stock: 100 },
+  { name: 'doritos', stock: 100 },
   { name: 'nievecup', stock: 250 },
   { name: 'elote', stock: 480 }, // 480 ounces per box
   { name: 'elote entero', stock: 200 }, // New inventory item for Elote Entero
@@ -57,6 +58,7 @@ const itemPackagingMapping = [
   { itemName: 'Conchitas', packaging: 'conchitas' },
   { itemName: 'Takis', packaging: 'takis' },
   { itemName: 'Tostitos', packaging: 'tostitos' },
+  { itemName: 'Doritos', packaging: 'doritos' },
   { itemName: 'Sopa', packaging: 'sopas' },
   
   // Crepas -> charolas
