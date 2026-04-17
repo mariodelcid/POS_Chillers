@@ -105,6 +105,22 @@ app.put('/api/packaging/:id', async (req, res) => {
   }
 });
 
+// Create new packaging material (upsert by name)
+app.post('/api/packaging', async (req, res) => {
+  const { name, stock } = req.body;
+  if (!name) return res.status(400).json({ error: 'name is required' });
+  try {
+    const created = await prisma.packagingMaterial.upsert({
+      where: { name },
+      update: { stock: typeof stock === 'number' ? stock : 0 },
+      create: { name, stock: typeof stock === 'number' ? stock : 0 },
+    });
+    res.json(created);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get sales history
 app.get('/api/sales', async (req, res) => {
   try {
@@ -410,8 +426,8 @@ app.post('/api/sales', async (req, res) => {
 
     res.json({ ok: true, saleId: result.id, totalCents, changeDueCents });
   } catch (err) {
-    console.error('❌ Error in /api/sales POST:', err);
-    console.error('❌ Error details:', {
+    console.error('â Error in /api/sales POST:', err);
+    console.error('â Error details:', {
       message: err.message,
       stack: err.stack,
       name: err.name
@@ -449,7 +465,7 @@ app.put('/api/sales/:id', async (req, res) => {
     
     res.json({ ok: true, sale: updatedSale });
   } catch (err) {
-    console.error('❌ Error updating sale:', err);
+    console.error('â Error updating sale:', err);
     res.status(500).json({ 
       error: err.message || 'Server error',
       details: process.env.NODE_ENV === 'development' ? err.stack : undefined
@@ -530,7 +546,7 @@ app.delete('/api/sales/:id', async (req, res) => {
     
     res.json({ ok: true });
   } catch (err) {
-    console.error('❌ Error deleting sale:', err);
+    console.error('â Error deleting sale:', err);
     res.status(500).json({ 
       error: err.message || 'Server error',
       details: process.env.NODE_ENV === 'development' ? err.stack : undefined
