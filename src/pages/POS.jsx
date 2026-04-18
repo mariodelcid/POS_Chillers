@@ -83,7 +83,7 @@ export default function POS() {
       map.get(it.category).push(it);
     }
     const snacksOrder = ['Elote Chico', 'Elote Grande', 'Elote Entero', 'Takis', 'Cheetos', 'Conchitas', 'Tostitos', 'Doritos'];
-    const categoryOrder = ['SNACKS', 'CHAMOYADAS', 'REFRESHERS', 'MILK SHAKES', 'BOBAS'];
+    const categoryOrder = ['SNACKS', 'CHAMOYADAS', 'REFRESHERS', 'MILK SHAKES', 'Drinks'];
     const sortedCategories = Array.from(map.entries()).sort(([a], [b]) => {
       const aIndex = categoryOrder.indexOf(a);
       const bIndex = categoryOrder.indexOf(b);
@@ -112,6 +112,7 @@ export default function POS() {
 
   const subtotalCents = cart.reduce((s, l) => s + l.priceCents * l.quantity, 0);
   const totalCents = subtotalCents;
+  const creditTotalCents = Math.round(totalCents * 1.11);
   const tenderCents = Math.round(parseFloat(tender || '0') * 100);
   const changeCents = paymentMethod === 'cash' ? Math.max(0, tenderCents - totalCents) : 0;
 
@@ -282,7 +283,7 @@ export default function POS() {
 
             <h2 style={{ margin:'0 0 12px 0', fontSize:'24px', fontWeight:'700', color:'#1f2937' }}>Square Up Transaction</h2>
             <p style={{ margin:'0 0 8px 0', fontSize:'18px', color:'#374151' }}>Did the Square Up device successfully process the transaction?</p>
-            <p style={{ margin:'0 0 28px 0', fontSize:'20px', fontWeight:'700', color:'#059669' }}>{centsToUSD(totalCents)}</p>
+            <p style={{ margin:'0 0 28px 0', fontSize:'20px', fontWeight:'700', color:'#059669' }}>{centsToUSD(creditTotalCents)}</p>
             <div style={{ display:'flex', gap:'16px', justifyContent:'center' }}>
               <button
                 onClick={() => { setShowSquareConfirm(false); completeOrder(); }}
@@ -319,7 +320,7 @@ export default function POS() {
                   else if(it.category==='CHAMOYADAS'){bg='#fefce8';border='#fbbf24';}
                   else if(it.category==='REFRESHERS'){bg='#eff6ff';border='#3b82f6';}
                   else if(it.category==='MILK SHAKES'){bg='#fee2e2';border='#ef4444';}
-                  else if(it.category==='BOBAS'){bg='#fdf2f8';border='#ec4899';}
+                  else if(it.category==='Drinks'){bg='#fdf2f8';border='#ec4899';}
                   return (
                     <button key={it.id} onClick={() => addToCart(it)} style={{ padding:'12px', textAlign:'left', border:`2px solid ${border}`, borderRadius:'12px', background:bg, cursor:'pointer', fontSize:'16px', transition:'all 0.2s', display:'flex', flexDirection:'column', gap:'4px', minHeight:'80px', justifyContent:'center' }}
                       onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';}}
@@ -366,8 +367,8 @@ export default function POS() {
 
         <div style={{ backgroundColor:'#fff', borderRadius:'12px', padding:'20px', marginBottom:'20px', border:'1px solid #e5e7eb' }}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:'12px', fontSize:'16px' }}>
-            <div style={{ color:'#6b7280' }}>Total</div>
-            <div style={{ fontWeight:'600' }}>{centsToUSD(totalCents)}</div>
+            <div style={{ color:'#6b7280' }}>{paymentMethod === 'credit' ? 'Total (incl. 11% fee)' : 'Total'}</div>
+            <div style={{ fontWeight:'600', color: paymentMethod === 'credit' ? '#dc2626' : 'inherit' }}>{paymentMethod === 'credit' ? centsToUSD(creditTotalCents) : centsToUSD(totalCents)}</div>
           </div>
         </div>
 
@@ -409,6 +410,8 @@ export default function POS() {
             <div style={{ padding:'16px', backgroundColor:'#f0fdf4', borderRadius:'8px', border:'1px solid #22c55e', textAlign:'center' }}>
               <div style={{ fontSize:'40px', marginBottom:'12px' }}>[ CC ]</div>
               <div style={{ fontSize:'18px', fontWeight:'600', color:'#059669', marginBottom:'4px' }}>Credit Payment Ready</div>
+              <div style={{ fontSize:'22px', fontWeight:'700', color:'#dc2626', margin:'8px 0' }}>Total to charge: {centsToUSD(creditTotalCents)}</div>
+              <div style={{ fontSize:'12px', color:'#6b7280', marginBottom:'4px' }}>(includes 11% credit card fee)</div>
               <div style={{ fontSize:'13px', color:'#6b7280' }}>Tap "Charge Credit Card" and confirm the Square device processed the transaction</div>
             </div>
           )}
@@ -423,7 +426,7 @@ export default function POS() {
             }}
             style={{ width:'100%', padding:'16px', background:cart.length===0||submitting?'#9ca3af':'#3b82f6', color:'#fff', border:'none', borderRadius:'12px', fontSize:'18px', fontWeight:'700', cursor:cart.length===0||submitting?'not-allowed':'pointer', transition:'all 0.2s', marginBottom:'12px' }}
           >
-            Charge Credit Card
+            Charge Credit Card ({centsToUSD(creditTotalCents)})
           </button>
         )}
 
