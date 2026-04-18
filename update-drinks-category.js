@@ -11,7 +11,8 @@ async function main() {
 
   // Add new Drinks items
   const newItems = [
-    { name: 'Chocolate Cafe', category: 'Drinks', priceCents: 500 },
+    { name: 'Chocolate', category: 'Drinks', priceCents: 500 },
+    { name: 'Cafe', category: 'Drinks', priceCents: 500 },
     { name: 'Hot Taro', category: 'Drinks', priceCents: 500 },
   ];
 
