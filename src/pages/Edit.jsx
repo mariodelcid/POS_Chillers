@@ -1,1020 +1,390 @@
 import React, { useEffect, useState, useMemo } from 'react';
 
-function centsToUSD(cents) {
-  return `$${(cents / 100).toFixed(2)}`;
-}
+function formatDateTime(dateString) { return new Date(dateString).toLocaleString(); }
+function formatDate(dateString) { return new Date(dateString).toLocaleDateString(); }
+function formatTime(dateString) { return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+function getStartOfWeek(date) { const d = new Date(date); const day = d.getDay(); d.setDate(d.getDate() - day); d.setHours(0,0,0,0); return d; }
+function getEndOfWeek(date) { const d = new Date(date); const day = d.getDay(); d.setDate(d.getDate() - day + 6); d.setHours(23,59,59,999); return d; }
+function calculateHours(clockIn, clockOut) { if (!clockIn || !clockOut) return 0; return (new Date(clockOut) - new Date(clockIn)) / (1000 * 60 * 60); }
 
-function formatDateTime(dateString) {
-  // Convert UTC to local timezone for display
-  const date = new Date(dateString);
-  return date.toLocaleString();
-}
+// ---- INVENTORY MANAGEMENT SECTION ----
+function InventoryManager() {
+  const [packaging, setPackaging] = useState([]);
+  const [items, setItems] = useState([]);
+  const [loadingPkg, setLoadingPkg] = useState(true);
+  const [loadingItems, setLoadingItems] = useState(true);
+  const [editingPkgId, setEditingPkgId] = useState(null);
+  const [editPkgValue, setEditPkgValue] = useState('');
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editItemData, setEditItemData] = useState({});
+  const [invTab, setInvTab] = useState('packaging');
 
-function formatDate(dateString) {
-  // Convert UTC to local timezone for display
-  const date = new Date(dateString);
-  return date.toLocaleDateString();
-}
+  useEffect(() => { fetchPackaging(); fetchItems(); }, []);
 
-// Helper function to get today's date in local timezone
-function getTodayLocal() {
-  const now = new Date();
-  return now.toISOString().split('T')[0];
-}
-
-// Helper function to check if a date is today in local timezone
-function isToday(dateString) {
-  const today = new Date();
-  const date = new Date(dateString);
-  
-  return date.getDate() === today.getDate() &&
-         date.getMonth() === today.getMonth() &&
-         date.getFullYear() === today.getFullYear();
-}
-
-export default function Edit() {
-  const [sales, setSales] = useState([]);
-  const [purchases, setPurchases] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('summary'); // 'summary', 'items', 'transactions'
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [editingSale, setEditingSale] = useState(null);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [saleToDelete, setSaleToDelete] = useState(null);
-
-  // Function to fetch data with date filters
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchPackaging = async () => {
     try {
-      const params = new URLSearchParams();
-      if (startDate) params.append('startDate', startDate);
-      if (endDate) params.append('endDate', endDate);
-      
-      const [salesResponse, purchasesResponse] = await Promise.all([
-        fetch(`/api/sales?${params.toString()}`),
-        fetch(`/api/purchases?${params.toString()}`)
-      ]);
-      
-      const [salesData, purchasesData] = await Promise.all([
-        salesResponse.json(),
-        purchasesResponse.json()
-      ]);
-      
-      setSales(salesData);
-      setPurchases(purchasesData);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+      const r = await fetch('/api/packaging');
+      const data = await r.json();
+      const packagingOrder = ['24clear','20clear','16clear','nievecup','elote grande','elote chico','elote','charolas','chetos','conchitas','sopas','takis','tostitos','doritos'];
+      setPackaging(data.sort((a,b) => { const ai=packagingOrder.indexOf(a.name),bi=packagingOrder.indexOf(b.name); if(ai!==-1&&bi!==-1) return ai-bi; if(ai!==-1) return -1; if(bi!==-1) return 1; return a.name.localeCompare(b.name); }));
+    } catch(e) { console.error(e); }
+    setLoadingPkg(false);
   };
 
-  // Fetch data when component mounts or date filters change
-  useEffect(() => {
-    fetchData();
-  }, [startDate, endDate]);
-
-  // Handle date filter changes
-  const handleDateChange = (type, value) => {
-    if (type === 'start') {
-      setStartDate(value);
-    } else {
-      setEndDate(value);
-    }
-  };
-
-  // Reset date filters
-  const resetFilters = () => {
-    setStartDate('');
-    setEndDate('');
-  };
-
-  // Get today's date in YYYY-MM-DD format for max attribute
-  const today = getTodayLocal();
-
-  // Calculate daily summaries
-  const dailySummary = useMemo(() => {
-    const dailyTotals = new Map();
-    
-    // Process sales
-    sales.forEach((sale) => {
-      // Convert UTC date to local timezone for grouping
-      const localDate = new Date(sale.createdAt);
-      const date = localDate.toLocaleDateString();
-      
-      if (!dailyTotals.has(date)) {
-        dailyTotals.set(date, { 
-          cash: 0, 
-          credit: 0, 
-          totalSales: 0,
-          purchases: 0,
-          netCash: 0,
-          isToday: false
-        });
-      }
-      const dayData = dailyTotals.get(date);
-      if (sale.paymentMethod === 'cash') {
-        dayData.cash += sale.totalCents;
-      } else {
-        dayData.credit += sale.totalCents;
-      }
-      dayData.totalSales += 1;
-      
-      // Mark if this is today
-      if (isToday(sale.createdAt)) {
-        dayData.isToday = true;
-      }
-    });
-
-    // Process purchases
-    purchases.forEach((purchase) => {
-      // Convert UTC date to local timezone for grouping
-      const localDate = new Date(purchase.createdAt);
-      const date = localDate.toLocaleDateString();
-      
-      if (!dailyTotals.has(date)) {
-        dailyTotals.set(date, { 
-          cash: 0, 
-          credit: 0, 
-          totalSales: 0,
-          purchases: 0,
-          netCash: 0,
-          isToday: false
-        });
-      }
-      const dayData = dailyTotals.get(date);
-      dayData.purchases += purchase.amountCents;
-    });
-
-    return Array.from(dailyTotals.entries())
-      .map(([date, data]) => ({ 
-        date, 
-        ...data, 
-        total: data.cash + data.credit,
-        netCash: data.cash - data.purchases
-      }))
-      .sort((a, b) => {
-        // Sort by date, with today first
-        if (a.isToday) return -1;
-        if (b.isToday) return 1;
-        return new Date(b.date) - new Date(a.date);
-      });
-  }, [sales, purchases]);
-
-  // Calculate item summaries
-  const itemSummary = useMemo(() => {
-    const itemTotals = new Map();
-    
-    sales.forEach((sale) => {
-      sale.items.forEach((saleItem) => {
-        const itemName = saleItem.item.name;
-        if (!itemTotals.has(itemName)) {
-          itemTotals.set(itemName, { 
-            name: itemName, 
-            category: saleItem.item.category,
-            quantity: 0, 
-            revenue: 0 
-          });
-        }
-        const itemData = itemTotals.get(itemName);
-        itemData.quantity += saleItem.quantity;
-        itemData.revenue += saleItem.lineTotalCents;
-      });
-    });
-
-    return Array.from(itemTotals.values())
-      .sort((a, b) => b.quantity - a.quantity);
-  }, [sales]);
-
-  // Edit transaction functions
-  const handleEditSale = (sale) => {
-    setEditingSale(sale);
-    setShowEditModal(true);
-  };
-
-  const handleDeleteSale = (sale) => {
-    setSaleToDelete(sale);
-    setShowDeleteModal(true);
-  };
-
-  const confirmDeleteSale = async () => {
-    if (!saleToDelete) return;
-    
+  const fetchItems = async () => {
     try {
-      const response = await fetch(`/api/sales/${saleToDelete.id}`, {
-        method: 'DELETE'
-      });
-      
-      if (response.ok) {
-        // Remove from local state
-        setSales(sales.filter(s => s.id !== saleToDelete.id));
-        setShowDeleteModal(false);
-        setSaleToDelete(null);
-        // Refresh data
-        fetchData();
-      } else {
-        console.error('Failed to delete sale');
-      }
-    } catch (error) {
-      console.error('Error deleting sale:', error);
-    }
+      const r = await fetch('/api/items');
+      const data = await r.json();
+      setItems(data);
+    } catch(e) { console.error(e); }
+    setLoadingItems(false);
   };
 
-  const saveEditedSale = async (editedSale) => {
-    try {
-      const response = await fetch(`/api/sales/${editedSale.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(editedSale)
-      });
-      
-      if (response.ok) {
-        // Update local state
-        setSales(sales.map(s => s.id === editedSale.id ? editedSale : s));
-        setShowEditModal(false);
-        setEditingSale(null);
-        // Refresh data
-        fetchData();
-      } else {
-        console.error('Failed to update sale');
-      }
-    } catch (error) {
-      console.error('Error updating sale:', error);
-    }
+  const savePkgEdit = async (id) => {
+    const stock = parseInt(editPkgValue);
+    if (isNaN(stock) || stock < 0) { alert('Please enter a valid stock number'); return; }
+    const r = await fetch('/api/packaging/'+id, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({stock}) });
+    if (r.ok) { await fetchPackaging(); setEditingPkgId(null); setEditPkgValue(''); }
+    else alert('Failed to update');
   };
 
-  if (loading) return <div style={{ padding: 16 }}>Loading sales...</div>;
+  const saveItemEdit = async (id) => {
+    const r = await fetch('/api/items/'+id, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(editItemData) });
+    if (r.ok) { await fetchItems(); setEditingItemId(null); setEditItemData({}); }
+    else alert('Failed to update item');
+  };
 
   return (
-    <div style={{ padding: 16 }}>
-      <h3 style={{ marginTop: 0 }}>Sales Reports - Edit Mode</h3>
-      
-      {/* Date Filters */}
-      <div style={{ 
-        display: 'flex', 
-        gap: 16, 
-        marginBottom: 24, 
-        padding: '16px', 
-        backgroundColor: '#f8fafc', 
-        borderRadius: '8px',
-        alignItems: 'center',
-        flexWrap: 'wrap'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label htmlFor="startDate" style={{ fontWeight: 600, fontSize: '0.9em' }}>From:</label>
-          <input
-            id="startDate"
-            type="date"
-            value={startDate}
-            onChange={(e) => handleDateChange('start', e.target.value)}
-            max={today}
-            style={{
-              padding: '8px 12px',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              fontSize: '0.9em'
-            }}
-          />
-        </div>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label htmlFor="endDate" style={{ fontWeight: 600, fontSize: '0.9em' }}>To:</label>
-          <input
-            id="endDate"
-            type="date"
-            value={endDate}
-            onChange={(e) => handleDateChange('end', e.target.value)}
-            max={today}
-            min={startDate}
-            style={{
-              padding: '8px 12px',
-              border: '1px solid #d1d5db',
-              borderRadius: '6px',
-              fontSize: '0.9em'
-            }}
-          />
-        </div>
-        
-        <button
-          onClick={resetFilters}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: '#6b7280',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '0.9em'
-          }}
-        >
-          Reset Filters
-        </button>
-        
-        {(startDate || endDate) && (
-          <div style={{ 
-            fontSize: '0.9em', 
-            color: '#059669', 
-            fontWeight: 600,
-            backgroundColor: '#d1fae5',
-            padding: '4px 12px',
-            borderRadius: '6px'
-          }}>
-            Filtered by date range
-          </div>
-        )}
-        
-        {/* Timezone Info */}
-        <div style={{ 
-          fontSize: '0.8em', 
-          color: '#6b7280', 
-          backgroundColor: '#f3f4f6',
-          padding: '4px 8px',
-          borderRadius: '4px',
-          marginLeft: 'auto'
-        }}>
-          Timezone: {Intl.DateTimeFormat().resolvedOptions().timeZone}
-        </div>
-        
-        {/* Quick Date Presets */}
-        <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
-          <button
-            onClick={() => {
-              const today = getTodayLocal();
-              setStartDate(today);
-              setEndDate(today);
-            }}
-            style={{
-              padding: '6px 12px',
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '0.8em'
-            }}
-          >
-            Today
-          </button>
-          <button
-            onClick={() => {
-              const yesterday = new Date();
-              yesterday.setDate(yesterday.getDate() - 1);
-              const yesterdayStr = yesterday.toISOString().split('T')[0];
-              setStartDate(yesterdayStr);
-              setEndDate(yesterdayStr);
-            }}
-            style={{
-              padding: '6px 12px',
-              backgroundColor: '#8b5cf6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '0.8em'
-            }}
-          >
-            Yesterday
-          </button>
-          <button
-            onClick={() => {
-              const now = new Date();
-              const startOfWeek = new Date(now);
-              startOfWeek.setDate(now.getDate() - now.getDay());
-              const endOfWeek = new Date(now);
-              endOfWeek.setDate(now.getDate() + (6 - now.getDay()));
-              
-              setStartDate(startOfWeek.toISOString().split('T')[0]);
-              setEndDate(endOfWeek.toISOString().split('T')[0]);
-            }}
-            style={{
-              padding: '6px 12px',
-              backgroundColor: '#10b981',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '0.8em'
-            }}
-          >
-            This Week
-          </button>
-          <button
-            onClick={() => {
-              const now = new Date();
-              const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-              const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-              
-              setStartDate(startOfMonth.toISOString().split('T')[0]);
-              setEndDate(endOfMonth.toISOString().split('T')[0]);
-            }}
-            style={{
-              padding: '6px 12px',
-              backgroundColor: '#f59e0b',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '0.8em'
-            }}
-          >
-            This Month
-          </button>
-        </div>
+    <div>
+      <div style={{ display:'flex', gap:8, marginBottom:16, borderBottom:'2px solid #e5e7eb' }}>
+        {[{id:'packaging',label:'Packaging Stock'},{id:'menu',label:'Menu Items'}].map(t => (
+          <button key={t.id} onClick={()=>setInvTab(t.id)} style={{ padding:'10px 20px', backgroundColor: invTab===t.id?'#2563eb':'transparent', color: invTab===t.id?'white':'#6b7280', border:'none', borderRadius:'8px 8px 0 0', cursor:'pointer', fontWeight:600 }}>{t.label}</button>
+        ))}
       </div>
-      
-      {/* Filtered Data Summary */}
-      {(startDate || endDate) && (
-        <div style={{ 
-          marginBottom: 24, 
-          padding: '16px', 
-          backgroundColor: '#eff6ff', 
-          borderRadius: '8px',
-          border: '1px solid #dbeafe'
-        }}>
-          <h4 style={{ margin: '0 0 12px 0', color: '#1e40af' }}>Filtered Data Summary</h4>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.9em', color: '#6b7280', marginBottom: '4px' }}>Date Range</div>
-              <div style={{ fontWeight: 600, color: '#1e40af' }}>
-                {startDate && endDate ? `${startDate} to ${endDate}` : startDate ? `From ${startDate}` : `Until ${endDate}`}
+
+      {invTab === 'packaging' && (
+        <div>
+          <h4 style={{marginBottom:12}}>Packaging & Containers Stock</h4>
+          {loadingPkg ? <div>Loading...</div> : (
+            <div style={{ display:'grid', gap:8 }}>
+              <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr auto', gap:16, padding:'8px 16px', fontWeight:600, borderBottom:'1px solid #eee' }}>
+                <div>Material</div><div>Stock</div><div>Actions</div>
               </div>
+              {packaging.map(item => (
+                <div key={item.id} style={{ display:'grid', gridTemplateColumns:'2fr 1fr auto', gap:16, padding:'8px 16px', alignItems:'center', borderBottom:'1px solid #f3f4f6' }}>
+                  <div style={{fontWeight:600}}>{item.name}</div>
+                  <div style={{textAlign:'center'}}>
+                    {editingPkgId===item.id ? (
+                      <input type="number" value={editPkgValue} onChange={e=>setEditPkgValue(e.target.value)} style={{ width:'80px', padding:'4px 8px', border:'1px solid #ddd', borderRadius:4, textAlign:'center' }} min="0" autoFocus />
+                    ) : (
+                      <span style={{ fontWeight:600, color: item.stock<50?'#dc2626':item.stock<100?'#f59e0b':'#059669' }}>
+                        {item.name==='elote' ? (item.stock/480).toFixed(2)+' boxes' : item.stock}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{textAlign:'center'}}>
+                    {editingPkgId===item.id ? (
+                      <div style={{display:'flex',gap:8}}>
+                        <button onClick={()=>savePkgEdit(item.id)} style={{ padding:'4px 8px', background:'#059669', color:'white', border:'none', borderRadius:4, cursor:'pointer', fontSize:'0.8em' }}>Save</button>
+                        <button onClick={()=>{setEditingPkgId(null);setEditPkgValue('');}} style={{ padding:'4px 8px', background:'#6b7280', color:'white', border:'none', borderRadius:4, cursor:'pointer', fontSize:'0.8em' }}>Cancel</button>
+                      </div>
+                    ) : (
+                      <button onClick={()=>{setEditingPkgId(item.id);setEditPkgValue(item.stock.toString());}} style={{ padding:'6px 12px', background:'#2563eb', color:'white', border:'none', borderRadius:4, cursor:'pointer', fontSize:'0.8em' }}>Edit Stock</button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.9em', color: '#6b7280', marginBottom: '4px' }}>Total Sales</div>
-              <div style={{ fontWeight: 600, color: '#059669' }}>
-                {centsToUSD(sales.reduce((sum, sale) => sum + sale.totalCents, 0))}
-              </div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.9em', color: '#6b7280', marginBottom: '4px' }}>Transactions</div>
-              <div style={{ fontWeight: 600, color: '#7c3aed' }}>
-                {sales.length}
-              </div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '0.9em', color: '#6b7280', marginBottom: '4px' }}>Total Purchases</div>
-              <div style={{ fontWeight: 600, color: '#dc2626' }}>
-                {centsToUSD(purchases.reduce((sum, purchase) => sum + purchase.amountCents, 0))}
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       )}
 
-      {/* Tabs */}
-      <div style={{ 
-        display: 'flex', 
-        gap: 8, 
-        marginBottom: 24, 
-        borderBottom: '2px solid #e5e7eb' 
-      }}>
-        <button
-          onClick={() => setActiveTab('summary')}
-          style={{
-            padding: '12px 24px',
-            backgroundColor: activeTab === 'summary' ? '#3b82f6' : 'transparent',
-            color: activeTab === 'summary' ? 'white' : '#6b7280',
-            border: 'none',
-            borderRadius: '8px 8px 0 0',
-            cursor: 'pointer',
-            fontWeight: 600,
-            fontSize: '0.9em'
-          }}
-        >
-          Daily Summary
-        </button>
-        <button
-          onClick={() => setActiveTab('items')}
-          style={{
-            padding: '12px 24px',
-            backgroundColor: activeTab === 'items' ? '#3b82f6' : 'transparent',
-            color: activeTab === 'items' ? 'white' : '#6b7280',
-            border: 'none',
-            borderRadius: '8px 8px 0 0',
-            cursor: 'pointer',
-            fontWeight: 600,
-            fontSize: '0.9em'
-          }}
-        >
-          Top Items
-        </button>
-        <button
-          onClick={() => setActiveTab('transactions')}
-          style={{
-            padding: '12px 24px',
-            backgroundColor: activeTab === 'transactions' ? '#3b82f6' : 'transparent',
-            color: activeTab === 'transactions' ? 'white' : '#6b7280',
-            border: 'none',
-            borderRadius: '8px 8px 0 0',
-            cursor: 'pointer',
-            fontWeight: 600,
-            fontSize: '0.9em'
-          }}
-        >
-          Transactions
-        </button>
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === 'summary' && (
+      {invTab === 'menu' && (
         <div>
-          <h4 style={{ marginBottom: 16 }}>Daily Sales Summary</h4>
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
-            gap: 16 
-          }}>
-            {dailySummary.map((day, index) => (
-              <div key={index} style={{
-                padding: '16px',
-                backgroundColor: day.isToday ? '#fef3c7' : 'white',
-                border: day.isToday ? '2px solid #f59e0b' : '1px solid #e5e7eb',
-                borderRadius: '8px',
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-              }}>
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center', 
-                  marginBottom: 12 
-                }}>
-                  <h5 style={{ 
-                    margin: 0, 
-                    color: day.isToday ? '#92400e' : '#111827',
-                    fontWeight: 600
-                  }}>
-                    {day.date}
-                  </h5>
-                  {day.isToday && (
-                    <span style={{
-                      backgroundColor: '#f59e0b',
-                      color: 'white',
-                      padding: '2px 8px',
-                      borderRadius: '12px',
-                      fontSize: '0.7em',
-                      fontWeight: 600
-                    }}>
-                      TODAY
-                    </span>
+          <h4 style={{marginBottom:12}}>Menu Items</h4>
+          {loadingItems ? <div>Loading...</div> : (
+            <div style={{ display:'grid', gap:8 }}>
+              <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr auto', gap:12, padding:'8px 16px', fontWeight:600, borderBottom:'1px solid #eee', fontSize:'0.9em' }}>
+                <div>Name</div><div>Category</div><div>Price</div><div>Stock</div><div>Actions</div>
+              </div>
+              {items.map(item => (
+                <div key={item.id} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr auto', gap:12, padding:'8px 16px', alignItems:'center', borderBottom:'1px solid #f3f4f6', fontSize:'0.9em' }}>
+                  {editingItemId===item.id ? (
+                    <>
+                      <input value={editItemData.name||''} onChange={e=>setEditItemData({...editItemData,name:e.target.value})} style={{ padding:'4px 8px', border:'1px solid #ddd', borderRadius:4 }} />
+                      <input value={editItemData.category||''} onChange={e=>setEditItemData({...editItemData,category:e.target.value})} style={{ padding:'4px 8px', border:'1px solid #ddd', borderRadius:4 }} />
+                      <input type="number" value={(editItemData.priceCents||0)/100} onChange={e=>setEditItemData({...editItemData,priceCents:Math.round(parseFloat(e.target.value||0)*100)})} style={{ padding:'4px 8px', border:'1px solid #ddd', borderRadius:4, width:'80px' }} step="0.01" min="0" />
+                      <input type="number" value={editItemData.stock||0} onChange={e=>setEditItemData({...editItemData,stock:parseInt(e.target.value)||0})} style={{ padding:'4px 8px', border:'1px solid #ddd', borderRadius:4, width:'80px' }} min="0" />
+                      <div style={{display:'flex',gap:4}}>
+                        <button onClick={()=>saveItemEdit(item.id)} style={{ padding:'4px 8px', background:'#059669', color:'white', border:'none', borderRadius:4, cursor:'pointer', fontSize:'0.8em' }}>Save</button>
+                        <button onClick={()=>{setEditingItemId(null);setEditItemData({});}} style={{ padding:'4px 8px', background:'#6b7280', color:'white', border:'none', borderRadius:4, cursor:'pointer', fontSize:'0.8em' }}>Cancel</button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{fontWeight:500}}>{item.name}</div>
+                      <div style={{color:'#6b7280'}}>{item.category}</div>
+                      <div style={{fontWeight:600,color:'#059669'}}>${(item.priceCents/100).toFixed(2)}</div>
+                      <div style={{fontWeight:600,color:item.stock<10?'#dc2626':item.stock<50?'#f59e0b':'#059669'}}>{item.stock}</div>
+                      <button onClick={()=>{setEditingItemId(item.id);setEditItemData({name:item.name,category:item.category,priceCents:item.priceCents,stock:item.stock});}} style={{ padding:'6px 12px', background:'#2563eb', color:'white', border:'none', borderRadius:4, cursor:'pointer', fontSize:'0.8em' }}>Edit</button>
+                    </>
                   )}
                 </div>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.8em', color: '#6b7280', marginBottom: '2px' }}>Cash</div>
-                    <div style={{ fontWeight: 600, color: '#059669' }}>
-                      {centsToUSD(day.cash)}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.8em', color: '#6b7280', marginBottom: '2px' }}>Credit</div>
-                    <div style={{ fontWeight: 600, color: '#7c3aed' }}>
-                      {centsToUSD(day.credit)}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.8em', color: '#6b7280', marginBottom: '2px' }}>Total</div>
-                    <div style={{ fontWeight: 600, color: '#1e40af' }}>
-                      {centsToUSD(day.total)}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.8em', color: '#6b7280', marginBottom: '2px' }}>Net Cash</div>
-                    <div style={{ 
-                      fontWeight: 600, 
-                      color: day.netCash >= 0 ? '#059669' : '#dc2626' 
-                    }}>
-                      {centsToUSD(day.netCash)}
-                    </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---- HOURS MANAGEMENT SECTION ----
+function HoursManager() {
+  const [timeEntries, setTimeEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('payroll');
+  const [selectedEmployee, setSelectedEmployee] = useState('');
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedWeek, setSelectedWeek] = useState(new Date().toISOString().split('T')[0]);
+  const [hourlyRate, setHourlyRate] = useState(15);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch('/api/time-entries');
+        const data = await r.json();
+        setTimeEntries(data.map(entry => {
+          const d = new Date(entry.timestamp);
+          return { ...entry, date: d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') };
+        }));
+      } catch(e) { console.error(e); }
+      setLoading(false);
+    })();
+  }, []);
+
+  const employeeNames = useMemo(() => [...new Set(timeEntries.map(e=>e.employeeName))].sort(), [timeEntries]);
+
+  const payrollData = useMemo(() => {
+    const map = new Map();
+    timeEntries.forEach(entry => {
+      if (!map.has(entry.employeeName)) map.set(entry.employeeName, { name:entry.employeeName, clockIns:[], clockOuts:[], totalHours:0, totalPay:0, lastActivity:null });
+      const emp = map.get(entry.employeeName);
+      if (entry.type==='clock_in') emp.clockIns.push(entry);
+      else emp.clockOuts.push(entry);
+      if (!emp.lastActivity || entry.timestamp > emp.lastActivity) emp.lastActivity = entry.timestamp;
+    });
+    map.forEach(emp => {
+      let hrs = 0;
+      for (let i=0; i<Math.min(emp.clockIns.length,emp.clockOuts.length); i++) {
+        if (new Date(emp.clockOuts[i].timestamp) > new Date(emp.clockIns[i].timestamp))
+          hrs += calculateHours(emp.clockIns[i].timestamp, emp.clockOuts[i].timestamp);
+      }
+      emp.totalHours = hrs; emp.totalPay = hrs * hourlyRate;
+    });
+    return Array.from(map.values()).sort((a,b) => new Date(b.lastActivity) - new Date(a.lastActivity));
+  }, [timeEntries, hourlyRate]);
+
+  const dailyData = useMemo(() => {
+    if (!selectedEmployee || !selectedDate) return null;
+    const dayEntries = timeEntries.filter(e => e.employeeName===selectedEmployee && e.date===selectedDate).sort((a,b) => new Date(a.timestamp)-new Date(b.timestamp));
+    const cis = dayEntries.filter(e=>e.type==='clock_in'), cos = dayEntries.filter(e=>e.type==='clock_out');
+    let totalHours=0; const shifts=[];
+    for (let i=0; i<Math.min(cis.length,cos.length); i++) {
+      if (new Date(cos[i].timestamp)>new Date(cis[i].timestamp)) { const h=calculateHours(cis[i].timestamp,cos[i].timestamp); totalHours+=h; shifts.push({clockIn:cis[i].timestamp,clockOut:cos[i].timestamp,hours:h}); }
+    }
+    return { employee:selectedEmployee, date:selectedDate, shifts, totalHours, totalPay:totalHours*hourlyRate };
+  }, [timeEntries, selectedEmployee, selectedDate, hourlyRate]);
+
+  const weeklyData = useMemo(() => {
+    if (!selectedEmployee || !selectedWeek) return null;
+    const ws = getStartOfWeek(selectedWeek), we = getEndOfWeek(selectedWeek);
+    const wsd = ws.toISOString().split('T')[0], wed = we.toISOString().split('T')[0];
+    const weekEntries = timeEntries.filter(e => e.employeeName===selectedEmployee && e.date>=wsd && e.date<=wed).sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
+    const daily={}; let totalWk=0;
+    for (let d=new Date(ws); d<=we; d.setDate(d.getDate()+1)) {
+      const key=d.toISOString().split('T')[0];
+      const de=weekEntries.filter(e=>e.date===key);
+      const cis=de.filter(e=>e.type==='clock_in'), cos=de.filter(e=>e.type==='clock_out');
+      let h=0; const shifts=[];
+      for (let i=0; i<Math.min(cis.length,cos.length); i++) {
+        if (new Date(cos[i].timestamp)>new Date(cis[i].timestamp)) { const hrs=calculateHours(cis[i].timestamp,cos[i].timestamp); h+=hrs; shifts.push({clockIn:cis[i].timestamp,clockOut:cos[i].timestamp,hours:hrs}); }
+      }
+      daily[key]={ date:key, dayName:new Date(d).toLocaleDateString('en-US',{weekday:'long'}), shifts, hours:h, pay:h*hourlyRate };
+      totalWk+=h;
+    }
+    return { employee:selectedEmployee, weekStart:wsd, weekEnd:wed, dailyData:daily, totalWeekHours:totalWk, totalWeekPay:totalWk*hourlyRate };
+  }, [timeEntries, selectedEmployee, selectedWeek, hourlyRate]);
+
+  if (loading) return <div style={{padding:16}}>Loading payroll data...</div>;
+
+  return (
+    <div>
+      <div style={{ display:'flex', gap:16, marginBottom:24, padding:'16px', backgroundColor:'#f8fafc', borderRadius:'8px', alignItems:'center', flexWrap:'wrap' }}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <label style={{fontWeight:600,fontSize:'0.9em'}}>Employee:</label>
+          <select value={selectedEmployee} onChange={e=>setSelectedEmployee(e.target.value)} style={{ padding:'8px 12px', border:'1px solid #d1d5db', borderRadius:'6px', fontSize:'0.9em', minWidth:'150px' }}>
+            <option value="">Select Employee</option>
+            {employeeNames.map(n=><option key={n} value={n}>{n}</option>)}
+          </select>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <label style={{fontWeight:600,fontSize:'0.9em'}}>Hourly Rate ($):</label>
+          <input type="number" step="0.01" min="0" value={hourlyRate} onChange={e=>setHourlyRate(parseFloat(e.target.value)||0)} style={{ padding:'8px 12px', border:'1px solid #d1d5db', borderRadius:'6px', fontSize:'0.9em', width:'80px' }} />
+        </div>
+      </div>
+
+      <div style={{ display:'flex', gap:16, marginBottom:24, borderBottom:'1px solid #eee' }}>
+        {[{id:'payroll',label:'Payroll Summary'},{id:'daily',label:'Daily View'},{id:'weekly',label:'Weekly View'},{id:'entries',label:'All Entries'}].map(t=>(
+          <button key={t.id} onClick={()=>setActiveTab(t.id)} style={{ padding:'8px 16px', border:'none', background:'none', borderBottom: activeTab===t.id?'2px solid #2563eb':'2px solid transparent', color:activeTab===t.id?'#2563eb':'#666', fontWeight:activeTab===t.id?600:400, cursor:'pointer' }}>{t.label}</button>
+        ))}
+      </div>
+
+      {activeTab==='payroll' && (
+        <div>
+          <h4>Payroll Summary</h4>
+          {payrollData.length===0 ? <div style={{opacity:0.7}}>No employee data</div> : (
+            <div style={{display:'grid',gap:12}}>
+              {payrollData.map(emp=>(
+                <div key={emp.name} style={{border:'1px solid #ddd',borderRadius:8,padding:16}}>
+                  <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr',gap:12,alignItems:'center'}}>
+                    <div><strong>{emp.name}</strong><div style={{fontSize:'0.9em',opacity:0.7}}>Last: {formatDateTime(emp.lastActivity)}</div></div>
+                    <div style={{textAlign:'center'}}><div style={{fontWeight:600,color:'#059669'}}>Clock Ins</div><div>{emp.clockIns.length}</div></div>
+                    <div style={{textAlign:'center'}}><div style={{fontWeight:600,color:'#dc2626'}}>Clock Outs</div><div>{emp.clockOuts.length}</div></div>
+                    <div style={{textAlign:'center'}}><div style={{fontWeight:600,color:'#7c3aed'}}>Total Hours</div><div>{emp.totalHours.toFixed(2)}</div></div>
+                    <div style={{textAlign:'center'}}><div style={{fontWeight:600,color:'#059669'}}>Total Pay</div><div style={{fontSize:'1.1em',fontWeight:'700',color:'#059669'}}>${emp.totalPay.toFixed(2)}</div></div>
                   </div>
                 </div>
-                
-                <div style={{ 
-                  marginTop: 12, 
-                  padding: '8px', 
-                  backgroundColor: '#f3f4f6', 
-                  borderRadius: '4px',
-                  fontSize: '0.8em',
-                  color: '#6b7280'
-                }}>
-                  {day.totalSales} sales • {centsToUSD(day.purchases)} purchases
-                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab==='daily' && (
+        <div>
+          <h4>Daily View</h4>
+          {!selectedEmployee ? <div style={{opacity:0.7}}>Please select an employee first</div> : (
+            <div>
+              <div style={{marginBottom:16}}>
+                <label style={{fontWeight:600,fontSize:'0.9em',marginRight:8}}>Date:</label>
+                <input type="date" value={selectedDate} onChange={e=>setSelectedDate(e.target.value)} max={new Date().toISOString().split('T')[0]} style={{padding:'8px 12px',border:'1px solid #d1d5db',borderRadius:'6px',fontSize:'0.9em'}} />
               </div>
-            ))}
-          </div>
+              {dailyData && (
+                <div style={{border:'1px solid #ddd',borderRadius:8,padding:16}}>
+                  <h5 style={{margin:'0 0 16px 0'}}>{dailyData.employee} - {formatDate(dailyData.date)}</h5>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
+                    <div style={{textAlign:'center'}}><div style={{fontWeight:600,color:'#7c3aed'}}>Total Hours</div><div style={{fontSize:'1.5em',fontWeight:'700',color:'#7c3aed'}}>{dailyData.totalHours.toFixed(2)}</div></div>
+                    <div style={{textAlign:'center'}}><div style={{fontWeight:600,color:'#059669'}}>Total Pay</div><div style={{fontSize:'1.5em',fontWeight:'700',color:'#059669'}}>${dailyData.totalPay.toFixed(2)}</div></div>
+                  </div>
+                  {dailyData.shifts.length>0 ? (
+                    <div style={{display:'grid',gap:8}}>
+                      {dailyData.shifts.map((s,i)=>(
+                        <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,padding:'8px 12px',backgroundColor:'#f9fafb',borderRadius:'6px'}}>
+                          <div><strong>In:</strong> {formatTime(s.clockIn)}</div>
+                          <div><strong>Out:</strong> {formatTime(s.clockOut)}</div>
+                          <div><strong>Hours:</strong> {s.hours.toFixed(2)}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : <div style={{opacity:0.7}}>No completed shifts</div>}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      {activeTab === 'items' && (
+      {activeTab==='weekly' && (
         <div>
-          <h4 style={{ marginBottom: 16 }}>Top Selling Items</h4>
-          <div style={{ 
-            backgroundColor: 'white', 
-            border: '1px solid #e5e7eb', 
-            borderRadius: '8px',
-            overflow: 'hidden'
-          }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#f9fafb' }}>
-                  <th style={{ 
-                    padding: '12px 16px', 
-                    textAlign: 'left', 
-                    borderBottom: '1px solid #e5e7eb',
-                    fontWeight: 600,
-                    color: '#374151'
-                  }}>
-                    Item
-                  </th>
-                  <th style={{ 
-                    padding: '12px 16px', 
-                    textAlign: 'left', 
-                    borderBottom: '1px solid #e5e7eb',
-                    fontWeight: 600,
-                    color: '#374151'
-                  }}>
-                    Category
-                  </th>
-                  <th style={{ 
-                    padding: '12px 16px', 
-                    textAlign: 'right', 
-                    borderBottom: '1px solid #e5e7eb',
-                    fontWeight: 600,
-                    color: '#374151'
-                  }}>
-                    Quantity
-                  </th>
-                  <th style={{ 
-                    padding: '12px 16px', 
-                    textAlign: 'right', 
-                    borderBottom: '1px solid #e5e7eb',
-                    fontWeight: 600,
-                    color: '#374151'
-                  }}>
-                    Revenue
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {itemSummary.map((item, index) => (
-                  <tr key={index} style={{ 
-                    borderBottom: '1px solid #f3f4f6',
-                    backgroundColor: index % 2 === 0 ? 'white' : '#f9fafb'
-                  }}>
-                    <td style={{ padding: '12px 16px', fontWeight: 500 }}>
-                      {item.name}
-                    </td>
-                    <td style={{ padding: '12px 16px', color: '#6b7280' }}>
-                      {item.category}
-                    </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600 }}>
-                      {item.quantity}
-                    </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600, color: '#059669' }}>
-                      {centsToUSD(item.revenue)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <h4>Weekly View</h4>
+          {!selectedEmployee ? <div style={{opacity:0.7}}>Please select an employee first</div> : (
+            <div>
+              <div style={{marginBottom:16}}>
+                <label style={{fontWeight:600,fontSize:'0.9em',marginRight:8}}>Week of:</label>
+                <input type="date" value={selectedWeek} onChange={e=>setSelectedWeek(e.target.value)} max={new Date().toISOString().split('T')[0]} style={{padding:'8px 12px',border:'1px solid #d1d5db',borderRadius:'6px',fontSize:'0.9em'}} />
+              </div>
+              {weeklyData && (
+                <div>
+                  <div style={{border:'1px solid #ddd',borderRadius:8,padding:16,marginBottom:16,backgroundColor:'#f0fdf4'}}>
+                    <h5 style={{margin:'0 0 16px 0'}}>{weeklyData.employee} - Week of {formatDate(weeklyData.weekStart)}</h5>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+                      <div style={{textAlign:'center'}}><div style={{fontWeight:600,color:'#7c3aed'}}>Total Hours</div><div style={{fontSize:'1.5em',fontWeight:'700',color:'#7c3aed'}}>{weeklyData.totalWeekHours.toFixed(2)}</div></div>
+                      <div style={{textAlign:'center'}}><div style={{fontWeight:600,color:'#059669'}}>Total Pay</div><div style={{fontSize:'1.5em',fontWeight:'700',color:'#059669'}}>${weeklyData.totalWeekPay.toFixed(2)}</div></div>
+                    </div>
+                  </div>
+                  <div style={{display:'grid',gap:8}}>
+                    {Object.values(weeklyData.dailyData).map(day=>(
+                      <div key={day.date} style={{border:'1px solid #ddd',borderRadius:8,padding:12,backgroundColor:day.hours>0?'#f0fdf4':'#f9fafb'}}>
+                        <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr',gap:12,alignItems:'center'}}>
+                          <div><strong>{day.dayName}</strong><div style={{fontSize:'0.9em',opacity:0.7}}>{formatDate(day.date)}</div></div>
+                          <div style={{textAlign:'center'}}><div style={{fontWeight:600,color:'#7c3aed'}}>Hours</div><div>{day.hours.toFixed(2)}</div></div>
+                          <div style={{textAlign:'center'}}><div style={{fontWeight:600,color:'#059669'}}>Pay</div><div>${day.pay.toFixed(2)}</div></div>
+                          <div style={{textAlign:'center'}}><div style={{fontWeight:600,color:'#dc2626'}}>Shifts</div><div>{day.shifts.length}</div></div>
+                        </div>
+                        {day.shifts.length>0 && <div style={{marginTop:8,paddingTop:8,borderTop:'1px solid #eee'}}>{day.shifts.map((s,i)=><div key={i} style={{fontSize:'0.9em',color:'#666',marginBottom:4}}>{formatTime(s.clockIn)} - {formatTime(s.clockOut)} ({s.hours.toFixed(2)}h)</div>)}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      {activeTab === 'transactions' && (
+      {activeTab==='entries' && (
         <div>
-          <h4 style={{ marginBottom: 16 }}>Sales Transactions</h4>
-          <div style={{ 
-            backgroundColor: 'white', 
-            border: '1px solid #e5e7eb', 
-            borderRadius: '8px',
-            overflow: 'hidden'
-          }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#f9fafb' }}>
-                  <th style={{ 
-                    padding: '12px 16px', 
-                    textAlign: 'left', 
-                    borderBottom: '1px solid #e5e7eb',
-                    fontWeight: 600,
-                    color: '#374151'
-                  }}>
-                    Time
-                  </th>
-                  <th style={{ 
-                    padding: '12px 16px', 
-                    textAlign: 'left', 
-                    borderBottom: '1px solid #e5e7eb',
-                    fontWeight: 600,
-                    color: '#374151'
-                  }}>
-                    Items
-                  </th>
-                  <th style={{ 
-                    padding: '12px 16px', 
-                    textAlign: 'right', 
-                    borderBottom: '1px solid #e5e7eb',
-                    fontWeight: 600,
-                    color: '#374151'
-                  }}>
-                    Total
-                  </th>
-                  <th style={{ 
-                    padding: '12px 16px', 
-                    textAlign: 'center', 
-                    borderBottom: '1px solid #e5e7eb',
-                    fontWeight: 600,
-                    color: '#374151'
-                  }}>
-                    Payment
-                  </th>
-                  <th style={{ 
-                    padding: '12px 16px', 
-                    textAlign: 'center', 
-                    borderBottom: '1px solid #e5e7eb',
-                    fontWeight: 600,
-                    color: '#374151'
-                  }}>
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sales.map((sale) => (
-                  <tr key={sale.id} style={{ 
-                    borderBottom: '1px solid #f3f4f6',
-                    backgroundColor: 'white'
-                  }}>
-                    <td style={{ padding: '12px 16px', fontSize: '0.9em' }}>
-                      {formatDateTime(sale.createdAt)}
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <div style={{ fontSize: '0.9em' }}>
-                        {sale.items.map((item, index) => (
-                          <div key={index} style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between',
-                            marginBottom: index < sale.items.length - 1 ? '4px' : 0
-                          }}>
-                            <span>{item.quantity}x {item.item.name}</span>
-                            <span style={{ color: '#6b7280' }}>
-                              {centsToUSD(item.lineTotalCents)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </td>
-                    <td style={{ 
-                      padding: '12px 16px', 
-                      textAlign: 'right', 
-                      fontWeight: 600,
-                      fontSize: '0.9em'
-                    }}>
-                      {centsToUSD(sale.totalCents)}
-                    </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                      <span style={{
-                        display: 'inline-block',
-                        padding: '4px 8px',
-                        borderRadius: '12px',
-                        fontSize: '0.8em',
-                        fontWeight: 600,
-                        backgroundColor: sale.paymentMethod === 'cash' ? '#d1fae5' : '#ede9fe',
-                        color: sale.paymentMethod === 'cash' ? '#065f46' : '#5b21b6'
-                      }}>
-                        {sale.paymentMethod.toUpperCase()}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                        <button
-                          onClick={() => handleEditSale(sale)}
-                          style={{
-                            padding: '4px 8px',
-                            backgroundColor: '#dbeafe',
-                            color: '#1e40af',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '0.8em',
-                            fontWeight: 500
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteSale(sale)}
-                          style={{
-                            padding: '4px 8px',
-                            backgroundColor: '#fee2e2',
-                            color: '#dc2626',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '0.8em',
-                            fontWeight: 500
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <h4>All Time Entries</h4>
+          {timeEntries.length===0 ? <div style={{opacity:0.7}}>No time entries</div> : (
+            <div style={{display:'grid',gap:8}}>
+              <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr',gap:16,padding:'8px 16px',fontWeight:600,borderBottom:'1px solid #eee'}}><div>Employee</div><div style={{textAlign:'center'}}>Type</div><div style={{textAlign:'center'}}>Time</div></div>
+              {timeEntries.filter(e=>!selectedEmployee||e.employeeName===selectedEmployee).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).map(entry=>(
+                <div key={entry.id} style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr',gap:16,padding:'8px 16px',alignItems:'center',borderBottom:'1px solid #f3f4f6'}}>
+                  <div>{entry.employeeName}</div>
+                  <div style={{textAlign:'center',fontWeight:600,color:entry.type==='clock_in'?'#059669':'#dc2626'}}>{entry.type==='clock_in'?'CLOCK IN':'CLOCK OUT'}</div>
+                  <div style={{textAlign:'center',fontSize:'0.9em'}}>{formatDateTime(entry.timestamp)}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
+    </div>
+  );
+}
 
-      {/* Edit Sale Modal */}
-      {showEditModal && editingSale && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            padding: '24px',
-            borderRadius: '8px',
-            maxWidth: '400px',
-            width: '90%',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
-          }}>
-            <h3 style={{ margin: '0 0 16px 0' }}>Edit Sale #{editingSale.id}</h3>
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ 
-                display: 'block', 
-                marginBottom: '8px', 
-                fontWeight: 600,
-                color: '#374151'
-              }}>
-                Total Amount (cents)
-              </label>
-              <input
-                type="number"
-                value={editingSale.totalCents}
-                onChange={(e) => setEditingSale({
-                  ...editingSale,
-                  totalCents: parseInt(e.target.value)
-                })}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  fontSize: '0.9em'
-                }}
-              />
-            </div>
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ 
-                display: 'block', 
-                marginBottom: '8px', 
-                fontWeight: 600,
-                color: '#374151'
-              }}>
-                Payment Method
-              </label>
-              <select
-                value={editingSale.paymentMethod}
-                onChange={(e) => setEditingSale({
-                  ...editingSale,
-                  paymentMethod: e.target.value
-                })}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '6px',
-                  fontSize: '0.9em'
-                }}
-              >
-                <option value="cash">Cash</option>
-                <option value="credit">Credit</option>
-              </select>
-            </div>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={() => saveEditedSale(editingSale)}
-                style={{
-                  flex: 1,
-                  padding: '10px 16px',
-                  backgroundColor: '#3b82f6',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontWeight: 600
-                }}
-              >
-                Save
-              </button>
-              <button
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditingSale(null);
-                }}
-                style={{
-                  flex: 1,
-                  padding: '10px 16px',
-                  backgroundColor: '#6b7280',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontWeight: 600
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+// ---- MAIN MANAGEMENT PAGE ----
+export default function Edit() {
+  const [tab, setTab] = useState('inventory');
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && saleToDelete && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            padding: '24px',
-            borderRadius: '8px',
-            maxWidth: '400px',
-            width: '90%',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
-          }}>
-            <h3 style={{ margin: '0 0 16px 0', color: '#dc2626' }}>Delete Sale</h3>
-            <p style={{ 
-              margin: '0 0 24px 0', 
-              color: '#374151',
-              lineHeight: '1.5'
-            }}>
-              Are you sure you want to delete sale #{saleToDelete.id} for {centsToUSD(saleToDelete.totalCents)}?
-              This action cannot be undone.
-            </p>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={confirmDeleteSale}
-                style={{
-                  flex: 1,
-                  padding: '10px 16px',
-                  backgroundColor: '#dc2626',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontWeight: 600
-                }}
-              >
-                Delete
-              </button>
-              <button
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setSaleToDelete(null);
-                }}
-                style={{
-                  flex: 1,
-                  padding: '10px 16px',
-                  backgroundColor: '#6b7280',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontWeight: 600
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+  return (
+    <div style={{ fontFamily:'system-ui,sans-serif', minHeight:'100vh', backgroundColor:'#f1f5f9' }}>
+      {/* Header */}
+      <header style={{ backgroundColor:'#1e293b', color:'white', padding:'16px 24px', display:'flex', alignItems:'center', gap:16 }}>
+        <div>
+          <h2 style={{ margin:0, fontSize:'20px', fontWeight:700 }}>Chillers POS — Management</h2>
+          <div style={{ fontSize:'12px', color:'#94a3b8', marginTop:2 }}>Restricted access — management only</div>
         </div>
-      )}
+        <a href="/" style={{ marginLeft:'auto', padding:'8px 16px', backgroundColor:'#334155', color:'white', textDecoration:'none', borderRadius:'6px', fontSize:'14px' }}>Back to POS</a>
+      </header>
+
+      {/* Tab navigation */}
+      <div style={{ backgroundColor:'white', borderBottom:'2px solid #e2e8f0', padding:'0 24px' }}>
+        <div style={{ display:'flex', gap:0 }}>
+          {[{id:'inventory',label:'Inventory & Menu'},{id:'hours',label:'Employee Hours & Payroll'}].map(t=>(
+            <button key={t.id} onClick={()=>setTab(t.id)} style={{ padding:'16px 24px', backgroundColor:'transparent', color: tab===t.id?'#2563eb':'#64748b', border:'none', borderBottom: tab===t.id?'3px solid #2563eb':'3px solid transparent', cursor:'pointer', fontWeight: tab===t.id?700:500, fontSize:'15px', marginBottom:'-2px' }}>{t.label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div style={{ padding:'24px', maxWidth:'1200px', margin:'0 auto' }}>
+        <div style={{ backgroundColor:'white', borderRadius:'12px', padding:'24px', boxShadow:'0 1px 3px rgba(0,0,0,0.1)' }}>
+          {tab==='inventory' && <InventoryManager />}
+          {tab==='hours' && <HoursManager />}
+        </div>
+      </div>
     </div>
   );
 }
