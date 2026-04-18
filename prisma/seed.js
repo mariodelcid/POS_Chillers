@@ -51,7 +51,8 @@ const items = [
   { name: 'Boba Customized', category: 'Drinks', priceCents: 500 },
   { name: 'Boba Taro', category: 'Drinks', priceCents: 500 },
   { name: 'Tiger Milk', category: 'Drinks', priceCents: 500 },
-  { name: 'Chocolate Cafe', category: 'Drinks', priceCents: 500 },
+  { name: 'Chocolate', category: 'Drinks', priceCents: 500 },
+  { name: 'Cafe', category: 'Drinks', priceCents: 500 },
   { name: 'Hot Taro', category: 'Drinks', priceCents: 500 },
 ];
 
