@@ -11,6 +11,15 @@ try {
   execSync('npx prisma db push', { stdio: 'inherit' });
   
   console.log('✅ Database ready - existing data preserved!');
+  
+  // Run category migrations to update database items
+  try {
+    console.log('Running category migrations...');
+    execSync('node update-drinks-category.js', { stdio: 'inherit' });
+    console.log('Category migration complete.');
+  } catch (migErr) {
+    console.log('Category migration skipped:', migErr.message);
+  }
 } catch (error) {
   console.log('⚠️ Database setup failed, starting server anyway...');
 }
