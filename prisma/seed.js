@@ -45,12 +45,14 @@ const items = [
   { name: 'Malteada Chocolate', category: 'MILK SHAKES', priceCents: 700 },
   { name: 'Malteada de Taro', category: 'MILK SHAKES', priceCents: 700 },
 
-  // BOBAS (light pink background) - $5.00
-  { name: 'Boba Coffee', category: 'BOBAS', priceCents: 500 },
-  { name: 'Boba Strawberry', category: 'BOBAS', priceCents: 500 },
-  { name: 'Boba Customized', category: 'BOBAS', priceCents: 500 },
-  { name: 'Boba Taro', category: 'BOBAS', priceCents: 500 },
-  { name: 'Tiger Milk', category: 'BOBAS', priceCents: 500 },
+  // Drinks (light pink background) - $5.00
+  { name: 'Boba Coffee', category: 'Drinks', priceCents: 500 },
+  { name: 'Boba Strawberry', category: 'Drinks', priceCents: 500 },
+  { name: 'Boba Customized', category: 'Drinks', priceCents: 500 },
+  { name: 'Boba Taro', category: 'Drinks', priceCents: 500 },
+  { name: 'Tiger Milk', category: 'Drinks', priceCents: 500 },
+  { name: 'Chocolate Cafe', category: 'Drinks', priceCents: 500 },
+  { name: 'Hot Taro', category: 'Drinks', priceCents: 500 },
 ];
 
 async function main() {
