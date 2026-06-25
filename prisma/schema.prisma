@@ -14,11 +14,39 @@ model Item {
   priceCents Int
   stock      Int      @default(0)
   imageUrl   String?
-  packaging  String?  // packaging material used for this item
+  packaging  String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   saleItems  SaleItem[]
+  bomLines   ItemBOM[]
+}
+
+model Ingredient {
+  id               Int      @id @default(autoincrement())
+  name             String   @unique
+  category         String   // 'ingredient' | 'packaging' | 'disposable'
+  unit             String   // unit used in BOM lines (oz, lb, each)
+  presentationQty  Float    @default(1)
+  presentationUnit String   @default("unit")
+  stock            Float    @default(0)
+  costCents        Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  bomLines   ItemBOM[]
+}
+
+model ItemBOM {
+  id           Int        @id @default(autoincrement())
+  itemId       Int
+  ingredientId Int
+  quantity     Float
+
+  item         Item       @relation(fields: [itemId], references: [id])
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@unique([itemId, ingredientId])
 }
 
 model PackagingMaterial {
@@ -58,15 +86,15 @@ model Purchase {
   id              Int      @id @default(autoincrement())
   amountCents     Int
   description     String
-  paymentMethod   String   @default("cash") // "cash" or "card"
-  receiptUrl      String?  // URL to uploaded receipt file
+  paymentMethod   String   @default("cash")
+  receiptUrl      String?
   createdAt       DateTime @default(now())
 }
 
 model TimeEntry {
   id           Int      @id @default(autoincrement())
   employeeName String
-  type         String   // 'clock_in' or 'clock_out'
+  type         String
   timestamp    DateTime @default(now())
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -74,18 +102,16 @@ model TimeEntry {
 
 model AccountingEntry {
   id              Int      @id @default(autoincrement())
-  date            DateTime @unique // Date for this accounting entry (start of day in local timezone)
-  cashSales       Int      @default(0) // Total cash sales for the day
-  creditSales     Int      @default(0) // Total credit sales for the day
-  squareFees      Int      @default(0) // Square processing fees
-  salesTax        Int      @default(0) // Sales tax collected
-  deposits        Int      @default(0) // Cash deposits made
-  taxPayments     Int      @default(0) // Tax payments made
-  netCash         Int      @default(0) // Calculated: cashSales - deposits - taxPayments
-  netCredit       Int      @default(0) // Calculated: creditSales - squareFees
-  balance         Int      @default(0) // Running balance
+  date            DateTime @unique
+  cashSales       Int      @default(0)
+  creditSales     Int      @default(0)
+  squareFees      Int      @default(0)
+  salesTax        Int      @default(0)
+  deposits        Int      @default(0)
+  taxPayments     Int      @default(0)
+  netCash         Int      @default(0)
+  netCredit       Int      @default(0)
+  balance         Int      @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
-
-

@@ -442,6 +442,26 @@ app.post('/api/sales', async (req, res) => {
         });
       }
 
+
+      // Deduct ingredients based on BOM
+      const bomLines = await tx.itemBOM.findMany({
+        where: { itemId: { in: itemIds } },
+      });
+      const ingredientUsage = new Map();
+      for (const line of items) {
+        const bomForItem = bomLines.filter(b => b.itemId === line.itemId);
+        for (const bomLine of bomForItem) {
+          const current = ingredientUsage.get(bomLine.ingredientId) || 0;
+          ingredientUsage.set(bomLine.ingredientId, current + (bomLine.quantity * line.quantity));
+        }
+      }
+      for (const [ingredientId, qty] of ingredientUsage) {
+        await tx.ingredient.update({
+          where: { id: ingredientId },
+          data: { stock: { decrement: qty } },
+        });
+      }
+
       return sale;
     });
 
@@ -913,6 +933,125 @@ app.get('/square-callback', (req, res) => {
 });
 
 // Serve frontend
+
+// ============================================================
+// INGREDIENTS & SUPPLIES
+// ============================================================
+app.get('/api/ingredients', async (_req, res) => {
+  try {
+    const ingredients = await prisma.ingredient.findMany({ orderBy: [{ category: 'asc' }, { name: 'asc' }] });
+    res.json(ingredients);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/ingredients', async (req, res) => {
+  const { name, category, unit, presentationQty, presentationUnit, stock, costCents } = req.body;
+  if (!name || !category || !unit) return res.status(400).json({ error: 'name, category, and unit are required' });
+  try {
+    const ingredient = await prisma.ingredient.create({
+      data: { name, category, unit,
+        presentationQty: parseFloat(presentationQty) || 1,
+        presentationUnit: presentationUnit || unit,
+        stock: parseFloat(stock) || 0,
+        costCents: parseInt(costCents) || 0,
+      },
+    });
+    res.json(ingredient);
+  } catch (e) {
+    if (e.code === 'P2002') return res.status(400).json({ error: 'Ingredient name already exists' });
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/ingredients/:id', async (req, res) => {
+  const { name, category, unit, presentationQty, presentationUnit, stock, costCents } = req.body;
+  try {
+    const ingredient = await prisma.ingredient.update({
+      where: { id: parseInt(req.params.id) },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(category !== undefined && { category }),
+        ...(unit !== undefined && { unit }),
+        ...(presentationQty !== undefined && { presentationQty: parseFloat(presentationQty) }),
+        ...(presentationUnit !== undefined && { presentationUnit }),
+        ...(stock !== undefined && { stock: parseFloat(stock) }),
+        ...(costCents !== undefined && { costCents: parseInt(costCents) }),
+      },
+    });
+    res.json(ingredient);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/ingredients/:id/restock', async (req, res) => {
+  const { quantity } = req.body;
+  if (!quantity || quantity <= 0) return res.status(400).json({ error: 'quantity must be positive' });
+  try {
+    const ingredient = await prisma.ingredient.findUnique({ where: { id: parseInt(req.params.id) } });
+    if (!ingredient) return res.status(404).json({ error: 'Not found' });
+    const updated = await prisma.ingredient.update({
+      where: { id: parseInt(req.params.id) },
+      data: { stock: { increment: parseFloat(quantity) * ingredient.presentationQty } },
+    });
+    res.json(updated);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/ingredients/:id', async (req, res) => {
+  try {
+    await prisma.itemBOM.deleteMany({ where: { ingredientId: parseInt(req.params.id) } });
+    await prisma.ingredient.delete({ where: { id: parseInt(req.params.id) } });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// BILL OF MATERIALS
+// ============================================================
+app.get('/api/bom/:itemId', async (req, res) => {
+  try {
+    const bom = await prisma.itemBOM.findMany({
+      where: { itemId: parseInt(req.params.itemId) },
+      include: { ingredient: true },
+      orderBy: { ingredient: { category: 'asc' } },
+    });
+    res.json(bom);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/bom/:itemId', async (req, res) => {
+  const { ingredientId, quantity } = req.body;
+  if (!ingredientId || quantity == null) return res.status(400).json({ error: 'ingredientId and quantity required' });
+  try {
+    const line = await prisma.itemBOM.upsert({
+      where: { itemId_ingredientId: { itemId: parseInt(req.params.itemId), ingredientId: parseInt(ingredientId) } },
+      update: { quantity: parseFloat(quantity) },
+      create: { itemId: parseInt(req.params.itemId), ingredientId: parseInt(ingredientId), quantity: parseFloat(quantity) },
+      include: { ingredient: true },
+    });
+    res.json(line);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/bom/line/:bomId', async (req, res) => {
+  const { quantity } = req.body;
+  if (quantity == null) return res.status(400).json({ error: 'quantity required' });
+  try {
+    const line = await prisma.itemBOM.update({
+      where: { id: parseInt(req.params.bomId) },
+      data: { quantity: parseFloat(quantity) },
+      include: { ingredient: true },
+    });
+    res.json(line);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/bom/line/:bomId', async (req, res) => {
+  try {
+    await prisma.itemBOM.delete({ where: { id: parseInt(req.params.bomId) } });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const distPath = path.join(__dirname, '..', 'dist');
