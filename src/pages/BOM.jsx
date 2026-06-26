@@ -18,9 +18,10 @@ export default function BOM() {
     try {
       const res = await fetch('/api/bom');
       const data = await res.json();
-      setItems(data);
+      setItems(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Error fetching BOM:', err);
+      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -93,6 +94,10 @@ export default function BOM() {
         Define ingredient costs for each menu item. These costs are used to calculate the cost of sales in the Sales report.
         Click any item row to expand it and add or edit ingredients.
       </p>
+
+      {items.length === 0 && !loading && (
+        <div style={{ color: '#6b7280', fontStyle: 'italic' }}>No items found. Make sure the server is running and the database is set up.</div>
+      )}
 
       {Object.entries(categories).map(([category, catItems]) => (
         <div key={category} style={{ marginBottom: 32 }}>
@@ -178,19 +183,9 @@ export default function BOM() {
                       />
                       <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                         <span style={{ color: '#6b7280', fontSize: '0.9em' }}>$</span>
-                        <input
-                          type="number"
-                          value={newLine.cost}
-                          onChange={e => setNewLine(v => ({ ...v, cost: e.target.value }))}
-                          placeholder="0.00"
-                          style={{ padding: '6px 8px', border: '1px solid #d1d5db', borderRadius: 4, width: '100%', fontSize: '0.9em', textAlign: 'right' }}
-                          min="0" step="0.01"
-                          onKeyDown={e => e.key === 'Enter' && addBomLine(item.id)}
-                        />
+                        <input type="number" value={newLine.cost} onChange={e => setNewLine(v => ({ ...v, cost: e.target.value }))} placeholder="0.00" style={{ padding: '6px 8px', border: '1px solid #d1d5db', borderRadius: 4, width: '100%', fontSize: '0.9em', textAlign: 'right' }} min="0" step="0.01" onKeyDown={e => e.key === 'Enter' && addBomLine(item.id)} />
                       </div>
-                      <button onClick={() => addBomLine(item.id)} style={{ padding: '6px 0', background: '#2563eb', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.85em', fontWeight: 600, width: '100%' }}>
-                        + Add Ingredient
-                      </button>
+                      <button onClick={() => addBomLine(item.id)} style={{ padding: '6px 0', background: '#2563eb', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.85em', fontWeight: 600, width: '100%' }}>+ Add Ingredient</button>
                     </div>
                   </div>
                 )}
