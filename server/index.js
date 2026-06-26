@@ -98,19 +98,19 @@ app.get('/api/bom', async (_req, res) => {
     res.json(items);
   } catch (error) {
     console.error('Error fetching BOM:', error);
-    res.status(500).json({ error: 'Failed to fetch BOM data', detail: error.message, code: error.code });
+    res.status(500).json({ error: 'Failed to fetch BOM data' });
   }
 });
 
 // Create a BOM line
 app.post('/api/bom', async (req, res) => {
   try {
-    const { itemId, ingredient, costCents } = req.body;
+    const { itemId, ingredient, costCents, type } = req.body;
     if (!itemId || !ingredient || typeof costCents !== 'number' || costCents < 0) {
       return res.status(400).json({ error: 'Invalid BOM line data' });
     }
     const bomLine = await prisma.bomLine.create({
-      data: { itemId: parseInt(itemId), ingredient: ingredient.trim(), costCents },
+      data: { itemId: parseInt(itemId), ingredient: ingredient.trim(), costCents, type: type || 'ingredient' },
     });
     res.json(bomLine);
   } catch (error) {
@@ -123,13 +123,13 @@ app.post('/api/bom', async (req, res) => {
 app.put('/api/bom/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { ingredient, costCents } = req.body;
+    const { ingredient, costCents, type } = req.body;
     if (!ingredient || typeof costCents !== 'number' || costCents < 0) {
       return res.status(400).json({ error: 'Invalid BOM line data' });
     }
     const bomLine = await prisma.bomLine.update({
       where: { id: parseInt(id) },
-      data: { ingredient: ingredient.trim(), costCents },
+      data: { ingredient: ingredient.trim(), costCents, ...(type && { type }) },
     });
     res.json(bomLine);
   } catch (error) {
