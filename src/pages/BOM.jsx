@@ -5,26 +5,189 @@ function centsToUSD(cents) {
 }
 
 const SECTIONS = [
-  { key: 'ingredient', label: 'Ingredients' },
-  { key: 'packaging',  label: 'Packaging' },
-  { key: 'disposable', label: 'Disposables' },
+  { key: 'ingredient', label: 'Ingredients',  emoji: 'ð§' },
+  { key: 'packaging',  label: 'Packaging',    emoji: 'ð¦' },
+  { key: 'disposable', label: 'Disposables',  emoji: 'ð¥¤' },
 ];
 
+const S = {
+  shell: {
+    display: 'grid',
+    gridTemplateColumns: '260px 1fr',
+    height: 'calc(100vh - 56px)',
+    overflow: 'hidden',
+    fontFamily: 'system-ui, sans-serif',
+  },
+  // ââ Left panel âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  left: {
+    display: 'flex',
+    flexDirection: 'column',
+    borderRight: '1px solid #e5e7eb',
+    overflow: 'hidden',
+    background: '#f9fafb',
+  },
+  leftHeader: {
+    padding: '14px 16px 10px',
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#6b7280',
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+    borderBottom: '1px solid #e5e7eb',
+  },
+  leftScroll: { overflowY: 'auto', flex: 1 },
+  catLabel: {
+    padding: '10px 16px 4px',
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#9ca3af',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  },
+  itemRow: (active) => ({
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '9px 16px',
+    cursor: 'pointer',
+    borderLeft: active ? '3px solid #2563eb' : '3px solid transparent',
+    background: active ? '#eff6ff' : 'transparent',
+    transition: 'background 0.1s',
+  }),
+  itemName: (active) => ({
+    fontSize: 13,
+    fontWeight: active ? 600 : 400,
+    color: active ? '#1d4ed8' : '#111827',
+  }),
+  badgeSet: {
+    fontSize: 10, padding: '2px 7px', borderRadius: 99, fontWeight: 600,
+    background: '#d1fae5', color: '#065f46',
+  },
+  badgeNone: {
+    fontSize: 10, padding: '2px 7px', borderRadius: 99, fontWeight: 500,
+    background: '#f3f4f6', color: '#9ca3af', border: '1px solid #e5e7eb',
+  },
+  // ââ Right panel ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+  right: {
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+    background: '#fff',
+  },
+  rightHeader: {
+    padding: '14px 24px 12px',
+    borderBottom: '1px solid #e5e7eb',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    flexShrink: 0,
+  },
+  rightTitle: { fontSize: 18, fontWeight: 700, color: '#111827' },
+  rightPrice: { fontSize: 13, color: '#6b7280' },
+  sections: {
+    flex: 1,
+    overflowY: 'auto',
+    padding: '16px 24px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 16,
+  },
+  sectionCard: {
+    border: '1px solid #e5e7eb',
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  sectionHead: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '9px 14px',
+    background: '#f9fafb',
+    borderBottom: '1px solid #e5e7eb',
+  },
+  sectionTitle: {
+    fontSize: 12, fontWeight: 700, color: '#374151',
+    textTransform: 'uppercase', letterSpacing: '0.06em',
+    display: 'flex', alignItems: 'center', gap: 6,
+  },
+  sectionSub: { fontSize: 12, color: '#6b7280' },
+  sectionBody: { padding: '10px 14px', background: '#fff' },
+  lineRow: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 80px 100px',
+    gap: 8,
+    alignItems: 'center',
+    padding: '5px 0',
+    borderBottom: '1px solid #f3f4f6',
+  },
+  lineName: { fontSize: 13, color: '#111827' },
+  lineCost: { fontSize: 13, fontWeight: 600, color: '#374151', textAlign: 'right' },
+  lineActs: { display: 'flex', gap: 4, justifyContent: 'flex-end' },
+  btnEdit: {
+    fontSize: 11, padding: '3px 9px', border: '1px solid #d1d5db',
+    borderRadius: 5, background: '#fff', color: '#374151', cursor: 'pointer',
+  },
+  btnDel: {
+    fontSize: 11, padding: '3px 7px', border: '1px solid #fca5a5',
+    borderRadius: 5, background: '#fff', color: '#dc2626', cursor: 'pointer',
+  },
+  addRow: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 80px 100px',
+    gap: 8,
+    alignItems: 'center',
+    paddingTop: 10,
+  },
+  inp: {
+    padding: '6px 9px', border: '1px solid #d1d5db', borderRadius: 6,
+    fontSize: 13, background: '#f9fafb', width: '100%', color: '#111827',
+  },
+  inpNum: {
+    padding: '6px 8px', border: '1px solid #d1d5db', borderRadius: 6,
+    fontSize: 13, background: '#f9fafb', width: '100%', textAlign: 'right',
+    color: '#111827',
+  },
+  btnAdd: (saving) => ({
+    padding: '6px 0', border: 'none', borderRadius: 6,
+    background: saving ? '#93c5fd' : '#2563eb', color: '#fff',
+    cursor: saving ? 'default' : 'pointer', fontSize: 13, fontWeight: 600,
+    width: '100%',
+  }),
+  totalsBar: {
+    padding: '12px 24px',
+    borderTop: '1px solid #e5e7eb',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    background: '#f9fafb',
+    flexShrink: 0,
+  },
+  totalLabel: { fontSize: 13, fontWeight: 600, color: '#374151' },
+  totalVal: { fontSize: 14, fontWeight: 700 },
+  emptyRight: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#9ca3af',
+    fontSize: 14,
+  },
+};
+
 export default function BOM() {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [expandedItem, setExpandedItem] = useState(null);
-  // newLines: { "itemId_type": { ingredient, cost } }
-  const [newLines, setNewLines] = useState({});
-  const [editingLine, setEditingLine] = useState(null);
-  const [editValues, setEditValues] = useState({ ingredient: '', cost: '' });
-  const [saving, setSaving] = useState(null);
+  const [items, setItems]           = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [selectedId, setSelectedId] = useState(null);
+  const [newLines, setNewLines]     = useState({});
+  const [editingLine, setEditingLine]   = useState(null);
+  const [editValues, setEditValues]     = useState({ ingredient: '', cost: '' });
+  const [saving, setSaving]         = useState(null);
 
   useEffect(() => { fetchBOM(); }, []);
 
   const fetchBOM = async () => {
     try {
-      const res = await fetch('/api/bom');
+      const res  = await fetch('/api/bom');
       const data = await res.json();
       setItems(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -46,7 +209,6 @@ export default function BOM() {
     if (!line.ingredient.trim() || line.cost === '') return;
     const costCents = Math.round(parseFloat(line.cost) * 100);
     if (isNaN(costCents) || costCents < 0) { alert('Invalid cost'); return; }
-
     const key = `${itemId}_${type}`;
     setSaving(key);
     try {
@@ -109,247 +271,171 @@ export default function BOM() {
     return cats;
   }, [items]);
 
-  if (loading) return <div style={{ padding: 16 }}>Loading BOM data…</div>;
+  const selectedItem = items.find(i => i.id === selectedId) || null;
+
+  if (loading) return <div style={{ padding: 24 }}>Loadingâ¦</div>;
+  if (items.length === 0) return <div style={{ padding: 24, color: '#6b7280' }}>No items found.</div>;
+
+  const bomTotal  = selectedItem ? selectedItem.bomLines.reduce((s, l) => s + l.costCents, 0) : 0;
+  const margin    = selectedItem ? selectedItem.priceCents - bomTotal : 0;
+  const marginPct = selectedItem && selectedItem.priceCents > 0
+    ? Math.round((margin / selectedItem.priceCents) * 100) : 0;
 
   return (
-    <div style={{ padding: 16 }}>
-      <h3 style={{ marginTop: 0 }}>Bill of Materials</h3>
-      <p style={{ color: '#6b7280', marginBottom: 24, fontSize: '0.9em' }}>
-        Click any item to define its ingredients, packaging, and disposables.
-        These costs feed into the daily Cost of Sales on the Sales report.
-      </p>
-
-      {Object.entries(categories).map(([category, catItems]) => (
-        <div key={category} style={{ marginBottom: 32 }}>
-          {/* Category header */}
-          <div style={{
-            padding: '8px 16px',
-            background: '#f3f4f6',
-            borderRadius: 6,
-            marginBottom: 8,
-            borderLeft: '4px solid #2563eb',
-            fontWeight: 700,
-            fontSize: '0.9em',
-            color: '#1e40af',
-          }}>
-            {category}
-          </div>
-
-          {catItems.map(item => {
-            const bomTotal   = item.bomLines.reduce((s, l) => s + l.costCents, 0);
-            const isExpanded = expandedItem === item.id;
-            const margin     = item.priceCents - bomTotal;
-            const marginPct  = item.priceCents > 0
-              ? Math.round((margin / item.priceCents) * 100) : 0;
-
-            return (
-              <div key={item.id} style={{ border: '1px solid #e5e7eb', borderRadius: 8, marginBottom: 6, overflow: 'hidden' }}>
-
-                {/* Item header */}
-                <div
-                  onClick={() => setExpandedItem(isExpanded ? null : item.id)}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr auto auto auto',
-                    gap: 16,
-                    padding: '11px 16px',
-                    alignItems: 'center',
-                    cursor: 'pointer',
-                    background: isExpanded ? '#eff6ff' : '#fff',
-                    userSelect: 'none',
-                  }}
-                >
-                  <div style={{ fontWeight: 600 }}>{item.name}</div>
-
-                  <div style={{ fontSize: '0.82em', color: '#6b7280', textAlign: 'right' }}>
-                    Sell: {centsToUSD(item.priceCents)}
+    <div style={S.shell}>
+      {/* ââ Left panel âââââââââââââââââââââââââââââââââââ */}
+      <div style={S.left}>
+        <div style={S.leftHeader}>Bill of Materials</div>
+        <div style={S.leftScroll}>
+          {Object.entries(categories).map(([cat, catItems]) => (
+            <div key={cat}>
+              <div style={S.catLabel}>{cat}</div>
+              {catItems.map(item => {
+                const active    = item.id === selectedId;
+                const hasLines  = item.bomLines.length > 0;
+                return (
+                  <div
+                    key={item.id}
+                    style={S.itemRow(active)}
+                    onClick={() => setSelectedId(item.id)}
+                  >
+                    <span style={S.itemName(active)}>{item.name}</span>
+                    {hasLines
+                      ? <span style={S.badgeSet}>{item.bomLines.length} lines</span>
+                      : <span style={S.badgeNone}>No BOM</span>}
                   </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
 
-                  <div style={{
-                    fontWeight: 700,
-                    color: bomTotal > 0 ? '#059669' : '#9ca3af',
-                    minWidth: 140,
-                    textAlign: 'right',
-                    fontSize: '0.88em',
-                  }}>
-                    {bomTotal > 0
-                      ? `BOM: ${centsToUSD(bomTotal)} · ${marginPct}% margin`
-                      : 'No BOM set'}
-                  </div>
+      {/* ââ Right panel ââââââââââââââââââââââââââââââââââ */}
+      <div style={S.right}>
+        {!selectedItem ? (
+          <div style={S.emptyRight}>â Select an item to edit its BOM</div>
+        ) : (
+          <>
+            <div style={S.rightHeader}>
+              <span style={S.rightTitle}>{selectedItem.name}</span>
+              <span style={S.rightPrice}>Sell price: {centsToUSD(selectedItem.priceCents)}</span>
+            </div>
 
-                  <div style={{ color: '#9ca3af', fontSize: '0.78em', minWidth: 64, textAlign: 'right' }}>
-                    {item.bomLines.length} line{item.bomLines.length !== 1 ? 's' : ''} {isExpanded ? '▲' : '▼'}
-                  </div>
-                </div>
+            <div style={S.sections}>
+              {SECTIONS.map(({ key: type, label, emoji }) => {
+                const lines       = selectedItem.bomLines.filter(l => (l.type || 'ingredient') === type);
+                const sectionSub  = lines.reduce((s, l) => s + l.costCents, 0);
+                const nl          = getNewLine(selectedItem.id, type);
+                const isSaving    = saving === `${selectedItem.id}_${type}`;
 
-                {/* Expanded BOM detail */}
-                {isExpanded && (
-                  <div style={{ borderTop: '1px solid #e5e7eb', padding: '16px 16px 12px', background: '#fafafa' }}>
+                return (
+                  <div key={type} style={S.sectionCard}>
+                    <div style={S.sectionHead}>
+                      <span style={S.sectionTitle}>{emoji} {label}</span>
+                      <span style={S.sectionSub}>
+                        {sectionSub > 0 ? `Subtotal: ${centsToUSD(sectionSub)}` : 'â'}
+                      </span>
+                    </div>
+                    <div style={S.sectionBody}>
+                      {lines.length === 0 && (
+                        <div style={{ fontSize: 12, color: '#9ca3af', paddingBottom: 6, fontStyle: 'italic' }}>
+                          None added yet.
+                        </div>
+                      )}
 
-                    {SECTIONS.map(({ key: type, label }) => {
-                      const lines        = item.bomLines.filter(l => (l.type || 'ingredient') === type);
-                      const nl           = getNewLine(item.id, type);
-                      const sectionTotal = lines.reduce((s, l) => s + l.costCents, 0);
-                      const isSaving     = saving === `${item.id}_${type}`;
-
-                      return (
-                        <div key={type} style={{ marginBottom: 20 }}>
-
-                          {/* Section header */}
-                          <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            fontWeight: 700,
-                            fontSize: '0.82em',
-                            color: '#374151',
-                            borderBottom: '2px solid #e5e7eb',
-                            paddingBottom: 5,
-                            marginBottom: 8,
-                          }}>
-                            <span style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
-                            {sectionTotal > 0 && (
-                              <span style={{ fontWeight: 500, color: '#6b7280' }}>
-                                Subtotal: {centsToUSD(sectionTotal)}
-                              </span>
-                            )}
-                          </div>
-
-                          {lines.length === 0 && (
-                            <div style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: '0.84em', marginBottom: 8 }}>
-                              None added yet.
-                            </div>
-                          )}
-
-                          {/* Existing lines */}
-                          {lines.map(line => (
-                            <div key={line.id} style={{
-                              display: 'grid',
-                              gridTemplateColumns: '1fr 90px 110px',
-                              gap: 8,
-                              alignItems: 'center',
-                              padding: '4px 0',
-                              borderBottom: '1px solid #f3f4f6',
-                            }}>
-                              {editingLine === line.id ? (
-                                <>
-                                  <input
-                                    value={editValues.ingredient}
-                                    onChange={e => setEditValues(v => ({ ...v, ingredient: e.target.value }))}
-                                    style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: 4, fontSize: '0.88em' }}
-                                    autoFocus
-                                  />
-                                  <input
-                                    type="number"
-                                    value={editValues.cost}
-                                    onChange={e => setEditValues(v => ({ ...v, cost: e.target.value }))}
-                                    style={{ padding: '4px 6px', border: '1px solid #d1d5db', borderRadius: 4, fontSize: '0.88em', textAlign: 'right' }}
-                                    min="0" step="0.01"
-                                  />
-                                  <div style={{ display: 'flex', gap: 4 }}>
-                                    <button onClick={() => saveEdit(line.id)}
-                                      style={{ padding: '3px 8px', background: '#059669', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.78em' }}>
-                                      Save
-                                    </button>
-                                    <button onClick={() => setEditingLine(null)}
-                                      style={{ padding: '3px 8px', background: '#6b7280', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.78em' }}>
-                                      Cancel
-                                    </button>
-                                  </div>
-                                </>
-                              ) : (
-                                <>
-                                  <div style={{ fontSize: '0.9em' }}>{line.ingredient}</div>
-                                  <div style={{ fontWeight: 600, color: '#374151', fontSize: '0.9em', textAlign: 'right' }}>
-                                    {centsToUSD(line.costCents)}
-                                  </div>
-                                  <div style={{ display: 'flex', gap: 4 }}>
-                                    <button onClick={() => startEdit(line)}
-                                      style={{ padding: '2px 8px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.75em' }}>
-                                      Edit
-                                    </button>
-                                    <button onClick={() => deleteLine(line.id)}
-                                      style={{ padding: '2px 6px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.75em' }}>
-                                      ✕
-                                    </button>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          ))}
-
-                          {/* Add row */}
-                          <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: '1fr 90px 110px',
-                            gap: 8,
-                            marginTop: 8,
-                            alignItems: 'center',
-                          }}>
-                            <input
-                              value={nl.ingredient}
-                              onChange={e => setNewLine(item.id, type, { ...nl, ingredient: e.target.value })}
-                              placeholder={`Add ${label.slice(0, -1).toLowerCase()}…`}
-                              style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 4, fontSize: '0.84em' }}
-                              onKeyDown={e => e.key === 'Enter' && addBomLine(item.id, type)}
-                            />
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                              <span style={{ color: '#6b7280', fontSize: '0.84em' }}>$</span>
+                      {lines.map(line => (
+                        <div key={line.id} style={S.lineRow}>
+                          {editingLine === line.id ? (
+                            <>
+                              <input
+                                autoFocus
+                                value={editValues.ingredient}
+                                onChange={e => setEditValues(v => ({ ...v, ingredient: e.target.value }))}
+                                style={S.inp}
+                                onKeyDown={e => e.key === 'Enter' && saveEdit(line.id)}
+                              />
                               <input
                                 type="number"
-                                value={nl.cost}
-                                onChange={e => setNewLine(item.id, type, { ...nl, cost: e.target.value })}
-                                placeholder="0.00"
-                                style={{ padding: '5px 6px', border: '1px solid #d1d5db', borderRadius: 4, width: '100%', fontSize: '0.84em', textAlign: 'right' }}
+                                value={editValues.cost}
+                                onChange={e => setEditValues(v => ({ ...v, cost: e.target.value }))}
+                                style={S.inpNum}
                                 min="0" step="0.01"
-                                onKeyDown={e => e.key === 'Enter' && addBomLine(item.id, type)}
+                                onKeyDown={e => e.key === 'Enter' && saveEdit(line.id)}
                               />
-                            </div>
-                            <button
-                              onClick={() => addBomLine(item.id, type)}
-                              disabled={isSaving}
-                              style={{
-                                padding: '5px 0',
-                                background: isSaving ? '#93c5fd' : '#2563eb',
-                                color: '#fff',
-                                border: 'none',
-                                borderRadius: 4,
-                                cursor: isSaving ? 'default' : 'pointer',
-                                fontSize: '0.8em',
-                                fontWeight: 600,
-                                width: '100%',
-                              }}
-                            >
-                              {isSaving ? 'Saving…' : '+ Add'}
-                            </button>
-                          </div>
+                              <div style={S.lineActs}>
+                                <button
+                                  onClick={() => saveEdit(line.id)}
+                                  style={{ ...S.btnEdit, background: '#2563eb', color: '#fff', border: 'none' }}>
+                                  Save
+                                </button>
+                                <button onClick={() => setEditingLine(null)} style={S.btnEdit}>
+                                  Cancel
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <span style={S.lineName}>{line.ingredient}</span>
+                              <span style={S.lineCost}>{centsToUSD(line.costCents)}</span>
+                              <div style={S.lineActs}>
+                                <button onClick={() => startEdit(line)} style={S.btnEdit}>Edit</button>
+                                <button onClick={() => deleteLine(line.id)} style={S.btnDel}>â</button>
+                              </div>
+                            </>
+                          )}
                         </div>
-                      );
-                    })}
+                      ))}
 
-                    {/* Total BOM summary */}
-                    {bomTotal > 0 && (
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        padding: '10px 0 0',
-                        borderTop: '2px solid #e5e7eb',
-                        fontWeight: 700,
-                        fontSize: '0.9em',
-                      }}>
-                        <span>Total BOM Cost</span>
-                        <span style={{ color: margin >= 0 ? '#059669' : '#dc2626' }}>
-                          {centsToUSD(bomTotal)} &nbsp;·&nbsp; Margin: {centsToUSD(margin)} ({marginPct}%)
-                        </span>
+                      {/* Add row */}
+                      <div style={S.addRow}>
+                        <input
+                          value={nl.ingredient}
+                          onChange={e => setNewLine(selectedItem.id, type, { ...nl, ingredient: e.target.value })}
+                          placeholder={`Add ${label.slice(0, -1).toLowerCase()}â¦`}
+                          style={S.inp}
+                          onKeyDown={e => e.key === 'Enter' && addBomLine(selectedItem.id, type)}
+                        />
+                        <input
+                          type="number"
+                          value={nl.cost}
+                          onChange={e => setNewLine(selectedItem.id, type, { ...nl, cost: e.target.value })}
+                          placeholder="0.00"
+                          style={S.inpNum}
+                          min="0" step="0.01"
+                          onKeyDown={e => e.key === 'Enter' && addBomLine(selectedItem.id, type)}
+                        />
+                        <button
+                          onClick={() => addBomLine(selectedItem.id, type)}
+                          disabled={isSaving}
+                          style={S.btnAdd(isSaving)}
+                        >
+                          {isSaving ? 'Savingâ¦' : '+ Add'}
+                        </button>
                       </div>
-                    )}
+                    </div>
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      ))}
+                );
+              })}
+            </div>
+
+            {/* Totals bar */}
+            <div style={S.totalsBar}>
+              <span style={S.totalLabel}>Total BOM Cost</span>
+              {bomTotal > 0 ? (
+                <span style={{ ...S.totalVal, color: margin >= 0 ? '#059669' : '#dc2626' }}>
+                  {centsToUSD(bomTotal)}
+                  <span style={{ color: '#6b7280', fontWeight: 500, fontSize: 13 }}>
+                    {' '}Â· Margin: {centsToUSD(margin)} ({marginPct}%)
+                  </span>
+                </span>
+              ) : (
+                <span style={{ ...S.totalVal, color: '#9ca3af' }}>No cost lines yet</span>
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
