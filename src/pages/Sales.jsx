@@ -46,9 +46,9 @@ export default function Sales() {
         purchasesRes.json(),
         bomRes.json(),
       ]);
-      setSales(salesData);
-      setPurchases(purchasesData);
-      setBomItems(bomData);
+      setSales(Array.isArray(salesData) ? salesData : []);
+      setPurchases(Array.isArray(purchasesData) ? purchasesData : []);
+      setBomItems(Array.isArray(bomData) ? bomData : []);
     } catch (err) {
       console.error(err);
     } finally {
