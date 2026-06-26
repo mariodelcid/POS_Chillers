@@ -12,9 +12,6 @@ export default function App() {
         <NavLink to="/packaging" style={{ textDecoration: 'none' }}>
           Packaging
         </NavLink>
-        <NavLink to="/bom" style={{ textDecoration: 'none' }}>
-          BOM
-        </NavLink>
         <NavLink to="/sales" style={{ textDecoration: 'none' }}>
           Sales
         </NavLink>
