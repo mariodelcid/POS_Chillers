@@ -15,7 +15,7 @@ const router = createBrowserRouter([
       { index: true, element: <POS /> },
       { path: 'sales', element: <Sales /> },
       { path: 'packaging', element: <Packaging /> },
-      { path: 'bom', element: <BOM /> },
+      { path: 'edit', element: <BOM /> },
     ],
   },
 ]);
