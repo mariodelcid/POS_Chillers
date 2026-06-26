@@ -26,7 +26,8 @@ model BomLine {
   id          Int    @id @default(autoincrement())
   itemId      Int
   ingredient  String
-  costCents   Int    // cost of this ingredient per serving of the menu item
+  costCents   Int
+  type        String @default("ingredient") // "ingredient" | "packaging" | "disposable"
 
   item        Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
 }
