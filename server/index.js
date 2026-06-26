@@ -98,7 +98,7 @@ app.get('/api/bom', async (_req, res) => {
     res.json(items);
   } catch (error) {
     console.error('Error fetching BOM:', error);
-    res.status(500).json({ error: 'Failed to fetch BOM data' });
+    res.status(500).json({ error: 'Failed to fetch BOM data', detail: error.message, code: error.code });
   }
 });
 
