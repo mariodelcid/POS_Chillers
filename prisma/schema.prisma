@@ -19,6 +19,16 @@ model Item {
   updatedAt  DateTime @updatedAt
 
   saleItems  SaleItem[]
+  bomLines   BomLine[]
+}
+
+model BomLine {
+  id          Int    @id @default(autoincrement())
+  itemId      Int
+  ingredient  String
+  costCents   Int    // cost of this ingredient per serving of the menu item
+
+  item        Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
 }
 
 model PackagingMaterial {
@@ -60,5 +70,3 @@ model Purchase {
   description String
   createdAt   DateTime @default(now())
 }
-
-
