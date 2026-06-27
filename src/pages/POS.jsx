@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 function centsToUSD(cents) {
   return `$${(cents / 100).toFixed(2)}`;
@@ -23,7 +24,7 @@ function Confetti() {
   }, []);
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: 10001, overflow: 'hidden' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: 2147483646, overflow: 'hidden' }}>
       <style>{`
         @keyframes confettiFall {
           0%   { transform: translateY(-30px) rotate(0deg) scaleX(1);   opacity: 1; }
@@ -56,16 +57,17 @@ function SaleCompleteOverlay({ sale, onDismiss }) {
   const hasChange = isCash && sale.changeDueCents > 0;
   const bg = isCash ? '#059669' : '#1d4ed8';
 
-  return (
+  return createPortal(
     <>
       <Confetti />
       <div style={{
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        width: '100vw', height: '100vh', zIndex: 10000,
+        position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+        zIndex: 2147483647,
         background: bg,
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
         cursor: 'pointer',
+        margin: 0, padding: 0, boxSizing: 'border-box',
       }} onClick={onDismiss}>
         <style>{`
           @keyframes saleZoomIn {
@@ -80,43 +82,26 @@ function SaleCompleteOverlay({ sale, onDismiss }) {
 
         {/* SALE COMPLETE label */}
         <div style={{
-          fontSize: 'clamp(28px, 5vw, 52px)',
+          fontSize: 'clamp(20px, 3vw, 36px)',
           fontWeight: 900,
-          color: 'rgba(255,255,255,0.85)',
-          letterSpacing: '0.12em',
+          color: 'rgba(255,255,255,0.75)',
+          letterSpacing: '0.18em',
           textTransform: 'uppercase',
           animation: 'slideUp 0.25s ease-out both',
-          marginBottom: 8,
+          marginBottom: 4,
         }}>
           SALE COMPLETE
         </div>
 
-        {/* Big checkmark */}
+        {/* MASSIVE total â camera-readable from above */}
         <div style={{
-          width: 80, height: 80,
-          borderRadius: '50%',
-          background: 'rgba(255,255,255,0.2)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          marginBottom: 16,
-          animation: 'saleZoomIn 0.3s 0.05s cubic-bezier(0.34,1.56,0.64,1) both',
-        }}>
-          <div style={{
-            width: 36, height: 20,
-            borderLeft: '6px solid #fff',
-            borderBottom: '6px solid #fff',
-            transform: 'rotate(-45deg) translateY(-4px)',
-          }} />
-        </div>
-
-        {/* Giant total */}
-        <div style={{
-          fontSize: 'clamp(72px, 18vw, 180px)',
+          fontSize: 'min(30vw, 38vh)',
           fontWeight: 900,
           color: '#fff',
           lineHeight: 1,
-          letterSpacing: '-0.02em',
-          animation: 'saleZoomIn 0.3s 0.1s cubic-bezier(0.34,1.56,0.64,1) both',
-          textShadow: '0 4px 32px rgba(0,0,0,0.25)',
+          letterSpacing: '-0.03em',
+          animation: 'saleZoomIn 0.3s 0.05s cubic-bezier(0.34,1.56,0.64,1) both',
+          textShadow: '0 6px 48px rgba(0,0,0,0.3)',
         }}>
           {centsToUSD(sale.totalCents)}
         </div>
@@ -124,18 +109,18 @@ function SaleCompleteOverlay({ sale, onDismiss }) {
         {/* Change due */}
         {hasChange && (
           <div style={{
-            marginTop: 24,
+            marginTop: 16,
             background: 'rgba(255,255,255,0.18)',
             borderRadius: 16,
-            padding: '16px 40px',
+            padding: '12px 36px',
             textAlign: 'center',
-            animation: 'slideUp 0.3s 0.2s ease-out both',
+            animation: 'slideUp 0.3s 0.15s ease-out both',
           }}>
-            <div style={{ fontSize: 18, fontWeight: 600, color: 'rgba(255,255,255,0.8)', marginBottom: 4 }}>
+            <div style={{ fontSize: 'clamp(14px, 2vw, 24px)', fontWeight: 700, color: 'rgba(255,255,255,0.8)', marginBottom: 2 }}>
               CHANGE DUE
             </div>
             <div style={{
-              fontSize: 'clamp(40px, 8vw, 80px)',
+              fontSize: 'clamp(36px, 7vw, 100px)',
               fontWeight: 900, color: '#fff',
               lineHeight: 1, letterSpacing: '-0.02em',
             }}>
@@ -147,18 +132,19 @@ function SaleCompleteOverlay({ sale, onDismiss }) {
         {/* Credit badge */}
         {!isCash && (
           <div style={{
-            marginTop: 20,
+            marginTop: 12,
             background: 'rgba(255,255,255,0.18)',
             borderRadius: 12,
-            padding: '12px 32px',
-            fontSize: 22, fontWeight: 700, color: '#fff',
-            animation: 'slideUp 0.3s 0.2s ease-out both',
+            padding: '10px 28px',
+            fontSize: 'clamp(16px, 2vw, 26px)', fontWeight: 700, color: '#fff',
+            animation: 'slideUp 0.3s 0.15s ease-out both',
           }}>
             CREDIT CARD
           </div>
         )}
       </div>
-    </>
+    </>,
+    document.body
   );
 }
 
@@ -260,7 +246,7 @@ export default function POS() {
     setCart((prev) => {
       const found = prev.find((l) => l.itemId === item.id);
       if (found) {
-        return prev.map((l) => (l.itemId === item.id ?à{ ...l, quantity: l.quantity + 1 } : l));
+        return prev.map((l) => (l.itemId === item.id ? { ...l, quantity: l.quantity + 1 } : l));
       }
       return [...prev, { itemId: item.id, name: item.name, priceCents: item.priceCents, quantity: 1 }];
     });
@@ -502,162 +488,61 @@ export default function POS() {
                   }}>
                     <div style={{ fontWeight: '500', fontSize: '16px' }}>{l.name}</div>
                     <div style={{ fontSize: '16px', color: '#059669', fontWeight: '600' }}>
-                      {centsToUSD(l.priceCents)}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <button onClick={() => updateQty(l.itemId, -1)}
-                        style={{ width: '32px', height: '32px', border: '1px solid #d1d5db', borderRadius: '4px', backgroundColor: '#ffffff', cursor: 'pointer', fontSize: '18px', fontWeight: 'bold' }}>
-                        -
-                      </button>
-                      <span style={{ margin: '0 8px', fontSize: '16px', fontWeight: '600', minWidth: '20px', textAlign: 'center' }}>
-                        {l.quantity}
-                      </span>
-                      <button onClick={() => updateQty(l.itemId, 1)}
-                        style={{ width: '32px', height: '32px', border: '1px solid #d1d5db', borderRadius: '4px', backgroundColor: '#ffffff', cursor: 'pointer', fontSize: '18px', fontWeight: 'bold' }}>
-                        +
-                      </button>
-                    </div>
-                    <div style={{ textAlign: 'right', fontSize: '16px', fontWeight: '700', color: '#059669' }}>
-                      {centsToUSD(l.priceCents * l.quantity)}
-                    </div>
-                    <button onClick={() => removeFromCart(l.itemId)}
-                      style={{ padding: '4px 8px', border: '1px solid #dc2626', borderRadius: '4px', backgroundColor: '#fef2f2', color: '#dc2626', cursor: 'pointer', fontSize: '12px' }}>
-                      X
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Totals */}
-          <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '20px', marginBottom: '20px', border: '1px solid #e5e7eb' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', fontSize: '16px' }}>
-              <div style={{ color: '#6b7280' }}>Total</div>
-              <div style={{ fontWeight: '600' }}>{centsToUSD(totalCents)}</div>
-            </div>
-          </div>
-
-          {/* Payment Method */}
-          <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '20px', marginBottom: '20px', border: '1px solid #e5e7eb' }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '600' }}>Payment Method</h3>
-            <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
-              {['cash', 'credit'].map(pm => (
-                <label key={pm} style={{
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  padding: '12px 16px',
-                  border: `2px solid ${paymentMethod === pm ? '#2563eb' : '#e5e7eb'}`,
-                  borderRadius: '8px',
-                  backgroundColor: paymentMethod === pm ? '#eff6ff' : '#ffffff',
-                  cursor: 'pointer', flex: 1, justifyContent: 'center', fontWeight: '500',
-                }}>
-                  <input type="radio" name="pm" value={pm} checked={paymentMethod === pm}
-                    onChange={() => setPaymentMethod(pm)} style={{ margin: 0 }} />
-                  {pm === 'cash' ? 'Cash' : 'Credit'}
-                </label>
-              ))}
-            </div>
-
-            {paymentMethod === 'cash' && (
-              <div>
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
-                    Amount Tendered:
-                  </label>
-                  <input
-                    type="number" step="0.01" value={tender}
-                    onChange={(e) => setTender(e.target.value)}
-                    placeholder="0.00"
-                    style={{ width: '100%', padding: '12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '18px', fontWeight: '600' }}
-                  />
-                </div>
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                  {quickTenderAmounts.map(amount => (
-                    <button key={amount} onClick={() => setTender(amount.toString())}
-                      style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: '#ffffff', cursor: 'pointer', fontSize: '14px', fontWeight: '500' }}>
-                      ${amount}
-                    </button>
-                  ))}
-                </div>
-                {tenderCents > 0 && (
-                  <div style={{
-                    padding: '12px',
-                    backgroundColor: changeCents >= 0 ? '#f0fdf4' : '#fef2f2',
-                    borderRadius: '8px',
-                    border: `1px solid ${changeCents >= 0 ? '#22c55e' : '#dc2626'}`,
-                    textAlign: 'center',
-                  }}>
-                    <div style={{ fontSize: '18px', fontWeight: '700', color: changeCents >= 0 ? '#059669' : '#dc2626' }}>
-                      Change: {centsToUSD(changeCents)}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Complete Order */}
-          <button
-            disabled={cart.length === 0 || submitting || (paymentMethod === 'cash' && tenderCents < totalCents)}
-            onClick={completeOrder}
-            style={{
-              width: '100%', padding: '20px',
-              background: cart.length === 0 || submitting || (paymentMethod === 'cash' && tenderCents < totalCents)
-                ? '#9ca3af' : '#059669',
-              color: '#ffffff', border: 'none', borderRadius: '12px',
-              fontSize: '20px', fontWeight: '700',
-              cursor: cart.length === 0 || submitting || (paymentMethod === 'cash' && tenderCents < totalCents)
-                ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s', marginBottom: '12px',
-            }}
-          >
-            {submitting ? 'Processing...' : 'Complete Order'}
-          </button>
-
-          {/* Compras */}
-          <div style={{ marginBottom: '12px' }}>
-            {!showPurchaseInput ? (
-              <button onClick={() => setShowPurchaseInput(true)}
-                style={{ width: '100%', padding: '16px', background: '#dc2626', color: '#ffffff', border: 'none', borderRadius: '12px', fontSize: '18px', fontWeight: '700', cursor: 'pointer' }}>
-                Compras
-              </button>
-            ) : (
-              <div style={{ padding: '16px', border: '2px solid #dc2626', borderRadius: '12px', backgroundColor: '#fef2f2' }}>
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#dc2626' }}>
-                    Purchase Amount ($)
-                  </label>
-                  <input type="number" step="0.01" min="0" value={purchaseAmount}
-                    onChange={(e) => setPurchaseAmount(e.target.value)} placeholder="0.00"
-                    style={{ width: '100%', padding: '12px', border: '1px solid #dc2626', borderRadius: '8px', fontSize: '16px', fontWeight: '600' }} />
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button onClick={recordPurchase} disabled={submitting || !purchaseAmount}
-                    style={{ flex: 1, padding: '12px', background: submitting || !purchaseAmount ? '#9ca3af' : '#dc2626', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: submitting || !purchaseAmount ? 'not-allowed' : 'pointer' }}>
-                    {submitting ? 'Recording...' : 'Record Purchase'}
-                  </button>
-                  <button onClick={() => { setShowPurchaseInput(false); setPurchaseAmount(''); }}
-                    style={{ padding: '12px 16px', background: '#6b7280', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'pointer' }}>
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Error message */}
-          {message && (
-            <div style={{
-              marginTop: '16px', padding: '12px',
-              backgroundColor: '#fef2f2', border: '1px solid #dc2626',
-              borderRadius: '8px', color: '#dc2626',
-              fontSize: '16px', fontWeight: '500', textAlign: 'center',
-            }}>
-              {message}
-            </div>
-          )}
-        </div>
-      </div>
-    </>
-  );
-}
+           ØÙ[ÕÕTÑ
+XÙPÙ[Ê_BÙ]]Ý[O^ÞÈ\Ü^N	Ù^	Ë[YÛ][\Î	ØÙ[\ËØ\	Î	È_O]ÛÛÛXÚÏ^Ê
+HO\]T]J][RYLJ_BÝ[O^ÞÈÚY	ÌÌ	ËZYÚ	ÌÌ	ËÜ\	Ì\ÛÛYÙY
+YËÜ\Y]\Î	Í	ËXÚÙÜÝ[ÛÛÜ	ÈÙËÝ\ÛÜ	ÜÚ[\ËÛÚ^N	ÌN	ËÛÙZYÚ	ØÛ	È_OBØ]ÛÜ[Ý[O^ÞÈX\Ú[	Ì	ËÛÚ^N	ÌM	ËÛÙZYÚ	Í	ËZ[ÚY	Ì	Ë^[YÛ	ØÙ[\È_OÛ]X[]_BÜÜ[]ÛÛÛXÚÏ^Ê
+HO\]T]J][RYJ_BÝ[O^ÞÈÚY	ÌÌ	ËZYÚ	ÌÌ	ËÜ\	Ì\ÛÛYÙY
+YËÜ\Y]\Î	Í	ËXÚÙÜÝ[ÛÛÜ	ÈÙËÝ\ÛÜ	ÜÚ[\ËÛÚ^N	ÌN	ËÛÙZYÚ	ØÛ	È_O
+ÂØ]ÛÙ]]Ý[O^ÞÈ^[YÛ	ÜYÚ	ËÛÚ^N	ÌM	ËÛÙZYÚ	ÍÌ	ËÛÛÜ	ÈÌ
+NMIÈ_OØÙ[ÕÕTÑ
+XÙPÙ[È
+]X[]J_BÙ]]ÛÛÛXÚÏ^Ê
+HO[[ÝQÛPØ\
+][RY
+_BÝ[O^ÞÈY[Î	Í	ËÜ\	Ì\ÛÛYÙÌËÜ\Y]\Î	Í	ËXÚÙÜÝ[ÛÛÜ	ÈÙYËÛÛÜ	ÈÙÌËÝ\ÛÜ	ÜÚ[\ËÛÚ^N	ÌL	È_OØ]ÛÙ]
+J_BÙ]
+_BÙ]ËÊÝ[È
+ßB]Ý[O^ÞÈXÚÙÜÝ[ÛÛÜ	ÈÙËÜ\Y]\Î	ÌL	ËY[Î	Ì	ËX\Ú[ÝÛN	Ì	ËÜ\	Ì\ÛÛYÙMYMÙXÈ_O]Ý[O^ÞÈ\Ü^N	ÙÜY	ËÜY[\]PÛÛ[[Î	ÌY]]ÉËØ\	ÌL	ËÛÚ^N	ÌM	È_O]Ý[O^ÞÈÛÛÜ	ÈÍÌ	È_OÝ[Ù]]Ý[O^ÞÈÛÙZYÚ	Í	È_OØÙ[ÕÕTÑ
+Ý[Ù[Ê_OÙ]Ù]Ù]ËÊ^[Y[Y]Ù
+ßB]Ý[O^ÞÈXÚÙÜÝ[ÛÛÜ	ÈÙËÜ\Y]\Î	ÌL	ËY[Î	Ì	ËX\Ú[ÝÛN	Ì	ËÜ\	Ì\ÛÛYÙMYMÙXÈ_OÈÝ[O^ÞÈX\Ú[	ÌM	ËÛÚ^N	ÌN	ËÛÙZYÚ	Í	È_O^[Y[Y]ÙÚÏ]Ý[O^ÞÈ\Ü^N	Ù^	ËØ\	ÌM	ËX\Ú[ÝÛN	ÌM	È_OÖÉØØ\Ú	Ë	ØÜY]	×KX\
+HO
+X[Ù^O^Ü_HÝ[O^ÞÂ\Ü^N	Ù^	Ë[YÛ][\Î	ØÙ[\ËØ\	Î	ËY[Î	ÌLM	ËÜ\ÛÛY	Ü^[Y[Y]ÙOOHHÈ	ÈÌMÙXÈ	ÈÙMYMÙXßXÜ\Y]\Î	Î	ËXÚÙÜÝ[ÛÛÜ^[Y[Y]ÙOOHHÈ	ÈÙYÈ	ÈÙËÝ\ÛÜ	ÜÚ[\Ë^K\ÝYPÛÛ[	ØÙ[\ËÛÙZYÚ	ÍL	Ë_O[]\OHY[È[YOHH[YO^Ü_HÚXÚÙY^Ü^[Y[Y]ÙOOH_BÛÚ[ÙO^Ê
+HOÙ]^[Y[Y]Ù
+J_HÝ[O^ÞÈX\Ú[_HÏÜHOOH	ØØ\Ú	ÈÈ	ÐØ\Ú	È	ÐÜY]	ßBÛX[
+J_BÙ]Ü^[Y[Y]ÙOOH	ØØ\Ú	È	
+]]Ý[O^ÞÈX\Ú[ÝÛN	ÌL	È_OX[Ý[O^ÞÈ\Ü^N	ØØÚÉËX\Ú[ÝÛN	Î	ËÛÙZYÚ	ÍL	È_O[[Ý[[\YÛX[[]\OH[X\Ý\HH[YO^Ý[\BÛÚ[ÙO^ÊJHOÙ][\K\Ù][YJ_BXÙZÛ\HÝ[O^ÞÈÚY	ÌL	IËY[Î	ÌL	ËÜ\	Ì\ÛÛYÙY
+YËÜ\Y]\Î	Î	ËÛÚ^N	ÌN	ËÛÙZYÚ	Í	È_BÏÙ]]Ý[O^ÞÈ\Ü^N	Ù^	ËØ\	Î	ËX\Ú[ÝÛN	ÌL	Ë^Ü\	ÝÜ\	È_OÜ]ZXÚÕ[\[[Ý[ËX\
+[[Ý[O
+]ÛÙ^O^Ø[[Ý[HÛÛXÚÏ^Ê
+HOÙ][\[[Ý[ÔÝ[Ê
+J_BÝ[O^ÞÈY[Î	ÎL	ËÜ\	Ì\ÛÛYÙY
+YËÜ\Y]\Î	Í	ËXÚÙÜÝ[ÛÛÜ	ÈÙËÝ\ÛÜ	ÜÚ[\ËÛÚ^N	ÌM	ËÛÙZYÚ	ÍL	È_O	Ø[[Ý[BØ]Û
+J_BÙ]Ý[\Ù[È	
+]Ý[O^ÞÂY[Î	ÌL	ËXÚÙÜÝ[ÛÛÜÚ[ÙPÙ[ÈHÈ	ÈÙ	È	ÈÙYËÜ\Y]\Î	Î	ËÜ\\ÛÛY	ØÚ[ÙPÙ[ÈHÈ	ÈÌÍMYIÈ	ÈÙÌßX^[YÛ	ØÙ[\Ë_O]Ý[O^ÞÈÛÚ^N	ÌN	ËÛÙZYÚ	ÍÌ	ËÛÛÜÚ[ÙPÙ[ÈHÈ	ÈÌ
+NMIÈ	ÈÙÌÈ_OÚ[ÙNØÙ[ÕÕTÑ
+Ú[ÙPÙ[Ê_BÙ]Ù]
+_BÙ]
+_BÙ]ËÊÛÛ\]HÜ\
+ßB]Û\ØXY^ØØ\[ÝOOHÝXZ][È
+^[Y[Y]ÙOOH	ØØ\Ú	È	[\Ù[ÈÝ[Ù[Ê_BÛÛXÚÏ^ØÛÛ\]SÜ\BÝ[O^ÞÂÚY	ÌL	IËY[Î	Ì	ËXÚÙÜÝ[Ø\[ÝOOHÝXZ][È
+^[Y[Y]ÙOOH	ØØ\Ú	È	[\Ù[ÈÝ[Ù[ÊBÈ	ÈÎXØLØYÈ	ÈÌ
+NMIËÛÛÜ	ÈÙËÜ\	ÛÛIËÜ\Y]\Î	ÌL	ËÛÚ^N	Ì	ËÛÙZYÚ	ÍÌ	ËÝ\ÛÜØ\[ÝOOHÝXZ][È
+^[Y[Y]ÙOOH	ØØ\Ú	È	[\Ù[ÈÝ[Ù[ÊBÈ	ÛÝX[ÝÙY	È	ÜÚ[\Ë[Ú][Û	Ø[ÉËX\Ú[ÝÛN	ÌL	Ë_BÜÝXZ][ÈÈ	ÔØÙ\ÜÚ[ËÈ	ÐÛÛ\]HÜ\ßBØ]ÛËÊÛÛ\\È
+ßB]Ý[O^ÞÈX\Ú[ÝÛN	ÌL	È_OÈ\ÚÝÔ\Ú\ÙR[]È
+]ÛÛÛXÚÏ^Ê
+HOÙ]ÚÝÔ\Ú\ÙR[]
+YJ_BÝ[O^ÞÈÚY	ÌL	IËY[Î	ÌM	ËXÚÙÜÝ[	ÈÙÌËÛÛÜ	ÈÙËÜ\	ÛÛIËÜ\Y]\Î	ÌL	ËÛÚ^N	ÌN	ËÛÙZYÚ	ÍÌ	ËÝ\ÛÜ	ÜÚ[\È_OÛÛ\\ÂØ]Û
+H
+]Ý[O^ÞÈY[Î	ÌM	ËÜ\	ÌÛÛYÙÌËÜ\Y]\Î	ÌL	ËXÚÙÜÝ[ÛÛÜ	ÈÙYÈ_O]Ý[O^ÞÈX\Ú[ÝÛN	ÌL	È_OX[Ý[O^ÞÈ\Ü^N	ØØÚÉËX\Ú[ÝÛN	Î	ËÛÙZYÚ	Í	ËÛÛÜ	ÈÙÌÈ_O\Ú\ÙH[[Ý[
+	
+BÛX[[]\OH[X\Ý\HHZ[H[YO^Ü\Ú\ÙP[[Ý[BÛÚ[ÙO^ÊJHOÙ]\Ú\ÙP[[Ý[
+K\Ù][YJ_HXÙZÛ\HÝ[O^ÞÈÚY	ÌL	IËY[Î	ÌL	ËÜ\	Ì\ÛÛYÙÌËÜ\Y]\Î	Î	ËÛÚ^N	ÌM	ËÛÙZYÚ	Í	È_HÏÙ]]Ý[O^ÞÈ\Ü^N	Ù^	ËØ\	Î	È_O]ÛÛÛXÚÏ^ÜXÛÜ\Ú\Ù_H\ØXY^ÜÝXZ][È\\Ú\ÙP[[Ý[BÝ[O^ÞÈ^KY[Î	ÌL	ËXÚÙÜÝ[ÝXZ][È\\Ú\ÙP[[Ý[È	ÈÎXØLØYÈ	ÈÙÌËÛÛÜ	ÈÙËÜ\	ÛÛIËÜ\Y]\Î	Î	ËÛÚ^N	ÌM	ËÛÙZYÚ	Í	ËÝ\ÛÜÝXZ][È\\Ú\ÙP[[Ý[È	ÛÝX[ÝÙY	È	ÜÚ[\È_OÜÝXZ][ÈÈ	ÔXÛÜ[ËÈ	ÔXÛÜ\Ú\ÙIßBØ]Û]ÛÛÛXÚÏ^Ê
+HOÈÙ]ÚÝÔ\Ú\ÙR[]
+[ÙJNÈÙ]\Ú\ÙP[[Ý[
+	ÉÊNÈ_BÝ[O^ÞÈY[Î	ÌLM	ËXÚÙÜÝ[	ÈÍÌ	ËÛÛÜ	ÈÙËÜ\	ÛÛIËÜ\Y]\Î	Î	ËÛÚ^N	ÌM	ËÛÙZYÚ	Í	ËÝ\ÛÜ	ÜÚ[\È_OØ[Ù[Ø]ÛÙ]Ù]
+_BÙ]ËÊ\ÜY\ÜØYÙH
+ßBÛY\ÜØYÙH	
+]Ý[O^ÞÂX\Ú[Ü	ÌM	ËY[Î	ÌL	ËXÚÙÜÝ[ÛÛÜ	ÈÙYËÜ\	Ì\ÛÛYÙÌËÜ\Y]\Î	Î	ËÛÛÜ	ÈÙÌËÛÚ^N	ÌM	ËÛÙZYÚ	ÍL	Ë^[YÛ	ØÙ[\Ë_OÛY\ÜØYÙ_BÙ]
+_BÙ]Ù]Ï
+NÂB
