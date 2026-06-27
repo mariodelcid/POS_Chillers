@@ -4,125 +4,159 @@ function centsToUSD(cents) {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-// ââ Confetti particle component ââââââââââââââââââââââââââââââââââââââââââââââââ
+// ââ Confetti burst (CSS-only, no emoji) âââââââââââââââââââââââââââââââââââââââ
 function Confetti() {
   const pieces = useMemo(() => {
-    const colors = ['#f59e0b','#10b981','#3b82f6','#ec4899','#8b5cf6','#ef4444','#14b8a6'];
-    return Array.from({ length: 60 }, (_, i) => ({
+    const colors = ['#facc15','#22c55e','#3b82f6','#f472b6','#a78bfa','#fb923c','#34d399','#f87171'];
+    const shapes = ['circle', 'rect', 'rect'];
+    return Array.from({ length: 80 }, (_, i) => ({
       id: i,
       color: colors[i % colors.length],
       left: `${Math.random() * 100}%`,
-      delay: `${Math.random() * 0.6}s`,
-      duration: `${0.9 + Math.random() * 0.8}s`,
-      size: `${7 + Math.random() * 8}px`,
-      rotate: `${Math.random() * 360}deg`,
+      delay: `${Math.random() * 0.4}s`,
+      duration: `${1.0 + Math.random() * 0.8}s`,
+      w: `${8 + Math.random() * 10}px`,
+      h: `${6 + Math.random() * 8}px`,
+      shape: shapes[i % shapes.length],
+      startRotate: Math.random() * 360,
     }));
   }, []);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 9999, overflow: 'hidden' }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: 10001, overflow: 'hidden' }}>
       <style>{`
         @keyframes confettiFall {
-          0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
-          100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+          0%   { transform: translateY(-30px) rotate(0deg) scaleX(1);   opacity: 1; }
+          50%  { transform: translateY(50vh)  rotate(360deg) scaleX(-1); opacity: 1; }
+          100% { transform: translateY(105vh) rotate(720deg) scaleX(1);  opacity: 0; }
         }
       `}</style>
       {pieces.map(p => (
         <div key={p.id} style={{
-          position: 'absolute',
-          top: 0,
-          left: p.left,
-          width: p.size,
-          height: p.size,
+          position: 'absolute', top: 0, left: p.left,
+          width: p.w, height: p.h,
           background: p.color,
-          borderRadius: Math.random() > 0.5 ? '50%' : '2px',
+          borderRadius: p.shape === 'circle' ? '50%' : '2px',
           animation: `confettiFall ${p.duration} ${p.delay} ease-in forwards`,
-          transform: `rotate(${p.rotate})`,
+          transform: `rotate(${p.startRotate}deg)`,
         }} />
       ))}
     </div>
   );
 }
 
-// ââ Sale complete overlay ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ââ Full-screen sale complete overlay âââââââââââââââââââââââââââââââââââââââââ
 function SaleCompleteOverlay({ sale, onDismiss }) {
   useEffect(() => {
-    const t = setTimeout(onDismiss, 5000);
+    const t = setTimeout(onDismiss, 2000);
     return () => clearTimeout(t);
   }, [onDismiss]);
+
+  const isCash   = sale.paymentMethod === 'cash';
+  const hasChange = isCash && sale.changeDueCents > 0;
+  const bg = isCash ? '#059669' : '#1d4ed8';
 
   return (
     <>
       <Confetti />
-      <div
-        onClick={onDismiss}
-        style={{
-          position: 'fixed', inset: 0, zIndex: 9998,
-          background: 'rgba(0,0,0,0.55)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer',
-        }}
-      >
-        <div
-          onClick={e => e.stopPropagation()}
-          style={{
-            background: '#fff',
-            borderRadius: 24,
-            padding: '48px 56px',
-            textAlign: 'center',
-            boxShadow: '0 32px 80px rgba(0,0,0,0.35)',
-            minWidth: 340,
-            animation: 'popIn 0.25s cubic-bezier(0.34,1.56,0.64,1)',
-          }}
-        >
-          <style>{`
-            @keyframes popIn {
-              from { transform: scale(0.6); opacity: 0; }
-              to   { transform: scale(1);   opacity: 1; }
-            }
-          `}</style>
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        width: '100vw', height: '100vh', zIndex: 10000,
+        background: bg,
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer',
+      }} onClick={onDismiss}>
+        <style>{`
+          @keyframes saleZoomIn {
+            from { transform: scale(0.4); opacity: 0; }
+            to   { transform: scale(1);   opacity: 1; }
+          }
+          @keyframes slideUp {
+            from { transform: translateY(40px); opacity: 0; }
+            to   { transform: translateY(0);    opacity: 1; }
+          }
+        `}</style>
 
-          <div style={{ fontSize: 64, marginBottom: 8 }}>ð</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#059669', marginBottom: 4 }}>
-            Sale Complete!
-          </div>
-          <div style={{ fontSize: 48, fontWeight: 800, color: '#111827', margin: '12px 0' }}>
-            {centsToUSD(sale.totalCents)}
-          </div>
-
-          {sale.paymentMethod === 'cash' && sale.changeDueCents > 0 && (
-            <div style={{
-              display: 'inline-block',
-              background: '#f0fdf4',
-              border: '2px solid #22c55e',
-              borderRadius: 12,
-              padding: '10px 24px',
-              marginTop: 4,
-            }}>
-              <div style={{ fontSize: 13, color: '#6b7280', fontWeight: 500 }}>Change Due</div>
-              <div style={{ fontSize: 32, fontWeight: 800, color: '#059669' }}>
-                {centsToUSD(sale.changeDueCents)}
-              </div>
-            </div>
-          )}
-
-          {sale.paymentMethod === 'credit' && (
-            <div style={{
-              display: 'inline-block',
-              background: '#eff6ff',
-              border: '2px solid #3b82f6',
-              borderRadius: 12,
-              padding: '10px 24px',
-              marginTop: 4,
-            }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: '#1d4ed8' }}>ð³ Credit Card</div>
-            </div>
-          )}
-
-          <div style={{ marginTop: 24, fontSize: 13, color: '#9ca3af' }}>
-            Tap anywhere to dismiss
-          </div>
+        {/* SALE COMPLETE label */}
+        <div style={{
+          fontSize: 'clamp(28px, 5vw, 52px)',
+          fontWeight: 900,
+          color: 'rgba(255,255,255,0.85)',
+          letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+          animation: 'slideUp 0.25s ease-out both',
+          marginBottom: 8,
+        }}>
+          SALE COMPLETE
         </div>
+
+        {/* Big checkmark */}
+        <div style={{
+          width: 80, height: 80,
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          marginBottom: 16,
+          animation: 'saleZoomIn 0.3s 0.05s cubic-bezier(0.34,1.56,0.64,1) both',
+        }}>
+          <div style={{
+            width: 36, height: 20,
+            borderLeft: '6px solid #fff',
+            borderBottom: '6px solid #fff',
+            transform: 'rotate(-45deg) translateY(-4px)',
+          }} />
+        </div>
+
+        {/* Giant total */}
+        <div style={{
+          fontSize: 'clamp(72px, 18vw, 180px)',
+          fontWeight: 900,
+          color: '#fff',
+          lineHeight: 1,
+          letterSpacing: '-0.02em',
+          animation: 'saleZoomIn 0.3s 0.1s cubic-bezier(0.34,1.56,0.64,1) both',
+          textShadow: '0 4px 32px rgba(0,0,0,0.25)',
+        }}>
+          {centsToUSD(sale.totalCents)}
+        </div>
+
+        {/* Change due */}
+        {hasChange && (
+          <div style={{
+            marginTop: 24,
+            background: 'rgba(255,255,255,0.18)',
+            borderRadius: 16,
+            padding: '16px 40px',
+            textAlign: 'center',
+            animation: 'slideUp 0.3s 0.2s ease-out both',
+          }}>
+            <div style={{ fontSize: 18, fontWeight: 600, color: 'rgba(255,255,255,0.8)', marginBottom: 4 }}>
+              CHANGE DUE
+            </div>
+            <div style={{
+              fontSize: 'clamp(40px, 8vw, 80px)',
+              fontWeight: 900, color: '#fff',
+              lineHeight: 1, letterSpacing: '-0.02em',
+            }}>
+              {centsToUSD(sale.changeDueCents)}
+            </div>
+          </div>
+        )}
+
+        {/* Credit badge */}
+        {!isCash && (
+          <div style={{
+            marginTop: 20,
+            background: 'rgba(255,255,255,0.18)',
+            borderRadius: 12,
+            padding: '12px 32px',
+            fontSize: 22, fontWeight: 700, color: '#fff',
+            animation: 'slideUp 0.3s 0.2s ease-out both',
+          }}>
+            CREDIT CARD
+          </div>
+        )}
       </div>
     </>
   );
@@ -226,7 +260,7 @@ export default function POS() {
     setCart((prev) => {
       const found = prev.find((l) => l.itemId === item.id);
       if (found) {
-        return prev.map((l) => (l.itemId === item.id ? { ...l, quantity: l.quantity + 1 } : l));
+        return prev.map((l) => (l.itemId === item.id ?à{ ...l, quantity: l.quantity + 1 } : l));
       }
       return [...prev, { itemId: item.id, name: item.name, priceCents: item.priceCents, quantity: 1 }];
     });
@@ -488,7 +522,7 @@ export default function POS() {
                     </div>
                     <button onClick={() => removeFromCart(l.itemId)}
                       style={{ padding: '4px 8px', border: '1px solid #dc2626', borderRadius: '4px', backgroundColor: '#fef2f2', color: '#dc2626', cursor: 'pointer', fontSize: '12px' }}>
-                      Ã
+                      X
                     </button>
                   </div>
                 ))}
@@ -519,7 +553,7 @@ export default function POS() {
                 }}>
                   <input type="radio" name="pm" value={pm} checked={paymentMethod === pm}
                     onChange={() => setPaymentMethod(pm)} style={{ margin: 0 }} />
-                  {pm === 'cash' ? 'ðµ Cash' : 'ð³ Credit'}
+                  {pm === 'cash' ? 'Cash' : 'Credit'}
                 </label>
               ))}
             </div>
