@@ -71,3 +71,16 @@ model Purchase {
   description String
   createdAt   DateTime @default(now())
 }
+
+model InventoryItem {
+  id             Int      @id @default(autoincrement())
+  name           String   @unique
+  category       String   // "ingredient" | "packaging" | "disposable"
+  presentation   String   @default("")
+  unit           String   @default("each") // "each" | "oz" | "other"
+  unitsPurchased Float    @default(1)
+  costCents      Int      @default(0)
+  salesTax       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
