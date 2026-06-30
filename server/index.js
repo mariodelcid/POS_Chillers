@@ -291,4 +291,77 @@ app.get('*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+
+// ==================
+// INVENTORY ITEMS
+// ==================
+app.get('/api/inventory-items', async (_req, res) => {
+  try {
+    const { category } = _req.query;
+    const where = category ? { category } : {};
+    const items = await prisma.inventoryItem.findMany({ where, orderBy: [{ category: 'asc' }, { name: 'asc' }] });
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching inventory items:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/inventory-items', async (req, res) => {
+  try {
+    const { name, category, presentation, unit, unitsPurchased, costCents, salesTax } = req.body;
+    if (!name || !category) return res.status(400).json({ error: 'name and category are required' });
+    const item = await prisma.inventoryItem.create({
+      data: {
+        name,
+        category,
+        presentation: presentation || '',
+        unit: unit || 'each',
+        unitsPurchased: parseFloat(unitsPurchased) || 1,
+        costCents: parseInt(costCents) || 0,
+        salesTax: salesTax === true || salesTax === 'true',
+      },
+    });
+    res.status(201).json(item);
+  } catch (error) {
+    if (error.code === 'P2002') return res.status(409).json({ error: 'An item with that name already exists' });
+    console.error('Error creating inventory item:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/inventory-items/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { name, category, presentation, unit, unitsPurchased, costCents, salesTax } = req.body;
+    const item = await prisma.inventoryItem.update({
+      where: { id },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(category !== undefined && { category }),
+        ...(presentation !== undefined && { presentation }),
+        ...(unit !== undefined && { unit }),
+        ...(unitsPurchased !== undefined && { unitsPurchased: parseFloat(unitsPurchased) }),
+        ...(costCents !== undefined && { costCents: parseInt(costCents) }),
+        ...(salesTax !== undefined && { salesTax: salesTax === true || salesTax === 'true' }),
+      },
+    });
+    res.json(item);
+  } catch (error) {
+    console.error('Error updating inventory item:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/inventory-items/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    await prisma.inventoryItem.delete({ where: { id } });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error deleting inventory item:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, () => { console.log(`Server listening on ${PORT}`); });
