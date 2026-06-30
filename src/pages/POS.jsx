@@ -84,7 +84,7 @@ export default function POS() {
   }, [items]);
 
   const subtotalCents = cart.reduce((s, l) => s + l.priceCents * l.quantity, 0);
-  const totalCents = subtotalCents; // No tax
+  const totalCents = Math.ceil(subtotalCents / 100) * 100; // Round up to nearest dollar
   const tenderCents = Math.round(parseFloat(tender || '0') * 100);
   const changeCents = paymentMethod === 'cash' ? Math.max(0, tenderCents - totalCents) : 0;
 
@@ -430,7 +430,7 @@ export default function POS() {
                       fontSize: '12px'
                     }}
                   >
-                    Ã
+                    X
                   </button>
                 </div>
               ))}
@@ -484,7 +484,7 @@ export default function POS() {
                 onChange={() => setPaymentMethod('cash')}
                 style={{ margin: 0 }}
               />
-              ðµ Cash
+              Cash
             </label>
             <label style={{
               display: 'flex',
@@ -507,7 +507,7 @@ export default function POS() {
                 onChange={() => setPaymentMethod('credit')}
                 style={{ margin: 0 }}
               />
-              ð³ Credit
+              Credit
             </label>
           </div>
 
