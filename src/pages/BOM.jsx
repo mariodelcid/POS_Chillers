@@ -5,9 +5,9 @@ function centsToUSD(cents) {
 }
 
 const SECTIONS = [
-  { key: 'ingredient', label: 'Ingredients',  emoji: 'ð§' },
-  { key: 'packaging',  label: 'Packaging',    emoji: 'ð¦' },
-  { key: 'disposable', label: 'Disposables',  emoji: 'ð¥¤' },
+  { key: 'ingredient', label: 'Ingredients' },
+  { key: 'packaging',  label: 'Packaging' },
+  { key: 'disposable', label: 'Disposables' },
 ];
 
 const S = {
@@ -273,7 +273,7 @@ export default function BOM() {
 
   const selectedItem = items.find(i => i.id === selectedId) || null;
 
-  if (loading) return <div style={{ padding: 24 }}>Loadingâ¦</div>;
+  if (loading) return <div style={{ padding: 24 }}>Loading...</div>;
   if (items.length === 0) return <div style={{ padding: 24, color: '#6b7280' }}>No items found.</div>;
 
   const bomTotal  = selectedItem ? selectedItem.bomLines.reduce((s, l) => s + l.costCents, 0) : 0;
@@ -332,7 +332,7 @@ export default function BOM() {
                 return (
                   <div key={type} style={S.sectionCard}>
                     <div style={S.sectionHead}>
-                      <span style={S.sectionTitle}>{emoji} {label}</span>
+                      <span style={S.sectionTitle}>{label}</span>
                       <span style={S.sectionSub}>
                         {sectionSub > 0 ? `Subtotal: ${centsToUSD(sectionSub)}` : 'â'}
                       </span>
@@ -392,7 +392,7 @@ export default function BOM() {
                         <input
                           value={nl.ingredient}
                           onChange={e => setNewLine(selectedItem.id, type, { ...nl, ingredient: e.target.value })}
-                          placeholder={`Add ${label.slice(0, -1).toLowerCase()}â¦`}
+                          placeholder={`Add ${label.slice(0, -1).toLowerCase()}...`}
                           style={S.inp}
                           onKeyDown={e => e.key === 'Enter' && addBomLine(selectedItem.id, type)}
                         />
@@ -410,7 +410,7 @@ export default function BOM() {
                           disabled={isSaving}
                           style={S.btnAdd(isSaving)}
                         >
-                          {isSaving ? 'Savingâ¦' : '+ Add'}
+                          {isSaving ? 'Saving...' : '+ Add'}
                         </button>
                       </div>
                     </div>
@@ -426,7 +426,7 @@ export default function BOM() {
                 <span style={{ ...S.totalVal, color: margin >= 0 ? '#059669' : '#dc2626' }}>
                   {centsToUSD(bomTotal)}
                   <span style={{ color: '#6b7280', fontWeight: 500, fontSize: 13 }}>
-                    {' '}Â· Margin: {centsToUSD(margin)} ({marginPct}%)
+                    {' '} ·  Margin: {centsToUSD(margin)} ({marginPct}%)
                   </span>
                 </span>
               ) : (
