@@ -150,12 +150,7 @@ export default function Sales() {
         </div>
       )}
 
-      {!bomConfigured && (
-        <div style={{ padding: 12, background: '#fef3c7', border: '1px solid #fbbf24', borderRadius: 8, marginBottom: 16, fontSize: '0.9em', color: '#92400e' }}>
-          💡 <strong>Tip:</strong> Go to the <strong>BOM</strong> page to set ingredient costs. Once configured, cost of sales and gross profit appear here automatically.
-        </div>
-      )}
-
+     
       <div style={{ display: 'flex', gap: 16, marginBottom: 24, padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <label htmlFor="startDate" style={{ fontWeight: 600, fontSize: '0.9em' }}>From:</label>
