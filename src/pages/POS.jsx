@@ -1,6 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 
-function centsToUSD(cents) { return `$${(cents / 100).toFixed(2)}`; }
+function centsToUSD(cents) {
+  if (Math.abs(cents) < 100) {
+    const prefix = cents < 0 ? '-$' : '$';
+    return prefix + Math.abs(cents / 100).toFixed(2);
+  }
+  return '$' + Math.round(cents / 100);
+}
 
 export default function POS() {
   const [items, setItems] = useState([]);
