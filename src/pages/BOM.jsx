@@ -10,45 +10,30 @@ const SECTIONS = [
   { key: 'disposable', label: 'Disposables' },
 ];
 
+const CATS = ['ingredient', 'packaging', 'disposable'];
+
 const S = {
   left: {
-    display: 'flex',
-    flexDirection: 'column',
-    borderRight: '1px solid #e5e7eb',
-    overflow: 'hidden',
-    background: '#f9fafb',
+    display: 'flex', flexDirection: 'column',
+    borderRight: '1px solid #e5e7eb', overflow: 'hidden', background: '#f9fafb',
   },
   leftHeader: {
-    padding: '14px 16px 10px',
-    fontSize: 11,
-    fontWeight: 600,
-    color: '#6b7280',
-    textTransform: 'uppercase',
-    letterSpacing: '0.06em',
-    borderBottom: '1px solid #e5e7eb',
+    padding: '14px 16px 10px', fontSize: 11, fontWeight: 600, color: '#6b7280',
+    textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid #e5e7eb',
   },
   leftScroll: { overflowY: 'auto', flex: 1 },
   catLabel: {
-    padding: '10px 16px 4px',
-    fontSize: 11,
-    fontWeight: 600,
-    color: '#9ca3af',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
+    padding: '10px 16px 4px', fontSize: 11, fontWeight: 600, color: '#9ca3af',
+    textTransform: 'uppercase', letterSpacing: '0.05em',
   },
   itemRow: (active) => ({
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '9px 16px',
-    cursor: 'pointer',
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '9px 16px', cursor: 'pointer',
     borderLeft: active ? '3px solid #2563eb' : '3px solid transparent',
     background: active ? '#eff6ff' : 'transparent',
   }),
   itemName: (active) => ({
-    fontSize: 13,
-    fontWeight: active ? 600 : 400,
-    color: active ? '#1d4ed8' : '#111827',
+    fontSize: 13, fontWeight: active ? 600 : 400, color: active ? '#1d4ed8' : '#111827',
   }),
   badgeSet: {
     fontSize: 10, padding: '2px 7px', borderRadius: 99, fontWeight: 600,
@@ -58,57 +43,29 @@ const S = {
     fontSize: 10, padding: '2px 7px', borderRadius: 99, fontWeight: 500,
     background: '#f3f4f6', color: '#9ca3af', border: '1px solid #e5e7eb',
   },
-  right: {
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-    background: '#fff',
-  },
+  right: { display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#fff' },
   rightHeader: {
-    padding: '14px 24px 12px',
-    borderBottom: '1px solid #e5e7eb',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    flexShrink: 0,
+    padding: '14px 24px 12px', borderBottom: '1px solid #e5e7eb',
+    display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexShrink: 0,
   },
   rightTitle: { fontSize: 18, fontWeight: 700, color: '#111827' },
   rightPrice: { fontSize: 13, color: '#6b7280' },
   sections: {
-    flex: 1,
-    overflowY: 'auto',
-    padding: '16px 24px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 16,
+    flex: 1, overflowY: 'auto', padding: '16px 24px',
+    display: 'flex', flexDirection: 'column', gap: 16,
   },
-  sectionCard: {
-    border: '1px solid #e5e7eb',
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
+  sectionCard: { border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' },
   sectionHead: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '9px 14px',
-    background: '#f9fafb',
-    borderBottom: '1px solid #e5e7eb',
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '9px 14px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb',
   },
-  sectionTitle: {
-    fontSize: 12, fontWeight: 700, color: '#374151',
-    textTransform: 'uppercase', letterSpacing: '0.06em',
-  },
+  sectionTitle: { fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.06em' },
   sectionSub: { fontSize: 12, color: '#6b7280' },
   sectionBody: { padding: '10px 14px', background: '#fff' },
-  lineRow: hasQty => ({
-    display: 'grid',
-    gridTemplateColumns: '1fr 45px 80px 100px',
-    gap: 8,
-    alignItems: 'center',
-    padding: '5px 0',
-    borderBottom: '1px solid #f3f4f6',
-  }),
+  lineRow: {
+    display: 'grid', gridTemplateColumns: '1fr 45px 80px 100px',
+    gap: 8, alignItems: 'center', padding: '5px 0', borderBottom: '1px solid #f3f4f6',
+  },
   lineName: { fontSize: 13, color: '#111827' },
   lineQty: { fontSize: 11, color: '#9ca3af', textAlign: 'center' },
   lineCost: { fontSize: 13, fontWeight: 600, color: '#374151', textAlign: 'right' },
@@ -123,40 +80,36 @@ const S = {
   },
   inp: {
     padding: '6px 9px', border: '1px solid #d1d5db', borderRadius: 6,
-    fontSize: 13, background: '#f9fafb', width: '100%', color: '#111827',
-    boxSizing: 'border-box',
+    fontSize: 13, background: '#f9fafb', width: '100%', color: '#111827', boxSizing: 'border-box',
   },
   inpNum: {
     padding: '6px 8px', border: '1px solid #d1d5db', borderRadius: 6,
     fontSize: 13, background: '#f9fafb', width: '100%', textAlign: 'right',
     color: '#111827', boxSizing: 'border-box',
   },
+  sel: {
+    padding: '6px 9px', border: '1px solid #d1d5db', borderRadius: 6,
+    fontSize: 13, background: '#f9fafb', width: '100%', color: '#111827', boxSizing: 'border-box',
+  },
   btnAdd: (saving) => ({
     padding: '6px 0', border: 'none', borderRadius: 6,
     background: saving ? '#93c5fd' : '#2563eb', color: '#fff',
-    cursor: saving ? 'default' : 'pointer', fontSize: 13, fontWeight: 600,
-    width: '100%',
+    cursor: saving ? 'default' : 'pointer', fontSize: 13, fontWeight: 600, width: '100%',
   }),
-  totalsBar: {
-    padding: '12px 24px',
-    borderTop: '1px solid #e5e7eb',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    background: '#f9fafb',
-    flexShrink: 0,
+  totalsBars: {
+    padding: '12px 24px', borderTop: '1px solid #e5e7eb',
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    background: '#f9fafb', flexShrink: 0,
   },
   totalLabel: { fontSize: 13, fontWeight: 600, color: '#374151' },
   totalVal: { fontSize: 14, fontWeight: 700 },
   emptyRight: {
-    flex: 1,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: '#9ca3af',
-    fontSize: 14,
+    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    color: '#9ca3af', fontSize: 14,
   },
 };
+
+const EMPTY_LIB_FORM = { name: '', category: 'ingredient', unit: 'oz', unitsPurchased: '', costDollars: '' };
 
 export default function BOM() {
   const [activeTab, setActiveTab] = useState('bom');
@@ -169,19 +122,19 @@ export default function BOM() {
   const [editValues, setEditValues] = useState({ ingredient: '', cost: '', qty: '1' });
   const [saving, setSaving] = useState(null);
 
+  // Library state
+  const [libForm, setLibForm] = useState(EMPTY_LIB_FORM);
+  const [libSaving, setLibSaving] = useState(false);
+  const [editingInv, setEditingInv] = useState(null);
+  const [editInvValues, setEditInvValues] = useState({});
+
   // P&L state
   const [pnlDate, setPnlDate] = useState(new Date().toISOString().split('T')[0]);
   const [pnlData, setPnlData] = useState(null);
   const [pnlLoading, setPnlLoading] = useState(false);
 
-  useEffect(() => {
-    fetchBOM();
-    fetchInvItems();
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === 'pnl') fetchPnl();
-  }, [activeTab, pnlDate]);
+  useEffect(() => { fetchBOM(); fetchInvItems(); }, []);
+  useEffect(() => { if (activeTab === 'pnl') fetchPnl(); }, [activeTab, pnlDate]);
 
   const fetchBOM = async () => {
     try {
@@ -189,11 +142,8 @@ export default function BOM() {
       const data = await res.json();
       setItems(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error('Error fetching BOM:', err);
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
+      console.error(err); setItems([]);
+    } finally { setLoading(false); }
   };
 
   const fetchInvItems = async () => {
@@ -201,25 +151,79 @@ export default function BOM() {
       const res = await fetch('/api/inventory-items');
       const data = await res.json();
       setInvItems(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Error fetching inventory items:', err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const fetchPnl = async () => {
     setPnlLoading(true);
     try {
       const res = await fetch(`/api/daily-pnl?date=${pnlDate}`);
-      const data = await res.json();
-      setPnlData(data);
-    } catch (err) {
-      console.error('Error fetching P&L:', err);
-      setPnlData(null);
-    } finally {
-      setPnlLoading(false);
-    }
+      setPnlData(await res.json());
+    } catch (err) { console.error(err); setPnlData(null); }
+    finally { setPnlLoading(false); }
   };
 
+  // ── Library CRUD ──────────────────────────────────────────────
+  const addLibItem = async () => {
+    if (!libForm.name.trim()) { alert('Enter a name.'); return; }
+    if (!libForm.unitsPurchased || !libForm.costDollars) { alert('Enter quantity and cost.'); return; }
+    setLibSaving(true);
+    try {
+      const res = await fetch('/api/inventory-items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: libForm.name.trim(),
+          category: libForm.category,
+          unit: libForm.unit,
+          unitsPurchased: parseFloat(libForm.unitsPurchased),
+          costCents: Math.round(parseFloat(libForm.costDollars) * 100),
+          presentation: '',
+          salesTax: false,
+        }),
+      });
+      if (!res.ok) { const e = await res.json(); alert(e.error || 'Failed'); return; }
+      setLibForm(EMPTY_LIB_FORM);
+      await fetchInvItems();
+    } catch (err) { console.error(err); alert('Failed to add.'); }
+    finally { setLibSaving(false); }
+  };
+
+  const deleteLibItem = async (id) => {
+    if (!confirm('Delete this ingredient from the library?')) return;
+    await fetch(`/api/inventory-items/${id}`, { method: 'DELETE' });
+    await fetchInvItems();
+  };
+
+  const startEditInv = (inv) => {
+    setEditingInv(inv.id);
+    setEditInvValues({
+      name: inv.name, category: inv.category, unit: inv.unit,
+      unitsPurchased: String(inv.unitsPurchased),
+      costDollars: (inv.costCents / 100).toFixed(2),
+    });
+  };
+
+  const saveEditInv = async (id) => {
+    try {
+      const res = await fetch(`/api/inventory-items/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editInvValues.name.trim(),
+          category: editInvValues.category,
+          unit: editInvValues.unit,
+          unitsPurchased: parseFloat(editInvValues.unitsPurchased),
+          costCents: Math.round(parseFloat(editInvValues.costDollars) * 100),
+        }),
+      });
+      if (!res.ok) { const e = await res.json(); alert(e.error || 'Failed'); return; }
+      setEditingInv(null);
+      await fetchInvItems();
+    } catch (err) { console.error(err); alert('Failed to update.'); }
+  };
+
+  // ── BOM CRUD ──────────────────────────────────────────────────
   const getNewLine = (itemId, type) =>
     newLines[`${itemId}_${type}`] || { mode: 'library', libItemId: '', ingredient: '', qty: '1', cost: '' };
 
@@ -229,14 +233,12 @@ export default function BOM() {
   const calcLibCost = (invId, qty) => {
     const inv = invItems.find(i => i.id === parseInt(invId));
     if (!inv || !invId) return '';
-    const unitCostCents = inv.costCents / inv.unitsPurchased;
-    return (unitCostCents * parseFloat(qty || 1) / 100).toFixed(2);
+    return (inv.costCents / inv.unitsPurchased * parseFloat(qty || 1) / 100).toFixed(2);
   };
 
   const handleLibSelect = (itemId, type, invId) => {
     const nl = getNewLine(itemId, type);
-    const cost = invId ? calcLibCost(invId, nl.qty) : '';
-    setNewLine(itemId, type, { ...nl, libItemId: invId, cost });
+    setNewLine(itemId, type, { ...nl, libItemId: invId, cost: invId ? calcLibCost(invId, nl.qty) : '' });
   };
 
   const handleQtyChange = (itemId, type, qty) => {
@@ -248,7 +250,6 @@ export default function BOM() {
   const addBomLine = async (itemId, type) => {
     const nl = getNewLine(itemId, type);
     let ingredientName = '';
-
     if (nl.mode === 'library') {
       const inv = invItems.find(i => i.id === parseInt(nl.libItemId));
       if (!inv) { alert('Select an ingredient from the library.'); return; }
@@ -257,47 +258,29 @@ export default function BOM() {
       if (!nl.ingredient.trim()) { alert('Enter an ingredient name.'); return; }
       ingredientName = nl.ingredient.trim();
     }
-
     if (nl.cost === '' || nl.cost === undefined) { alert('Enter a cost.'); return; }
     const costCents = Math.round(parseFloat(nl.cost) * 100);
     if (isNaN(costCents) || costCents < 0) { alert('Invalid cost'); return; }
-
     const qty = parseFloat(nl.qty) || 1;
     const invItemId = nl.mode === 'library' && nl.libItemId ? parseInt(nl.libItemId) : undefined;
-
     const key = `${itemId}_${type}`;
     setSaving(key);
     try {
       const res = await fetch('/api/bom', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          itemId,
-          ingredient: ingredientName,
-          costCents,
-          type,
-          quantity: qty,
-          ...(invItemId && { inventoryItemId: invItemId }),
-        }),
+        body: JSON.stringify({ itemId, ingredient: ingredientName, costCents, type, quantity: qty, ...(invItemId && { inventoryItemId: invItemId }) }),
       });
       if (!res.ok) throw new Error('Save failed');
       setNewLine(itemId, type, { mode: 'library', libItemId: '', ingredient: '', qty: '1', cost: '' });
       await fetchBOM();
-    } catch (err) {
-      console.error(err);
-      alert('Failed to save. Try again.');
-    } finally {
-      setSaving(null);
-    }
+    } catch (err) { console.error(err); alert('Failed to save.'); }
+    finally { setSaving(null); }
   };
 
   const startEdit = (line) => {
     setEditingLine(line.id);
-    setEditValues({
-      ingredient: line.ingredient,
-      cost: (line.costCents / 100).toFixed(2),
-      qty: String(line.quantity || 1),
-    });
+    setEditValues({ ingredient: line.ingredient, cost: (line.costCents / 100).toFixed(2), qty: String(line.quantity || 1) });
   };
 
   const saveEdit = async (lineId) => {
@@ -308,29 +291,18 @@ export default function BOM() {
       const res = await fetch(`/api/bom/${lineId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ingredient: editValues.ingredient.trim(),
-          costCents,
-          quantity: parseFloat(editValues.qty) || 1,
-        }),
+        body: JSON.stringify({ ingredient: editValues.ingredient.trim(), costCents, quantity: parseFloat(editValues.qty) || 1 }),
       });
       if (!res.ok) throw new Error('Update failed');
       setEditingLine(null);
       await fetchBOM();
-    } catch (err) {
-      console.error(err);
-      alert('Failed to update.');
-    }
+    } catch (err) { console.error(err); alert('Failed to update.'); }
   };
 
   const deleteLine = async (lineId) => {
     if (!confirm('Delete this line?')) return;
-    try {
-      await fetch(`/api/bom/${lineId}`, { method: 'DELETE' });
-      await fetchBOM();
-    } catch (err) {
-      console.error(err);
-    }
+    await fetch(`/api/bom/${lineId}`, { method: 'DELETE' });
+    await fetchBOM();
   };
 
   const categories = useMemo(() => {
@@ -351,32 +323,28 @@ export default function BOM() {
   const marginPct = selectedItem && selectedItem.priceCents > 0
     ? Math.round((margin / selectedItem.priceCents) * 100) : 0;
 
+  // group invItems by category for library tab
+  const libByCat = CATS.reduce((acc, c) => { acc[c] = invItems.filter(i => i.category === c); return acc; }, {});
+
   return (
     <div style={{ height: 'calc(100vh - 56px)', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif', overflow: 'hidden' }}>
 
       {/* Tab bar */}
       <div style={{ display: 'flex', borderBottom: '2px solid #e5e7eb', background: '#fff', flexShrink: 0, paddingLeft: 8 }}>
-        {[{ id: 'bom', label: 'BOM Editor' }, { id: 'pnl', label: 'Daily P&L' }].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            style={{
-              padding: '10px 20px',
-              border: 'none',
-              background: 'transparent',
-              borderBottom: activeTab === tab.id ? '2px solid #2563eb' : '2px solid transparent',
-              color: activeTab === tab.id ? '#2563eb' : '#6b7280',
-              fontWeight: activeTab === tab.id ? 700 : 400,
-              fontSize: 13,
-              cursor: 'pointer',
-              marginBottom: -2,
-            }}
-          >
+        {[{ id: 'bom', label: 'BOM Editor' }, { id: 'library', label: 'Ingredient Library' }, { id: 'pnl', label: 'Daily P&L' }].map(tab => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+            padding: '10px 20px', border: 'none', background: 'transparent',
+            borderBottom: activeTab === tab.id ? '2px solid #2563eb' : '2px solid transparent',
+            color: activeTab === tab.id ? '#2563eb' : '#6b7280',
+            fontWeight: activeTab === tab.id ? 700 : 400,
+            fontSize: 13, cursor: 'pointer', marginBottom: -2,
+          }}>
             {tab.label}
           </button>
         ))}
       </div>
 
+      {/* ── BOM Editor ── */}
       {activeTab === 'bom' && (
         <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '260px 1fr', overflow: 'hidden' }}>
           <div style={S.left}>
@@ -384,24 +352,22 @@ export default function BOM() {
             <div style={S.leftScroll}>
               {items.length === 0 ? (
                 <div style={{ padding: 16, color: '#9ca3af', fontSize: 13 }}>No items found.</div>
-              ) : (
-                Object.entries(categories).map(([cat, catItems]) => (
-                  <div key={cat}>
-                    <div style={S.catLabel}>{cat}</div>
-                    {catItems.map(item => {
-                      const active = item.id === selectedId;
-                      return (
-                        <div key={item.id} style={S.itemRow(active)} onClick={() => setSelectedId(item.id)}>
-                          <span style={S.itemName(active)}>{item.name}</span>
-                          {item.bomLines.length > 0
-                            ? <span style={S.badgeSet}>{item.bomLines.length} lines</span>
-                            : <span style={S.badgeNone}>No BOM</span>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))
-              )}
+              ) : Object.entries(categories).map(([cat, catItems]) => (
+                <div key={cat}>
+                  <div style={S.catLabel}>{cat}</div>
+                  {catItems.map(item => {
+                    const active = item.id === selectedId;
+                    return (
+                      <div key={item.id} style={S.itemRow(active)} onClick={() => setSelectedId(item.id)}>
+                        <span style={S.itemName(active)}>{item.name}</span>
+                        {item.bomLines.length > 0
+                          ? <span style={S.badgeSet}>{item.bomLines.length} lines</span>
+                          : <span style={S.badgeNone}>No BOM</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -421,7 +387,6 @@ export default function BOM() {
                     const sectionSub = lines.reduce((s, l) => s + l.costCents, 0);
                     const nl = getNewLine(selectedItem.id, type);
                     const isSaving = saving === `${selectedItem.id}_${type}`;
-
                     const libItems = invItems.filter(inv => inv.category === type);
                     const displayLibItems = libItems.length > 0 ? libItems : invItems;
 
@@ -429,19 +394,14 @@ export default function BOM() {
                       <div key={type} style={S.sectionCard}>
                         <div style={S.sectionHead}>
                           <span style={S.sectionTitle}>{label}</span>
-                          <span style={S.sectionSub}>
-                            {sectionSub > 0 ? `Subtotal: ${centsToUSD(sectionSub)}` : 'â'}
-                          </span>
+                          <span style={S.sectionSub}>{sectionSub > 0 ? `Subtotal: ${centsToUSD(sectionSub)}` : '—'}</span>
                         </div>
                         <div style={S.sectionBody}>
                           {lines.length === 0 && (
-                            <div style={{ fontSize: 12, color: '#9ca3af', paddingBottom: 6, fontStyle: 'italic' }}>
-                              None added yet.
-                            </div>
+                            <div style={{ fontSize: 12, color: '#9ca3af', paddingBottom: 6, fontStyle: 'italic' }}>None added yet.</div>
                           )}
-
                           {lines.map(line => (
-                            <div key={line.id} style={S.lineRow()}>
+                            <div key={line.id} style={S.lineRow}>
                               {editingLine === line.id ? (
                                 <>
                                   <input autoFocus value={editValues.ingredient}
@@ -455,8 +415,7 @@ export default function BOM() {
                                     style={S.inpNum} min="0" step="0.01"
                                     onKeyDown={e => e.key === 'Enter' && saveEdit(line.id)} />
                                   <div style={S.lineActs}>
-                                    <button onClick={() => saveEdit(line.id)}
-                                      style={{ ...S.btnEdit, background: '#2563eb', color: '#fff', border: 'none' }}>Save</button>
+                                    <button onClick={() => saveEdit(line.id)} style={{ ...S.btnEdit, background: '#2563eb', color: '#fff', border: 'none' }}>Save</button>
                                     <button onClick={() => setEditingLine(null)} style={S.btnEdit}>Cancel</button>
                                   </div>
                                 </>
@@ -485,19 +444,22 @@ export default function BOM() {
                                   borderColor: nl.mode === mode ? '#2563eb' : '#d1d5db',
                                   background: nl.mode === mode ? '#eff6ff' : '#fff',
                                   color: nl.mode === mode ? '#2563eb' : '#6b7280',
-                                }}
-                              >
+                                }}>
                                 {mode === 'library' ? 'From Library' : 'Manual'}
                               </button>
                             ))}
                           </div>
 
+                          {nl.mode === 'library' && invItems.length === 0 && (
+                            <div style={{ fontSize: 12, color: '#f59e0b', marginBottom: 8 }}>
+                              No ingredients in library yet — add them in the <strong>Ingredient Library</strong> tab.
+                            </div>
+                          )}
+
                           {/* Add row */}
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 55px 80px 70px', gap: 6, alignItems: 'center' }}>
                             {nl.mode === 'library' ? (
-                              <select value={nl.libItemId || ''}
-                                onChange={e => handleLibSelect(selectedItem.id, type, e.target.value)}
-                                style={S.inp}>
+                              <select value={nl.libItemId || ''} onChange={e => handleLibSelect(selectedItem.id, type, e.target.value)} style={S.sel}>
                                 <option value="">Select ingredient...</option>
                                 {displayLibItems.map(inv => (
                                   <option key={inv.id} value={inv.id}>
@@ -508,24 +470,19 @@ export default function BOM() {
                             ) : (
                               <input value={nl.ingredient}
                                 onChange={e => setNewLine(selectedItem.id, type, { ...nl, ingredient: e.target.value })}
-                                placeholder={`${label.slice(0, -1)} name...`}
-                                style={S.inp}
+                                placeholder={`${label.slice(0, -1)} name...`} style={S.inp}
                                 onKeyDown={e => e.key === 'Enter' && addBomLine(selectedItem.id, type)} />
-                              )}
+                            )}
                             <input type="number" value={nl.qty}
                               onChange={e => handleQtyChange(selectedItem.id, type, e.target.value)}
                               style={S.inpNum} min="0.01" step="any" title="Qty" />
                             <input type="number" value={nl.cost}
                               onChange={e => setNewLine(selectedItem.id, type, { ...nl, cost: e.target.value })}
                               placeholder="0.00"
-                              style={{
-                                ...S.inpNum,
-                                background: nl.mode === 'library' && nl.libItemId ? '#f0fdf4' : '#f9fafb',
-                              }}
+                              style={{ ...S.inpNum, background: nl.mode === 'library' && nl.libItemId ? '#f0fdf4' : '#f9fafb' }}
                               min="0" step="0.01"
                               onKeyDown={e => e.key === 'Enter' && addBomLine(selectedItem.id, type)} />
-                            <button onClick={() => addBomLine(selectedItem.id, type)}
-                              disabled={isSaving} style={S.btnAdd(isSaving)}>
+                            <button onClick={() => addBomLine(selectedItem.id, type)} disabled={isSaving} style={S.btnAdd(isSaving)}>
                               {isSaving ? '...' : '+ Add'}
                             </button>
                           </div>
@@ -535,7 +492,7 @@ export default function BOM() {
                   })}
                 </div>
 
-                <div style={S.totalsBar}>
+                <div style={S.totalsBars}>
                   <span style={S.totalLabel}>Total BOM Cost</span>
                   {bomTotal > 0 ? (
                     <span style={{ ...S.totalVal, color: margin >= 0 ? '#059669' : '#dc2626' }}>
@@ -554,11 +511,131 @@ export default function BOM() {
         </div>
       )}
 
+      {/* ── Ingredient Library ── */}
+      {activeTab === 'library' && (
+        <div style={{ flex: 1, overflowY: 'auto', padding: 24, background: '#f9fafb' }}>
+
+          {/* Add form */}
+          <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '20px 24px', marginBottom: 24 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 14 }}>Add New Ingredient / Supply</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr auto', gap: 10, alignItems: 'end' }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>Name</div>
+                <input value={libForm.name} onChange={e => setLibForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="e.g. Lime juice, Cups..." style={S.inp} />
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>Category</div>
+                <select value={libForm.category} onChange={e => setLibForm(f => ({ ...f, category: e.target.value }))} style={S.sel}>
+                  <option value="ingredient">Ingredient</option>
+                  <option value="packaging">Packaging</option>
+                  <option value="disposable">Disposable</option>
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>Unit</div>
+                <input value={libForm.unit} onChange={e => setLibForm(f => ({ ...f, unit: e.target.value }))}
+                  placeholder="oz, g, each, cup..." style={S.inp} />
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>Qty Purchased</div>
+                <input type="number" value={libForm.unitsPurchased} onChange={e => setLibForm(f => ({ ...f, unitsPurchased: e.target.value }))}
+                  placeholder="e.g. 32" style={S.inpNum} min="0.001" step="any" />
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>Total Cost ($)</div>
+                <input type="number" value={libForm.costDollars} onChange={e => setLibForm(f => ({ ...f, costDollars: e.target.value }))}
+                  placeholder="e.g. 3.50" style={S.inpNum} min="0" step="0.01" />
+              </div>
+              <button onClick={addLibItem} disabled={libSaving}
+                style={{ padding: '8px 18px', background: libSaving ? '#93c5fd' : '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                {libSaving ? '...' : '+ Add'}
+              </button>
+            </div>
+            {libForm.unitsPurchased && libForm.costDollars && (
+              <div style={{ marginTop: 8, fontSize: 12, color: '#059669' }}>
+                Unit cost: ${(parseFloat(libForm.costDollars) / parseFloat(libForm.unitsPurchased)).toFixed(4)} per {libForm.unit || 'unit'}
+              </div>
+            )}
+          </div>
+
+          {/* Library table by category */}
+          {CATS.map(cat => {
+            const catItems = libByCat[cat];
+            return (
+              <div key={cat} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+                <div style={{ padding: '10px 16px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb', fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  {cat === 'ingredient' ? 'Ingredients' : cat === 'packaging' ? 'Packaging' : 'Disposables'} ({catItems.length})
+                </div>
+                {catItems.length === 0 ? (
+                  <div style={{ padding: '12px 16px', fontSize: 13, color: '#9ca3af', fontStyle: 'italic' }}>None added yet.</div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: '#f9fafb' }}>
+                        {['Name', 'Unit', 'Qty Purchased', 'Total Cost', 'Unit Cost', ''].map(h => (
+                          <th key={h} style={{ padding: '8px 16px', textAlign: h === 'Name' ? 'left' : 'right', color: '#6b7280', fontWeight: 600, fontSize: 12 }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {catItems.map((inv, i) => (
+                        <tr key={inv.id} style={{ borderTop: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                          {editingInv === inv.id ? (
+                            <>
+                              <td style={{ padding: '6px 8px' }}>
+                                <input value={editInvValues.name} onChange={e => setEditInvValues(v => ({ ...v, name: e.target.value }))} style={S.inp} />
+                              </td>
+                              <td style={{ padding: '6px 8px' }}>
+                                <input value={editInvValues.unit} onChange={e => setEditInvValues(v => ({ ...v, unit: e.target.value }))} style={S.inp} />
+                              </td>
+                              <td style={{ padding: '6px 8px' }}>
+                                <input type="number" value={editInvValues.unitsPurchased} onChange={e => setEditInvValues(v => ({ ...v, unitsPurchased: e.target.value }))} style={S.inpNum} min="0.001" step="any" />
+                              </td>
+                              <td style={{ padding: '6px 8px' }}>
+                                <input type="number" value={editInvValues.costDollars} onChange={e => setEditInvValues(v => ({ ...v, costDollars: e.target.value }))} style={S.inpNum} min="0" step="0.01" />
+                              </td>
+                              <td style={{ padding: '6px 8px', textAlign: 'right', color: '#9ca3af' }}>—</td>
+                              <td style={{ padding: '6px 8px' }}>
+                                <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                                  <button onClick={() => saveEditInv(inv.id)} style={{ ...S.btnEdit, background: '#2563eb', color: '#fff', border: 'none' }}>Save</button>
+                                  <button onClick={() => setEditingInv(null)} style={S.btnEdit}>Cancel</button>
+                                </div>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td style={{ padding: '9px 16px', color: '#111827', fontWeight: 500 }}>{inv.name}</td>
+                              <td style={{ padding: '9px 16px', textAlign: 'right', color: '#374151' }}>{inv.unit}</td>
+                              <td style={{ padding: '9px 16px', textAlign: 'right', color: '#374151' }}>{inv.unitsPurchased}</td>
+                              <td style={{ padding: '9px 16px', textAlign: 'right', color: '#374151' }}>{centsToUSD(inv.costCents)}</td>
+                              <td style={{ padding: '9px 16px', textAlign: 'right', color: '#059669', fontWeight: 600 }}>
+                                {centsToUSD(Math.round(inv.costCents / inv.unitsPurchased))}/{inv.unit}
+                              </td>
+                              <td style={{ padding: '9px 16px' }}>
+                                <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                                  <button onClick={() => startEditInv(inv)} style={S.btnEdit}>Edit</button>
+                                  <button onClick={() => deleteLibItem(inv.id)} style={S.btnDel}>Delete</button>
+                                </div>
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Daily P&L ── */}
       {activeTab === 'pnl' && (
         <div style={{ flex: 1, overflowY: 'auto', padding: 24, background: '#f9fafb' }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 24 }}>
-            <input type="date" value={pnlDate}
-              onChange={e => setPnlDate(e.target.value)}
+            <input type="date" value={pnlDate} onChange={e => setPnlDate(e.target.value)}
               style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, background: '#fff' }} />
             <button onClick={fetchPnl}
               style={{ padding: '8px 18px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
@@ -581,9 +658,7 @@ export default function BOM() {
                   { label: 'Margin', value: `${pnlData.marginPct}%`, color: pnlData.marginPct >= 0 ? '#059669' : '#dc2626' },
                 ].map(card => (
                   <div key={card.label} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '16px 20px' }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-                      {card.label}
-                    </div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>{card.label}</div>
                     <div style={{ fontSize: 26, fontWeight: 700, color: card.color }}>{card.value}</div>
                   </div>
                 ))}
