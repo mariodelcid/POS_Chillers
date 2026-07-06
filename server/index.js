@@ -86,7 +86,7 @@ app.put('/api/packaging/:id', async (req, res) => {
   }
 });
 
-// ââ Bill of Materials âââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Bill of Materials ─────────────────────────────────────────────────────────
 
 // Get all items with their BOM lines
 app.get('/api/bom', async (_req, res) => {
@@ -165,7 +165,7 @@ app.delete('/api/bom/:id', async (req, res) => {
   }
 });
 
-// ââ Daily P&L ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Daily P&L ─────────────────────────────────────────────────────────────────
 
 app.get('/api/daily-pnl', async (req, res) => {
   try {
@@ -222,7 +222,25 @@ app.get('/api/daily-pnl', async (req, res) => {
   }
 });
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Update a single menu item (price, stock, name, category)
+app.put('/api/items/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, category, priceCents, stock } = req.body;
+    const data = {};
+    if (name !== undefined) data.name = name;
+    if (category !== undefined) data.category = category;
+    if (priceCents !== undefined) data.priceCents = Math.round(Number(priceCents));
+    if (stock !== undefined) data.stock = Math.round(Number(stock));
+    const item = await prisma.item.update({ where: { id: parseInt(id) }, data });
+    res.json(item);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update item' });
+  }
+});
 
 // Get sales history
 app.get('/api/sales', async (req, res) => {
@@ -301,8 +319,7 @@ app.post('/api/sales', async (req, res) => {
     for (const line of items) {
       const dbItem = idToItem.get(line.itemId);
       if (!dbItem) return res.status(400).json({ error: `Item not found: ${line.itemId}` });
-      if (dbItem.stock < line.quantity) return res.status(400).json({ error: `Insufficient stock for ${dbItem.name}` });
-      subtotalCents += dbItem.priceCents * line.quantity;
+      subtotalCents += Math.round(dbItem.priceCents * line.quantity);
     }
     const totalCents = subtotalCents;
     let changeDueCents = 0;
@@ -415,25 +432,4 @@ app.put('/api/inventory-items/:id', async (req, res) => {
         ...(unit !== undefined && { unit }),
         ...(unitsPurchased !== undefined && { unitsPurchased: parseFloat(unitsPurchased) }),
         ...(costCents !== undefined && { costCents: parseInt(costCents) }),
-        ...(salesTax !== undefined && { salesTax: salesTax === true || salesTax === 'true' }),
-      },
-    });
-    res.json(item);
-  } catch (error) {
-    console.error('Error updating inventory item:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.delete('/api/inventory-items/:id', async (req, res) => {
-  try {
-    const id = parseInt(req.params.id);
-    await prisma.inventoryItem.delete({ where: { id } });
-    res.json({ ok: true });
-  } catch (error) {
-    console.error('Error deleting inventory item:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.listen(PORT, () => { console.log(`Server listening on ${PORT}`); });
+        ...(salesTax !== undefined && { salesTax: salesTax === true || salesTax === 'true' 
