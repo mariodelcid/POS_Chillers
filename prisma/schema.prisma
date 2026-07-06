@@ -8,53 +8,57 @@ datasource db {
 }
 
 model Item {
-  id         Int      @id @default(autoincrement())
-  name       String   @unique
-  category   String
-  priceCents Int
-  stock      Int      @default(0)
-  imageUrl   String?
-  packaging  String?  // packaging material used for this item
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  category    String
+  priceCents  Int
+  stock       Int       @default(0)
+  imageUrl    String?
+  packaging   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  saleItems  SaleItem[]
-  bomLines   BomLine[]
+  saleItems   SaleItem[]
+  bomLines    BomLine[]
 }
 
 model BomLine {
-  id          Int    @id @default(autoincrement())
-  itemId      Int
-  ingredient  String
-  costCents   Int
-  type        String @default("ingredient") // "ingredient" | "packaging" | "disposable"
+  id              Int            @id @default(autoincrement())
+  itemId          Int
+  ingredient      String
+  costCents       Int
+  type            String         @default("ingredient")
+  quantity        Float          @default(1)
+  unit            String         @default("each")
+  inventoryItemId Int?
 
-  item        Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  item            Item           @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  inventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id])
 }
 
 model PackagingMaterial {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
-  stock     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  stock     Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 model Sale {
-  id                   Int        @id @default(autoincrement())
-  createdAt            DateTime   @default(now())
-  paymentMethod        String
-  subtotalCents        Int
-  taxCents             Int
-  totalCents           Int
-  amountTenderedCents  Int?
-  changeDueCents       Int?
+  id                  Int      @id @default(autoincrement())
+  createdAt           DateTime @default(now())
+  paymentMethod       String
+  subtotalCents       Int
+  taxCents            Int
+  totalCents          Int
+  amountTenderedCents Int?
+  changeDueCents      Int?
 
   items SaleItem[]
 }
 
 model SaleItem {
-  id             Int   @id @default(autoincrement())
+  id             Int  @Id| @default(autoincrement())
   saleId         Int
   itemId         Int
   quantity       Int
@@ -73,14 +77,16 @@ model Purchase {
 }
 
 model InventoryItem {
-  id             Int      @id @default(autoincrement())
-  name           String   @unique
-  category       String   // "ingredient" | "packaging" | "disposable"
-  presentation   String   @default("")
-  unit           String   @default("each") // "each" | "oz" | "other"
-  unitsPurchased Float    @default(1)
-  costCents      Int      @default(0)
-  salesTax       Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id             Int       @id @default(autoincrement())
+  name           String    @unique
+  category       String
+  presentation   String    @default("")
+  unit           String    @default("each")
+  unitsPurchased Float     @default(1)
+  costCents      Int       @default(0)
+  salesTax       Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  bomLines BomLine[]
 }
