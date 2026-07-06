@@ -86,7 +86,7 @@ app.put('/api/packaging/:id', async (req, res) => {
   }
 });
 
-// ── Bill of Materials ─────────────────────────────────────────────────────────────────────────────
+// ââ Bill of Materials âââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 // Get all items with their BOM lines
 app.get('/api/bom', async (_req, res) => {
@@ -105,12 +105,19 @@ app.get('/api/bom', async (_req, res) => {
 // Create a BOM line
 app.post('/api/bom', async (req, res) => {
   try {
-    const { itemId, ingredient, costCents, type } = req.body;
+    const { itemId, ingredient, costCents, type, quantity, inventoryItemId } = req.body;
     if (!itemId || !ingredient || typeof costCents !== 'number' || costCents < 0) {
       return res.status(400).json({ error: 'Invalid BOM line data' });
     }
     const bomLine = await prisma.bomLine.create({
-      data: { itemId: parseInt(itemId), ingredient: ingredient.trim(), costCents, type: type || 'ingredient' },
+      data: {
+        itemId: parseInt(itemId),
+        ingredient: ingredient.trim(),
+        costCents,
+        type: type || 'ingredient',
+        quantity: quantity ? parseFloat(quantity) : 1,
+        ...(inventoryItemId && { inventoryItemId: parseInt(inventoryItemId) }),
+      },
     });
     res.json(bomLine);
   } catch (error) {
@@ -123,13 +130,21 @@ app.post('/api/bom', async (req, res) => {
 app.put('/api/bom/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { ingredient, costCents, type } = req.body;
+    const { ingredient, costCents, type, quantity, inventoryItemId } = req.body;
     if (!ingredient || typeof costCents !== 'number' || costCents < 0) {
       return res.status(400).json({ error: 'Invalid BOM line data' });
     }
     const bomLine = await prisma.bomLine.update({
       where: { id: parseInt(id) },
-      data: { ingredient: ingredient.trim(), costCents, ...(type && { type }) },
+      data: {
+        ingredient: ingredient.trim(),
+        costCents,
+        ...(type && { type }),
+        quantity: quantity ? parseFloat(quantity) : 1,
+        ...(inventoryItemId !== undefined && {
+          inventoryItemId: inventoryItemId ? parseInt(inventoryItemId) : null,
+        }),
+      },
     });
     res.json(bomLine);
   } catch (error) {
@@ -150,7 +165,64 @@ app.delete('/api/bom/:id', async (req, res) => {
   }
 });
 
-// ─────────────────────────────────────────────────────────────────────────────────
+// ââ Daily P&L ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+
+app.get('/api/daily-pnl', async (req, res) => {
+  try {
+    const { date } = req.query;
+    const day = date ? new Date(date + 'T00:00:00') : new Date();
+    const start = new Date(day); start.setHours(0, 0, 0, 0);
+    const end = new Date(day); end.setHours(23, 59, 59, 999);
+
+    const sales = await prisma.sale.findMany({
+      where: { createdAt: { gte: start, lte: end } },
+      include: {
+        items: {
+          include: {
+            item: { include: { bomLines: true } },
+          },
+        },
+      },
+    });
+
+    let revenueCents = 0;
+    let cogsCents = 0;
+    const itemBreakdown = {};
+
+    for (const sale of sales) {
+      revenueCents += sale.totalCents;
+      for (const si of sale.items) {
+        const unitBomCost = si.item.bomLines.reduce((s, l) => s + l.costCents, 0);
+        const itemCogs = unitBomCost * si.quantity;
+        cogsCents += itemCogs;
+
+        const name = si.item.name;
+        if (!itemBreakdown[name]) itemBreakdown[name] = { qty: 0, revenue: 0, cogs: 0 };
+        itemBreakdown[name].qty += si.quantity;
+        itemBreakdown[name].revenue += si.lineTotalCents;
+        itemBreakdown[name].cogs += itemCogs;
+      }
+    }
+
+    const profitCents = revenueCents - cogsCents;
+    const marginPct = revenueCents > 0 ? Math.round((profitCents / revenueCents) * 100) : 0;
+
+    res.json({
+      date: day.toISOString().split('T')[0],
+      revenueCents,
+      cogsCents,
+      profitCents,
+      marginPct,
+      transactions: sales.length,
+      itemBreakdown: Object.entries(itemBreakdown).map(([name, d]) => ({ name, ...d })),
+    });
+  } catch (err) {
+    console.error('Error fetching daily P&L:', err);
+    res.status(500).json({ error: 'Failed to calculate P&L' });
+  }
+});
+
+// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 // Get sales history
 app.get('/api/sales', async (req, res) => {
