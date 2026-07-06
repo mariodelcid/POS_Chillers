@@ -21,6 +21,7 @@ export default function POS() {
   const [showClockOut, setShowClockOut] = useState(false);
   const [employeeName, setEmployeeName] = useState('');
   const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationAmount, setCelebrationAmount] = useState('');
 
   useEffect(() => {
     fetch('/api/items').then((r) => r.json()).then(setItems);
@@ -121,8 +122,9 @@ export default function POS() {
       if (!res.ok) throw new Error(data.error || 'Failed to complete order');
       setMessage(`Sale ${data.saleId} complete. Total ${centsToUSD(data.totalCents)}${paymentMethod === 'cash' ? `, Change ${centsToUSD(data.changeDueCents)}` : ''}`);
       setCart([]);
+        setCelebrationAmount(centsToUSD(data.totalCents));
         setShowCelebration(true);
-        setTimeout(() => setShowCelebration(false), 2500);
+        setTimeout(() => { setShowCelebration(false); setCelebrationAmount(''); }, 3000);
       setTender('');
       playCashDrawerSound();
       fetch('/api/items').then((r) => r.json()).then(setItems);
@@ -393,7 +395,7 @@ export default function POS() {
               cursor: 'pointer', flex: 1, justifyContent: 'center', fontWeight: '500'
             }}>
               <input type="radio" name="pm" value="cash" checked={paymentMethod === 'cash'} onChange={() => setPaymentMethod('cash')} style={{ margin: 0 }} />
-              ðµ Cash
+              Cash
             </label>
             <label style={{
               display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 16px',
@@ -402,7 +404,7 @@ export default function POS() {
               cursor: 'pointer', flex: 1, justifyContent: 'center', fontWeight: '500'
             }}>
               <input type="radio" name="pm" value="credit" checked={paymentMethod === 'credit'} onChange={() => setPaymentMethod('credit')} style={{ margin: 0 }} />
-              ð³ Credit
+              Credit
             </label>
           </div>
 
@@ -557,10 +559,9 @@ export default function POS() {
         )}
       </div>
       {showCelebration && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,150,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, flexDirection: 'column' }}>
-          <div style={{ fontSize: '80px' }}>🎉</div>
-          <div style={{ fontSize: '56px', fontWeight: 'bold', color: 'white', textShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>SALE COMPLETE!</div>
-          <div style={{ fontSize: '80px' }}>💰</div>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,140,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, flexDirection: 'column', gap: '12px' }}>
+          <div style={{ fontSize: '112px', fontWeight: '900', color: 'white', textShadow: '0 4px 20px rgba(0,0,0,0.5)', lineHeight: 1 }}>{celebrationAmount}</div>
+          <div style={{ fontSize: '52px', fontWeight: 'bold', color: 'white', textShadow: '0 2px 10px rgba(0,0,0,0.4)' }}>SALE COMPLETE!</div>
         </div>
       )}
     </div>
