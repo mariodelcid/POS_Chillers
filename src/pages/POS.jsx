@@ -560,7 +560,7 @@ export default function POS() {
       </div>
       {showCelebration && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,140,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, flexDirection: 'column', gap: '12px' }}>
-          <div style={{ fontSize: '336px', fontWeight: '900', color: 'white', textShadow: '0 4px 20px rgba(0,0,0,0.5)', lineHeight: 1 }}>{celebrationAmount}</div>
+          <div style={{ fontSize: 'min(40vw, 45vh)', fontWeight: '900', color: 'white', textShadow: '0 4px 20px rgba(0,0,0,0.5)', lineHeight: 1, whiteSpace: 'nowrap' }}>{celebrationAmount}</div>
           <div style={{ fontSize: '52px', fontWeight: 'bold', color: 'white', textShadow: '0 2px 10px rgba(0,0,0,0.4)' }}>SALE COMPLETE!</div>
         </div>
       )}
