@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 
 function centsToUSD(cents) {
-  const dollars = cents / 100;
-  return '$' + (cents % 100 === 0 ? dollars.toFixed(0) : dollars.toFixed(2));
+  if (Math.abs(cents) < 100) {
+    const prefix = cents < 0 ? '-$' : '$';
+    return prefix + Math.abs(cents / 100).toFixed(2);
+  }
+  return '$' + Math.round(cents / 100);
 }
 
 export default function POS() {
@@ -17,6 +20,7 @@ export default function POS() {
   const [showClockIn, setShowClockIn] = useState(false);
   const [showClockOut, setShowClockOut] = useState(false);
   const [employeeName, setEmployeeName] = useState('');
+  const [showCelebration, setShowCelebration] = useState(false);
 
   useEffect(() => {
     fetch('/api/items').then((r) => r.json()).then(setItems);
@@ -117,6 +121,8 @@ export default function POS() {
       if (!res.ok) throw new Error(data.error || 'Failed to complete order');
       setMessage(`Sale ${data.saleId} complete. Total ${centsToUSD(data.totalCents)}${paymentMethod === 'cash' ? `, Change ${centsToUSD(data.changeDueCents)}` : ''}`);
       setCart([]);
+        setShowCelebration(true);
+        setTimeout(() => setShowCelebration(false), 2500);
       setTender('');
       playCashDrawerSound();
       fetch('/api/items').then((r) => r.json()).then(setItems);
@@ -550,6 +556,13 @@ export default function POS() {
           </div>
         )}
       </div>
+      {showCelebration && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,150,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, flexDirection: 'column' }}>
+          <div style={{ fontSize: '80px' }}>🎉</div>
+          <div style={{ fontSize: '56px', fontWeight: 'bold', color: 'white', textShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>SALE COMPLETE!</div>
+          <div style={{ fontSize: '80px' }}>💰</div>
+        </div>
+      )}
     </div>
   );
 }
