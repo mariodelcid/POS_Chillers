@@ -58,7 +58,7 @@ model Sale {
 }
 
 model SaleItem {
-  id             Int  @Id| @default(autoincrement())
+  id             Int  @id @default(autoincrement())
   saleId         Int
   itemId         Int
   quantity       Int
