@@ -1,3 +1,4 @@
+// x
 import React, { useState, useEffect, useMemo } from 'react';
 
 const CAT_COLOR = { ingredient: '#059669', packaging: '#2563eb', disposable: '#7c3aed' };
