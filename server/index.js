@@ -14,29 +14,12 @@ app.use(cors({
   origin: process.env.CLIENT_ORIGIN?.split(',') || '*',
 }));
 
-// Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
+  res.json({ status: 'OK', timestamp: new Date().toISOString(), uptime: process.uptime() });
 });
 
-// Test endpoint to debug server issues
 app.get('/api/test', (req, res) => {
-  try {
-    res.json({ 
-      message: 'Server is working',
-      timestamp: new Date().toISOString(),
-      prismaStatus: 'Prisma client initialized'
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      error: 'Test failed',
-      details: error.message 
-    });
-  }
+  res.json({ message: 'Server is working', timestamp: new Date().toISOString() });
 });
 
 // Items
@@ -45,19 +28,29 @@ app.get('/api/items', async (_req, res) => {
   res.json(items);
 });
 
-// Inventory view
 app.get('/api/inventory', async (_req, res) => {
   const items = await prisma.item.findMany({ orderBy: [{ category: 'asc' }, { name: 'asc' }] });
   res.json(items);
 });
 
-// Bulk upsert items (admin/import)
+// Bulk upsert items
 app.post('/api/items/bulk', async (req, res) => {
   const { items } = req.body;
   if (!Array.isArray(items)) {
     return res.status(400).json({ error: 'items must be an array' });
+  }
+  const ops = items.map((it) =>
+    prisma.item.upsert({
+      where: { name: it.name },
+      update: { category: it.category, priceCents: it.priceCents, stock: typeof it.stock === 'number' ? it.stock : undefined, imageUrl: it.imageUrl || null },
+      create: { name: it.name, category: it.category, priceCents: it.priceCents, stock: typeof it.stock === 'number' ? it.stock : 0, imageUrl: it.imageUrl || null },
+    })
+  );
+  await prisma.$transaction(ops);
+  res.json({ ok: true });
+});
 
-// Update single item (for management)
+// Update single item
 app.put('/api/items/:id', async (req, res) => {
   const { id } = req.params;
   const { name, category, priceCents, stock } = req.body;
@@ -72,61 +65,25 @@ app.put('/api/items/:id', async (req, res) => {
       },
     });
     res.json(item);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-  }
-  const ops = items.map((it) =>
-    prisma.item.upsert({
-      where: { name: it.name },
-      update: {
-        category: it.category,
-        priceCents: it.priceCents,
-        stock: typeof it.stock === 'number' ? it.stock : undefined,
-        imageUrl: it.imageUrl || null,
-      },
-      create: {
-        name: it.name,
-        category: it.category,
-        priceCents: it.priceCents,
-        stock: typeof it.stock === 'number' ? it.stock : 0,
-        imageUrl: it.imageUrl || null,
-      },
-    })
-  );
-  await prisma.$transaction(ops);
-  res.json({ ok: true });
-});
-
-// Get packaging materials inventory
+// Packaging
 app.get('/api/packaging', async (_req, res) => {
   const packaging = await prisma.packagingMaterial.findMany({ orderBy: { name: 'asc' } });
   res.json(packaging);
 });
 
-// Update packaging stock
 app.put('/api/packaging/:id', async (req, res) => {
   const { id } = req.params;
   const { stock } = req.body;
-  
-  if (typeof stock !== 'number' || stock < 0) {
-    return res.status(400).json({ error: 'Invalid stock value' });
-  }
-  
+  if (typeof stock !== 'number' || stock < 0) return res.status(400).json({ error: 'Invalid stock value' });
   try {
-    const updated = await prisma.packagingMaterial.update({
-      where: { id: parseInt(id) },
-      data: { stock },
-    });
+    const updated = await prisma.packagingMaterial.update({ where: { id: parseInt(id) }, data: { stock } });
     res.json(updated);
-  } catch (error) {
-    res.status(404).json({ error: 'Packaging material not found' });
-  }
+  } catch (error) { res.status(404).json({ error: 'Packaging material not found' }); }
 });
 
-// Create new packaging material (upsert by name)
 app.post('/api/packaging', async (req, res) => {
   const { name, stock } = req.body;
   if (!name) return res.status(400).json({ error: 'name is required' });
@@ -137,329 +94,149 @@ app.post('/api/packaging', async (req, res) => {
       create: { name, stock: typeof stock === 'number' ? stock : 0 },
     });
     res.json(created);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// Get sales history
+// Sales
 app.get('/api/sales', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    
     let whereClause = {};
-    
-    // Add date filtering if provided
     if (startDate || endDate) {
       whereClause.createdAt = {};
-      if (startDate) {
-        // Force UTC-6 (America/Chicago) timezone conversion
-        // When user selects "2025-09-01", we need to cover their local 00:00:00 to 23:59:59
-        // In UTC-6, 00:00:00 local = 06:00:00 UTC
-        
-        // Create the start of the selected date in UTC-6
-        const utcStartDate = new Date(startDate + 'T06:00:00.000Z');
-        
-        whereClause.createdAt.gte = utcStartDate;
-        
-        console.log('Sales API - Date Conversion (UTC-6):', { 
-          startDate,
-          utcStartDate: utcStartDate.toString(),
-          utcStartDateISO: utcStartDate.toISOString()
-        });
-      }
+      if (startDate) whereClause.createdAt.gte = new Date(startDate + 'T06:00:00.000Z');
       if (endDate) {
-        // Force UTC-6 (America/Chicago) timezone conversion
-        // When user selects "2025-09-01", we need to cover their local 23:59:59
-        // In UTC-6, 23:59:59 local = 05:59:59 UTC (next day)
-        
-        // Create the end of the selected date in UTC-6
         const nextDay = new Date(endDate);
         nextDay.setDate(nextDay.getDate() + 1);
-        const utcEndDate = new Date(nextDay.toISOString().split('T')[0] + 'T05:59:59.999Z');
-        
-        whereClause.createdAt.lte = utcEndDate;
-        
-        console.log('Sales API - Date Conversion (UTC-6):', { 
-          endDate,
-          utcEndDate: utcEndDate.toString(),
-          utcEndDateISO: utcEndDate.toISOString()
-        });
+        whereClause.createdAt.lte = new Date(nextDay.toISOString().split('T')[0] + 'T05:59:59.999Z');
       }
     }
-
-    const sales = await prisma.sale.findMany({
-      where: whereClause,
-      include: {
-        items: {
-          include: {
-            item: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    
-    console.log('Sales API - Query result:', { 
-      startDate, 
-      endDate, 
-      whereClause, 
-      salesCount: sales.length,
-      firstSale: sales[0] ? sales[0].createdAt : null,
-      lastSale: sales[sales.length - 1] ? sales[sales.length - 1].createdAt : null
-    });
-    
+    const sales = await prisma.sale.findMany({ where: whereClause, include: { items: { include: { item: true } } }, orderBy: { createdAt: 'desc' } });
     res.json(sales);
-  } catch (error) {
-    console.error('Error fetching sales:', error);
-    res.status(500).json({ error: 'Failed to fetch sales' });
-  }
+  } catch (error) { res.status(500).json({ error: 'Failed to fetch sales' }); }
 });
 
-// Get sales statistics for date range
 app.get('/api/sales/stats', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    
     let whereClause = {};
-    
-    // Add date filtering if provided
     if (startDate || endDate) {
       whereClause.createdAt = {};
-      if (startDate) {
-        // Force UTC-6 (America/Chicago) timezone conversion
-        // When user selects "2025-09-01", we need to cover their local 00:00:00 to 23:59:59
-        // In UTC-6, 00:00:00 local = 06:00:00 UTC
-        const utcStartDate = new Date(startDate + 'T06:00:00.000Z');
-        whereClause.createdAt.gte = utcStartDate;
-      }
+      if (startDate) whereClause.createdAt.gte = new Date(startDate + 'T06:00:00.000Z');
       if (endDate) {
-        // Force UTC-6 (America/Chicago) timezone conversion
-        // When user selects "2025-09-01", we need to cover their local 23:59:59
-        // In UTC-6, 23:59:59 local = 05:59:59 UTC (next day)
         const nextDay = new Date(endDate);
         nextDay.setDate(nextDay.getDate() + 1);
-        const utcEndDate = new Date(nextDay.toISOString().split('T')[0] + 'T05:59:59.999Z');
-        whereClause.createdAt.lte = utcEndDate;
+        whereClause.createdAt.lte = new Date(nextDay.toISOString().split('T')[0] + 'T05:59:59.999Z');
       }
     }
-
     const [sales, purchases] = await Promise.all([
-      prisma.sale.findMany({
-        where: whereClause,
-        include: {
-          items: {
-            include: {
-              item: true,
-            },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.purchase.findMany({
-        where: whereClause,
-        orderBy: { createdAt: 'desc' },
-      })
+      prisma.sale.findMany({ where: whereClause, include: { items: { include: { item: true } } }, orderBy: { createdAt: 'desc' } }),
+      prisma.purchase.findMany({ where: whereClause, orderBy: { createdAt: 'desc' } })
     ]);
-
-    // Calculate statistics
-    const totalSales = sales.reduce((sum, sale) => sum + sale.totalCents, 0);
-    const cashSales = sales.filter(s => s.paymentMethod === 'cash').reduce((sum, sale) => sum + sale.totalCents, 0);
-    const creditSales = sales.filter(s => s.paymentMethod === 'credit').reduce((sum, sale) => sum + sale.totalCents, 0);
-    const totalPurchases = purchases.reduce((sum, purchase) => sum + purchase.amountCents, 0);
-    const netCash = cashSales - totalPurchases;
-    const totalTransactions = sales.length;
-
-    // Top selling items
+    const totalSales = sales.reduce((s, sale) => s + sale.totalCents, 0);
+    const cashSales = sales.filter(s => s.paymentMethod === 'cash').reduce((s, sale) => s + sale.totalCents, 0);
+    const creditSales = sales.filter(s => s.paymentMethod === 'credit').reduce((s, sale) => s + sale.totalCents, 0);
+    const totalPurchases = purchases.reduce((s, p) => s + p.amountCents, 0);
     const itemStats = {};
     sales.forEach(sale => {
-      sale.items.forEach(item => {
-        const itemName = item.item.name;
-        if (!itemStats[itemName]) {
-          itemStats[itemName] = { quantity: 0, revenue: 0, category: item.item.category };
-        }
-        itemStats[itemName].quantity += item.quantity;
-        itemStats[itemName].revenue += item.lineTotalCents;
+      sale.items.forEach(si => {
+        if (!itemStats[si.item.name]) itemStats[si.item.name] = { quantity: 0, revenue: 0, category: si.item.category };
+        itemStats[si.item.name].quantity += si.quantity;
+        itemStats[si.item.name].revenue += si.lineTotalCents;
       });
     });
-
-    const topItems = Object.entries(itemStats)
-      .map(([name, stats]) => ({ name, ...stats }))
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 10);
-
-    res.json({
-      totalSales,
-      cashSales,
-      creditSales,
-      totalPurchases,
-      netCash,
-      totalTransactions,
-      topItems
-    });
-  } catch (error) {
-    console.error('Error fetching sales statistics:', error);
-    res.status(500).json({ error: 'Failed to fetch sales statistics' });
-  }
+    const topItems = Object.entries(itemStats).map(([name, s]) => ({ name, ...s })).sort((a, b) => b.revenue - a.revenue).slice(0, 10);
+    res.json({ totalSales, cashSales, creditSales, totalPurchases, netCash: cashSales - totalPurchases, totalTransactions: sales.length, topItems });
+  } catch (error) { res.status(500).json({ error: 'Failed to fetch sales statistics' }); }
 });
 
-// Create sale
+// Create sale — records items, payment, deducts inventory via BOM
 app.post('/api/sales', async (req, res) => {
   try {
     const { items, paymentMethod, amountTenderedCents } = req.body;
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: 'No items in sale' });
-    }
-    if (!['cash', 'credit'].includes(paymentMethod)) {
-      return res.status(400).json({ error: 'Invalid payment method' });
-    }
+    if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'No items in sale' });
+    if (!['cash', 'credit'].includes(paymentMethod)) return res.status(400).json({ error: 'Invalid payment method' });
 
-    const itemIds = items.map((i) => i.itemId);
+    const itemIds = items.map(i => i.itemId);
     const dbItems = await prisma.item.findMany({ where: { id: { in: itemIds } } });
-    const idToItem = new Map(dbItems.map((i) => [i.id, i]));
+    const idToItem = new Map(dbItems.map(i => [i.id, i]));
 
     let subtotalCents = 0;
     for (const line of items) {
       const dbItem = idToItem.get(line.itemId);
       if (!dbItem) return res.status(400).json({ error: `Item not found: ${line.itemId}` });
-      // Note: We don't check item.stock here because we check packaging materials instead
       subtotalCents += dbItem.priceCents * line.quantity;
     }
-    const taxCents = 0; // Adjust if tax required
-    const totalCents = subtotalCents + taxCents;
+    const totalCents = subtotalCents;
 
     let changeDueCents = 0;
     if (paymentMethod === 'cash') {
-      if (typeof amountTenderedCents !== 'number') {
-        return res.status(400).json({ error: 'amountTenderedCents required for cash' });
-      }
-      if (amountTenderedCents < totalCents) {
-        return res.status(400).json({ error: 'Insufficient cash tendered' });
-      }
+      if (typeof amountTenderedCents !== 'number') return res.status(400).json({ error: 'amountTenderedCents required for cash' });
+      if (amountTenderedCents < totalCents) return res.status(400).json({ error: 'Insufficient cash tendered' });
       changeDueCents = amountTenderedCents - totalCents;
     }
 
-    // Check if we have enough packaging materials before proceeding
-    const packagingMaterials = await prisma.packagingMaterial.findMany();
-    const packagingMap = new Map(packagingMaterials.map(p => [p.name, p]));
-
-    // Check elote packaging (ounces)
+    // Calculate elote oz needed (for optional stock tracking)
     const eloteItems = items.filter(line => {
       const dbItem = idToItem.get(line.itemId);
       return dbItem && (dbItem.name === 'Elote Chico' || dbItem.name === 'Elote Grande');
     });
-
-    let totalEloteOuncesNeeded = 0;
-    if (eloteItems.length > 0) {
-      const elotePackaging = packagingMap.get('elote');
-      if (!elotePackaging) {
-        return res.status(400).json({ error: 'Elote packaging material not found' });
-      }
-
-      for (const line of eloteItems) {
-        const dbItem = idToItem.get(line.itemId);
-        if (dbItem.name === 'Elote Chico') {
-          totalEloteOuncesNeeded += line.quantity * 8; // 8 oz per elote chico
-        } else if (dbItem.name === 'Elote Grande') {
-          totalEloteOuncesNeeded += line.quantity * 14; // 14 oz per elote grande
-        }
-      }
-
-      if (elotePackaging.stock < totalEloteOuncesNeeded) {
-        return res.status(400).json({ error: `Insufficient elote stock. Need ${totalEloteOuncesNeeded} oz, have ${elotePackaging.stock} oz` });
+    let totalEloteOzNeeded = 0;
+    for (const line of eloteItems) {
+      const dbItem = idToItem.get(line.itemId);
+      if (dbItem.name === 'Elote Chico') totalEloteOzNeeded += line.quantity * 8;
+      else if (dbItem.name === 'Elote Grande') totalEloteOzNeeded += line.quantity * 14;
+    }
+    // Only block if elote packaging is configured AND out of stock
+    if (totalEloteOzNeeded > 0) {
+      const packagingMaterials = await prisma.packagingMaterial.findMany();
+      const elotePkg = packagingMaterials.find(p => p.name === 'elote');
+      if (elotePkg && elotePkg.stock < totalEloteOzNeeded) {
+        return res.status(400).json({ error: `Insufficient elote stock. Need ${totalEloteOzNeeded} oz, have ${elotePkg.stock} oz` });
       }
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      // Re-check stock levels inside transaction to prevent race conditions
-      const txPackagingMaterials = await tx.packagingMaterial.findMany();
-      const txPackagingMap = new Map(txPackagingMaterials.map(p => [p.name, p]));
-
-      // Double-check elote stock inside transaction
-      if (eloteItems.length > 0) {
-        const txElotePackaging = txPackagingMap.get('elote');
-        if (!txElotePackaging || txElotePackaging.stock < totalEloteOuncesNeeded) {
-          throw new Error(`Insufficient elote stock. Need ${totalEloteOuncesNeeded} oz, have ${txElotePackaging?.stock || 0} oz`);
-        }
-      }
-
       const sale = await tx.sale.create({
-        data: {
-          paymentMethod,
-          subtotalCents,
-          taxCents,
-          totalCents,
-          amountTenderedCents: paymentMethod === 'cash' ? amountTenderedCents : null,
-          changeDueCents: paymentMethod === 'cash' ? changeDueCents : null,
-        },
+        data: { paymentMethod, subtotalCents, taxCents: 0, totalCents, amountTenderedCents: paymentMethod === 'cash' ? amountTenderedCents : null, changeDueCents: paymentMethod === 'cash' ? changeDueCents : null },
       });
 
-      // Track packaging usage
       const packagingUsage = new Map();
 
       for (const line of items) {
         const dbItem = idToItem.get(line.itemId);
         await tx.saleItem.create({
-          data: {
-            saleId: sale.id,
-            itemId: dbItem.id,
-            quantity: line.quantity,
-            unitPriceCents: dbItem.priceCents,
-            lineTotalCents: dbItem.priceCents * line.quantity,
-          },
+          data: { saleId: sale.id, itemId: dbItem.id, quantity: line.quantity, unitPriceCents: dbItem.priceCents, lineTotalCents: dbItem.priceCents * line.quantity },
         });
-        
-        // Note: We don't decrement item.stock here because we only manage packaging materials
 
-        // Track packaging usage
+        // Track packaging
         if (dbItem.packaging) {
-          const current = packagingUsage.get(dbItem.packaging) || 0;
-          packagingUsage.set(dbItem.packaging, current + line.quantity);
+          packagingUsage.set(dbItem.packaging, (packagingUsage.get(dbItem.packaging) || 0) + line.quantity);
         }
-
-        // Track elote inventory (ounces)
-        if (dbItem.name === 'Elote Chico') {
-          const current = packagingUsage.get('elote') || 0;
-          packagingUsage.set('elote', current + (line.quantity * 8)); // 8 oz per elote chico
-        } else if (dbItem.name === 'Elote Grande') {
-          const current = packagingUsage.get('elote') || 0;
-          packagingUsage.set('elote', current + (line.quantity * 14)); // 14 oz per elote grande
-        } else if (dbItem.name === 'Elote Entero') {
-          // Elote Entero deducts from both charolas and elote entero
-          const currentCharolas = packagingUsage.get('charolas') || 0;
-          packagingUsage.set('charolas', currentCharolas + line.quantity);
-          
-          const currentEloteEntero = packagingUsage.get('elote entero') || 0;
-          packagingUsage.set('elote entero', currentEloteEntero + line.quantity);
+        if (dbItem.name === 'Elote Chico') packagingUsage.set('elote', (packagingUsage.get('elote') || 0) + line.quantity * 8);
+        else if (dbItem.name === 'Elote Grande') packagingUsage.set('elote', (packagingUsage.get('elote') || 0) + line.quantity * 14);
+        else if (dbItem.name === 'Elote Entero') {
+          packagingUsage.set('charolas', (packagingUsage.get('charolas') || 0) + line.quantity);
+          packagingUsage.set('elote entero', (packagingUsage.get('elote entero') || 0) + line.quantity);
         }
       }
 
       // Decrement packaging stock
-      for (const [packagingName, quantity] of packagingUsage) {
-        await tx.packagingMaterial.updateMany({
-          where: { name: packagingName },
-          data: { stock: { decrement: quantity } },
-        });
+      for (const [pkgName, qty] of packagingUsage) {
+        await tx.packagingMaterial.updateMany({ where: { name: pkgName }, data: { stock: { decrement: qty } } });
       }
 
-
-      // Deduct ingredients based on BOM
-      const bomLines = await tx.itemBOM.findMany({
-        where: { itemId: { in: itemIds } },
-      });
+      // Deduct ingredients via BOM
+      const bomLines = await tx.itemBOM.findMany({ where: { itemId: { in: itemIds } } });
       const ingredientUsage = new Map();
       for (const line of items) {
         const bomForItem = bomLines.filter(b => b.itemId === line.itemId);
         for (const bomLine of bomForItem) {
-          const current = ingredientUsage.get(bomLine.ingredientId) || 0;
-          ingredientUsage.set(bomLine.ingredientId, current + (bomLine.quantity * line.quantity));
+          ingredientUsage.set(bomLine.ingredientId, (ingredientUsage.get(bomLine.ingredientId) || 0) + bomLine.quantity * line.quantity);
         }
       }
       for (const [ingredientId, qty] of ingredientUsage) {
-        await tx.ingredient.update({
-          where: { id: ingredientId },
-          data: { stock: { decrement: qty } },
-        });
+        await tx.ingredient.update({ where: { id: ingredientId }, data: { stock: { decrement: qty } } });
       }
 
       return sale;
@@ -467,16 +244,8 @@ app.post('/api/sales', async (req, res) => {
 
     res.json({ ok: true, saleId: result.id, totalCents, changeDueCents });
   } catch (err) {
-    console.error('â Error in /api/sales POST:', err);
-    console.error('â Error details:', {
-      message: err.message,
-      stack: err.stack,
-      name: err.name
-    });
-    res.status(500).json({ 
-      error: err.message || 'Server error',
-      details: process.env.NODE_ENV === 'development' ? err.stack : undefined
-    });
+    console.error('Error in POST /api/sales:', err.message);
+    res.status(500).json({ error: err.message || 'Server error' });
   }
 });
 
@@ -485,454 +254,142 @@ app.put('/api/sales/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { totalCents, paymentMethod } = req.body;
-    
-    if (!totalCents || !paymentMethod) {
-      return res.status(400).json({ error: 'totalCents and paymentMethod are required' });
-    }
-    
-    if (!['cash', 'credit'].includes(paymentMethod)) {
-      return res.status(400).json({ error: 'Invalid payment method' });
-    }
-    
-    const updatedSale = await prisma.sale.update({
-      where: { id: parseInt(id) },
-      data: {
-        totalCents: parseInt(totalCents),
-        paymentMethod,
-        subtotalCents: parseInt(totalCents), // Assuming no tax for simplicity
-        taxCents: 0
-      }
-    });
-    
+    if (!totalCents || !paymentMethod) return res.status(400).json({ error: 'totalCents and paymentMethod are required' });
+    if (!['cash', 'credit'].includes(paymentMethod)) return res.status(400).json({ error: 'Invalid payment method' });
+    const updatedSale = await prisma.sale.update({ where: { id: parseInt(id) }, data: { totalCents: parseInt(totalCents), paymentMethod, subtotalCents: parseInt(totalCents), taxCents: 0 } });
     res.json({ ok: true, sale: updatedSale });
-  } catch (err) {
-    console.error('â Error updating sale:', err);
-    res.status(500).json({ 
-      error: err.message || 'Server error',
-      details: process.env.NODE_ENV === 'development' ? err.stack : undefined
-    });
-  }
+  } catch (err) { res.status(500).json({ error: err.message || 'Server error' }); }
 });
 
-// Delete sale
+// Delete sale (restores packaging stock)
 app.delete('/api/sales/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
-    // First, get the sale with its items to calculate packaging replenishment
-    const sale = await prisma.sale.findUnique({
-      where: { id: parseInt(id) },
-      include: {
-        items: {
-          include: {
-            item: true
-          }
-        }
-      }
-    });
-    
-    if (!sale) {
-      return res.status(404).json({ error: 'Sale not found' });
-    }
-    
-    // Calculate packaging materials to replenish
+    const sale = await prisma.sale.findUnique({ where: { id: parseInt(id) }, include: { items: { include: { item: true } } } });
+    if (!sale) return res.status(404).json({ error: 'Sale not found' });
     const packagingReplenishment = new Map();
-    
-    for (const saleItem of sale.items) {
-      const item = saleItem.item;
-      
-      // Replenish regular packaging materials
-      if (item.packaging) {
-        const current = packagingReplenishment.get(item.packaging) || 0;
-        packagingReplenishment.set(item.packaging, current + saleItem.quantity);
-      }
-      
-      // Replenish elote inventory (ounces)
-      if (item.name === 'Elote Chico') {
-        const current = packagingReplenishment.get('elote') || 0;
-        packagingReplenishment.set('elote', current + (saleItem.quantity * 8)); // 8 oz per elote chico
-      } else if (item.name === 'Elote Grande') {
-        const current = packagingReplenishment.get('elote') || 0;
-        packagingReplenishment.set('elote', current + (saleItem.quantity * 14)); // 14 oz per elote grande
-      } else if (item.name === 'Elote Entero') {
-        // Elote Entero replenishes both charolas and elote entero
-        const currentCharolas = packagingReplenishment.get('charolas') || 0;
-        packagingReplenishment.set('charolas', currentCharolas + saleItem.quantity);
-        
-        const currentEloteEntero = packagingReplenishment.get('elote entero') || 0;
-        packagingReplenishment.set('elote entero', currentEloteEntero + saleItem.quantity);
+    for (const si of sale.items) {
+      const item = si.item;
+      if (item.packaging) packagingReplenishment.set(item.packaging, (packagingReplenishment.get(item.packaging) || 0) + si.quantity);
+      if (item.name === 'Elote Chico') packagingReplenishment.set('elote', (packagingReplenishment.get('elote') || 0) + si.quantity * 8);
+      else if (item.name === 'Elote Grande') packagingReplenishment.set('elote', (packagingReplenishment.get('elote') || 0) + si.quantity * 14);
+      else if (item.name === 'Elote Entero') {
+        packagingReplenishment.set('charolas', (packagingReplenishment.get('charolas') || 0) + si.quantity);
+        packagingReplenishment.set('elote entero', (packagingReplenishment.get('elote entero') || 0) + si.quantity);
       }
     }
-    
-    // Use transaction to ensure atomicity
     await prisma.$transaction(async (tx) => {
-      // Replenish packaging materials
-      for (const [packagingName, quantity] of packagingReplenishment) {
-        await tx.packagingMaterial.updateMany({
-          where: { name: packagingName },
-          data: { stock: { increment: quantity } },
-        });
+      for (const [pkgName, qty] of packagingReplenishment) {
+        await tx.packagingMaterial.updateMany({ where: { name: pkgName }, data: { stock: { increment: qty } } });
       }
-      
-      // Delete related sale items
-      await tx.saleItem.deleteMany({
-        where: { saleId: parseInt(id) }
-      });
-      
-      // Delete the sale
-      await tx.sale.delete({
-        where: { id: parseInt(id) }
-      });
+      await tx.saleItem.deleteMany({ where: { saleId: parseInt(id) } });
+      await tx.sale.delete({ where: { id: parseInt(id) } });
     });
-    
     res.json({ ok: true });
-  } catch (err) {
-    console.error('â Error deleting sale:', err);
-    res.status(500).json({ 
-      error: err.message || 'Server error',
-      details: process.env.NODE_ENV === 'development' ? err.stack : undefined
-    });
-  }
+  } catch (err) { res.status(500).json({ error: err.message || 'Server error' }); }
 });
 
-// Get purchases history
+// Purchases
 app.get('/api/purchases', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    
     let whereClause = {};
-    
-    // Add date filtering if provided
     if (startDate || endDate) {
       whereClause.createdAt = {};
-      if (startDate) {
-        // Force UTC-6 (America/Chicago) timezone conversion
-        // When user selects "2025-09-01", we need to cover their local 00:00:00 to 23:59:59
-        // In UTC-6, 00:00:00 local = 06:00:00 UTC
-        const utcStartDate = new Date(startDate + 'T06:00:00.000Z');
-        whereClause.createdAt.gte = utcStartDate;
-      }
+      if (startDate) whereClause.createdAt.gte = new Date(startDate + 'T06:00:00.000Z');
       if (endDate) {
-        // Force UTC-6 (America/Chicago) timezone conversion
-        // When user selects "2025-09-01", we need to cover their local 23:59:59
-        // In UTC-6, 23:59:59 local = 05:59:59 UTC (next day)
         const nextDay = new Date(endDate);
         nextDay.setDate(nextDay.getDate() + 1);
-        const utcEndDate = new Date(nextDay.toISOString().split('T')[0] + 'T05:59:59.999Z');
-        whereClause.createdAt.lte = utcEndDate;
+        whereClause.createdAt.lte = new Date(nextDay.toISOString().split('T')[0] + 'T05:59:59.999Z');
       }
     }
-
-    const purchases = await prisma.purchase.findMany({
-      where: whereClause,
-      orderBy: { createdAt: 'desc' },
-    });
+    const purchases = await prisma.purchase.findMany({ where: whereClause, orderBy: { createdAt: 'desc' } });
     res.json(purchases);
-  } catch (error) {
-    console.error('Error fetching purchases:', error);
-    res.status(500).json({ error: 'Failed to fetch purchases' });
-  }
+  } catch (error) { res.status(500).json({ error: 'Failed to fetch purchases' }); }
 });
 
-// Create purchase
 app.post('/api/purchases', async (req, res) => {
   try {
     const { amountCents, description, paymentMethod } = req.body;
-    if (typeof amountCents !== 'number' || amountCents <= 0) {
-      return res.status(400).json({ error: 'Invalid amount' });
-    }
-
-    if (!['cash', 'card'].includes(paymentMethod)) {
-      return res.status(400).json({ error: 'Invalid payment method' });
-    }
-
-    const purchase = await prisma.purchase.create({
-      data: {
-        amountCents: parseInt(amountCents),
-        description: description || 'Daily purchase',
-        paymentMethod: paymentMethod || 'cash',
-        receiptUrl: null, // File upload disabled for now
-      },
-    });
-
+    if (typeof amountCents !== 'number' || amountCents <= 0) return res.status(400).json({ error: 'Invalid amount' });
+    const pm = paymentMethod || 'cash';
+    const purchase = await prisma.purchase.create({ data: { amountCents: parseInt(amountCents), description: description || 'Daily purchase', paymentMethod: pm, receiptUrl: null } });
     res.json({ ok: true, purchaseId: purchase.id, amountCents });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
-// Square payment endpoint
-app.post('/api/square-payment', async (req, res) => {
-  try {
-    const { amountCents, sourceId, idempotencyKey } = req.body;
-    
-    if (!amountCents || !sourceId || !idempotencyKey) {
-      return res.status(400).json({ error: 'Amount, source ID, and idempotency key are required' });
-    }
-    
-    // Amount in cents (Square API uses smallest currency unit)
-    const amount = Math.round(amountCents); // Square API expects cents (smallest currency unit)
-    
-    const paymentRequest = {
-      sourceId: sourceId,
-      idempotencyKey: idempotencyKey,
-      amountMoney: {
-        amount: amount,
-        currency: 'USD'
-      },
-      locationId: process.env.SQUARE_LOCATION_ID
-    };
-    
-    // Call Square API directly using fetch
-    const response = await fetch('https://connect.squareup.com/v2/payments', {
-      method: 'POST',
-      headers: {
-        'Square-Version': '2024-12-18',
-        'Authorization': `Bearer ${process.env.SQUARE_ACCESS_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(paymentRequest)
-    });
-    
-    const result = await response.json();
-    
-    if (response.ok && result.payment && result.payment.status === 'COMPLETED') {
-      res.json({ 
-        success: true, 
-        paymentId: result.payment.id,
-        status: result.payment.status,
-        amount: result.payment.amountMoney.amount
-      });
-    } else {
-      console.error('Square API error:', result);
-      res.status(400).json({ 
-        success: false, 
-        error: 'Payment failed', 
-        details: result.errors || 'Unknown error'
-      });
-    }
-  } catch (error) {
-    console.error('Square payment error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Payment processing failed',
-      details: error.message 
-    });
-  }
+// Square callback
+app.get('/square-callback', (req, res) => {
+  const { transaction_id, status, payment_id, error } = req.query;
+  let paymentStatus = status || 'unknown';
+  if (error) paymentStatus = 'error';
+  else if (payment_id && !error) paymentStatus = 'success';
+  res.redirect(`/?square_callback=1&status=${encodeURIComponent(paymentStatus)}&transaction_id=${encodeURIComponent(transaction_id || payment_id || '')}`);
 });
 
-// Get time entries
+// Time entries
 app.get('/api/time-entries', async (req, res) => {
   try {
     const { startDate, endDate, employeeName } = req.query;
-    
     let whereClause = {};
-    
-    // Add date filtering if provided
     if (startDate || endDate) {
       whereClause.timestamp = {};
-      if (startDate) {
-        // Force UTC-6 (America/Chicago) timezone conversion
-        // When user selects "2025-09-01", we need to cover their local 00:00:00 to 23:59:59
-        // In UTC-6, 00:00:00 local = 06:00:00 UTC
-        const utcStartDate = new Date(startDate + 'T06:00:00.000Z');
-        whereClause.timestamp.gte = utcStartDate;
-        console.log('Time Entries API - Start Date (UTC-6):', { 
-          startDate, 
-          utcStartDate, 
-          utcStartDateISO: utcStartDate.toISOString()
-        });
-      }
+      if (startDate) whereClause.timestamp.gte = new Date(startDate + 'T06:00:00.000Z');
       if (endDate) {
-        // Force UTC-6 (America/Chicago) timezone conversion
-        // When user selects "2025-09-01", we need to cover their local 23:59:59
-        // In UTC-6, 23:59:59 local = 05:59:59 UTC (next day)
         const nextDay = new Date(endDate);
         nextDay.setDate(nextDay.getDate() + 1);
-        const utcEndDate = new Date(nextDay.toISOString().split('T')[0] + 'T05:59:59.999Z');
-        whereClause.timestamp.lte = utcEndDate;
-        console.log('Time Entries API - End Date (UTC-6):', { 
-          endDate, 
-          utcEndDate, 
-          utcEndDateISO: utcEndDate.toISOString()
-        });
+        whereClause.timestamp.lte = new Date(nextDay.toISOString().split('T')[0] + 'T05:59:59.999Z');
       }
     }
-
-    // Add employee filtering if provided
-    if (employeeName) {
-      whereClause.employeeName = employeeName;
-    }
-
-    const timeEntries = await prisma.timeEntry.findMany({
-      where: whereClause,
-      orderBy: { timestamp: 'desc' },
-    });
+    if (employeeName) whereClause.employeeName = employeeName;
+    const timeEntries = await prisma.timeEntry.findMany({ where: whereClause, orderBy: { timestamp: 'desc' } });
     res.json(timeEntries);
-  } catch (error) {
-    console.error('Error fetching time entries:', error);
-    res.status(500).json({ error: 'Failed to fetch time entries' });
-  }
+  } catch (error) { res.status(500).json({ error: 'Failed to fetch time entries' }); }
 });
 
-// Create time entry
 app.post('/api/time-entries', async (req, res) => {
   try {
     const { employeeName, type, timestamp } = req.body;
-    
-    if (!employeeName || !type || !timestamp) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    if (!['clock_in', 'clock_out'].includes(type)) {
-      return res.status(400).json({ error: 'Invalid type. Must be clock_in or clock_out' });
-    }
-
-    const timeEntry = await prisma.timeEntry.create({
-      data: {
-        employeeName: employeeName.trim(),
-        type,
-        timestamp: new Date(timestamp),
-      },
-    });
-
+    if (!employeeName || !type || !timestamp) return res.status(400).json({ error: 'Missing required fields' });
+    if (!['clock_in', 'clock_out'].includes(type)) return res.status(400).json({ error: 'Invalid type' });
+    const timeEntry = await prisma.timeEntry.create({ data: { employeeName: employeeName.trim(), type, timestamp: new Date(timestamp) } });
     res.json({ ok: true, timeEntryId: timeEntry.id });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
-// Get accounting entries
+// Accounting
 app.get('/api/accounting', async (req, res) => {
   try {
-    const entries = await prisma.accountingEntry.findMany({
-      orderBy: { date: 'desc' },
-    });
+    const entries = await prisma.accountingEntry.findMany({ orderBy: { date: 'desc' } });
     res.json(entries);
-  } catch (error) {
-    console.error('Error fetching accounting entries:', error);
-    res.status(500).json({ error: 'Failed to fetch accounting entries' });
-  }
+  } catch (error) { res.status(500).json({ error: 'Failed to fetch accounting entries' }); }
 });
 
-// Create accounting entry
 app.post('/api/accounting', async (req, res) => {
   try {
     const { date, cashSales, creditSales, squareFees, salesTax, deposits, taxPayments } = req.body;
-    
-    if (!date) {
-      return res.status(400).json({ error: 'Date is required' });
-    }
-
-    // Convert date to start of day in local timezone
-    const entryDate = new Date(date + 'T00:00:00.000Z');
-    
-    const entry = await prisma.accountingEntry.create({
-      data: {
-        date: entryDate,
-        cashSales: parseInt(cashSales) || 0,
-        creditSales: parseInt(creditSales) || 0,
-        squareFees: parseInt(squareFees) || 0,
-        salesTax: parseInt(salesTax) || 0,
-        deposits: parseInt(deposits) || 0,
-        taxPayments: parseInt(taxPayments) || 0,
-      },
-    });
-
+    if (!date) return res.status(400).json({ error: 'Date is required' });
+    const entry = await prisma.accountingEntry.create({ data: { date: new Date(date + 'T00:00:00.000Z'), cashSales: parseInt(cashSales)||0, creditSales: parseInt(creditSales)||0, squareFees: parseInt(squareFees)||0, salesTax: parseInt(salesTax)||0, deposits: parseInt(deposits)||0, taxPayments: parseInt(taxPayments)||0 } });
     res.json({ ok: true, entryId: entry.id });
-  } catch (err) {
-    console.error('Error creating accounting entry:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
-// Update accounting entry
 app.put('/api/accounting/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { date, cashSales, creditSales, squareFees, salesTax, deposits, taxPayments } = req.body;
-    
-    if (!date) {
-      return res.status(400).json({ error: 'Date is required' });
-    }
-
-    // Convert date to start of day in local timezone
-    const entryDate = new Date(date + 'T00:00:00.000Z');
-    
-    const entry = await prisma.accountingEntry.update({
-      where: { id: parseInt(id) },
-      data: {
-        date: entryDate,
-        cashSales: parseInt(cashSales) || 0,
-        creditSales: parseInt(creditSales) || 0,
-        squareFees: parseInt(squareFees) || 0,
-        salesTax: parseInt(salesTax) || 0,
-        deposits: parseInt(deposits) || 0,
-        taxPayments: parseInt(taxPayments) || 0,
-      },
-    });
-
+    if (!date) return res.status(400).json({ error: 'Date is required' });
+    const entry = await prisma.accountingEntry.update({ where: { id: parseInt(id) }, data: { date: new Date(date + 'T00:00:00.000Z'), cashSales: parseInt(cashSales)||0, creditSales: parseInt(creditSales)||0, squareFees: parseInt(squareFees)||0, salesTax: parseInt(salesTax)||0, deposits: parseInt(deposits)||0, taxPayments: parseInt(taxPayments)||0 } });
     res.json({ ok: true, entry });
-  } catch (err) {
-    console.error('Error updating accounting entry:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
-// Delete accounting entry
 app.delete('/api/accounting/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    
-    await prisma.accountingEntry.delete({
-      where: { id: parseInt(id) }
-    });
-    
+    await prisma.accountingEntry.delete({ where: { id: parseInt(req.params.id) } });
     res.json({ ok: true });
-  } catch (err) {
-    console.error('Error deleting accounting entry:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
-
-// Square payment callback handler for Android POS app
-// This route handles the callback from Square after payment is processed
-app.get('/square-callback', (req, res) => {
-  try {
-    const { transaction_id, status, amount, currency, payment_id, error } = req.query;
-    
-    console.log('Square callback received:', { 
-      transaction_id, 
-      status, 
-      amount, 
-      currency, 
-      payment_id,
-      error,
-      allParams: req.query 
-    });
-    
-    // Determine status from various possible parameters
-    let paymentStatus = status || 'unknown';
-    if (error) {
-      paymentStatus = 'error';
-    } else if (payment_id && !error) {
-      paymentStatus = 'success';
-    }
-    
-    // Redirect back to POS page with payment status
-    // The frontend will handle showing the success/error message
-    const redirectUrl = `/?square_callback=1&status=${encodeURIComponent(paymentStatus)}&transaction_id=${encodeURIComponent(transaction_id || payment_id || '')}`;
-    res.redirect(redirectUrl);
-  } catch (error) {
-    console.error('Error handling Square callback:', error);
-    // Still redirect to POS page even if there's an error
-    res.redirect('/?square_callback=1&status=error');
-  }
-});
-
-// Serve frontend
 
 // ============================================================
 // INGREDIENTS & SUPPLIES
@@ -948,14 +405,7 @@ app.post('/api/ingredients', async (req, res) => {
   const { name, category, unit, presentationQty, presentationUnit, stock, costCents } = req.body;
   if (!name || !category || !unit) return res.status(400).json({ error: 'name, category, and unit are required' });
   try {
-    const ingredient = await prisma.ingredient.create({
-      data: { name, category, unit,
-        presentationQty: parseFloat(presentationQty) || 1,
-        presentationUnit: presentationUnit || unit,
-        stock: parseFloat(stock) || 0,
-        costCents: parseInt(costCents) || 0,
-      },
-    });
+    const ingredient = await prisma.ingredient.create({ data: { name, category, unit, presentationQty: parseFloat(presentationQty)||1, presentationUnit: presentationUnit||unit, stock: parseFloat(stock)||0, costCents: parseInt(costCents)||0 } });
     res.json(ingredient);
   } catch (e) {
     if (e.code === 'P2002') return res.status(400).json({ error: 'Ingredient name already exists' });
@@ -988,10 +438,7 @@ app.post('/api/ingredients/:id/restock', async (req, res) => {
   try {
     const ingredient = await prisma.ingredient.findUnique({ where: { id: parseInt(req.params.id) } });
     if (!ingredient) return res.status(404).json({ error: 'Not found' });
-    const updated = await prisma.ingredient.update({
-      where: { id: parseInt(req.params.id) },
-      data: { stock: { increment: parseFloat(quantity) * ingredient.presentationQty } },
-    });
+    const updated = await prisma.ingredient.update({ where: { id: parseInt(req.params.id) }, data: { stock: { increment: parseFloat(quantity) * ingredient.presentationQty } } });
     res.json(updated);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1009,11 +456,7 @@ app.delete('/api/ingredients/:id', async (req, res) => {
 // ============================================================
 app.get('/api/bom/:itemId', async (req, res) => {
   try {
-    const bom = await prisma.itemBOM.findMany({
-      where: { itemId: parseInt(req.params.itemId) },
-      include: { ingredient: true },
-      orderBy: { ingredient: { category: 'asc' } },
-    });
+    const bom = await prisma.itemBOM.findMany({ where: { itemId: parseInt(req.params.itemId) }, include: { ingredient: true }, orderBy: { ingredient: { category: 'asc' } } });
     res.json(bom);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1036,11 +479,7 @@ app.put('/api/bom/line/:bomId', async (req, res) => {
   const { quantity } = req.body;
   if (quantity == null) return res.status(400).json({ error: 'quantity required' });
   try {
-    const line = await prisma.itemBOM.update({
-      where: { id: parseInt(req.params.bomId) },
-      data: { quantity: parseFloat(quantity) },
-      include: { ingredient: true },
-    });
+    const line = await prisma.itemBOM.update({ where: { id: parseInt(req.params.bomId) }, data: { quantity: parseFloat(quantity) }, include: { ingredient: true } });
     res.json(line);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1052,6 +491,7 @@ app.delete('/api/bom/line/:bomId', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Serve frontend
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const distPath = path.join(__dirname, '..', 'dist');
@@ -1062,8 +502,4 @@ app.get('*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server listening on ${PORT}`);
-});
-
-
+app.listen(PORT, () => { console.log(`Server listening on ${PORT}`); });
