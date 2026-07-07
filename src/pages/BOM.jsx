@@ -13,6 +13,9 @@ export default function BOM() {
   const [loadingIng, setLoadingIng] = useState(true);
   const [addForm, setAddForm] = useState({ name: '', category: 'ingredient', unit: 'oz', presentationQty: '', totalCostDollars: '' });
   const [addingSaving, setAddingSaving] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [editSaving, setEditSaving] = useState(false);
 
   // BOM editor
   const [menuItems, setMenuItems] = useState([]);
@@ -81,6 +84,40 @@ export default function BOM() {
     finally { setAddingSaving(false); }
   };
 
+  const startEdit = (ing) => {
+    setEditingId(ing.id);
+    setEditForm({
+      name: ing.name,
+      category: ing.category,
+      unit: ing.unit,
+      stock: ing.stock,
+      presentationQty: ing.presentationQty,
+      costCents: ing.costCents,
+    });
+  };
+
+  const saveEdit = async (id) => {
+    setEditSaving(true);
+    try {
+      const res = await fetch('/api/ingredients/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editForm.name,
+          category: editForm.category,
+          unit: editForm.unit,
+          stock: parseFloat(editForm.stock) || 0,
+          presentationQty: parseFloat(editForm.presentationQty) || 1,
+          costCents: parseInt(editForm.costCents) || 0,
+        }),
+      });
+      if (!res.ok) { const e = await res.json(); alert(e.error || 'Failed'); return; }
+      setEditingId(null);
+      await fetchIngredients();
+    } catch (e) { alert('Failed to save'); }
+    finally { setEditSaving(false); }
+  };
+
   const deleteIngredient = async (id) => {
     if (!confirm('Delete this ingredient?')) return;
     await fetch('/api/ingredients/' + id, { method: 'DELETE' });
@@ -135,7 +172,7 @@ export default function BOM() {
         ))}
       </div>
 
-      {/* ── Ingredient Library ── */}
+      {/* Ingredient Library */}
       {activeTab === 'library' && (
         <div style={{ flex: 1, overflowY: 'auto', padding: 24, background: '#f9fafb' }}>
           {/* Add form */}
@@ -144,7 +181,7 @@ export default function BOM() {
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr auto', gap: 10, alignItems: 'end' }}>
               <div>
                 <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>Name</div>
-                <input value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Elote Desgraando" style={inp} />
+                <input value={addForm.name} onChange={e => setAddForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Elote Desgranado" style={inp} />
               </div>
               <div>
                 <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>Category</div>
@@ -190,28 +227,72 @@ export default function BOM() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: '#f9fafb' }}>
-                      {['Name', 'Unit', 'Qty/Purchase', 'Unit Cost', 'Stock', ''].map(h => (
+                      {['Name', 'Unit', 'Qty/Purchase', 'Unit Cost', 'Stock', 'Actions'].map(h => (
                         <th key={h} style={{ padding: '8px 16px', textAlign: h === 'Name' ? 'left' : 'right', color: '#6b7280', fontWeight: 600, fontSize: 12 }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {ingByCategory[cat].map((ing, i) => (
-                      <tr key={ing.id} style={{ borderTop: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                        <td style={{ padding: '9px 16px', fontWeight: 500 }}>{ing.name}</td>
-                        <td style={{ padding: '9px 16px', textAlign: 'right' }}>{ing.unit}</td>
-                        <td style={{ padding: '9px 16px', textAlign: 'right' }}>{ing.presentationQty}</td>
-                        <td style={{ padding: '9px 16px', textAlign: 'right', color: '#059669', fontWeight: 600 }}>
-                          ${(ing.costCents / 100).toFixed(4)}/{ing.unit}
-                        </td>
-                        <td style={{ padding: '9px 16px', textAlign: 'right', color: '#374151' }}>{ing.stock} {ing.unit}</td>
-                        <td style={{ padding: '9px 16px', textAlign: 'right' }}>
-                          <button onClick={() => deleteIngredient(ing.id)}
-                            style={{ fontSize: 11, padding: '3px 8px', border: '1px solid #fca5a5', borderRadius: 5, background: '#fff', color: '#dc2626', cursor: 'pointer' }}>
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
+                      <React.Fragment key={ing.id}>
+                        <tr style={{ borderTop: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                          <td style={{ padding: '9px 16px', fontWeight: 500 }}>{ing.name}</td>
+                          <td style={{ padding: '9px 16px', textAlign: 'right' }}>{ing.unit}</td>
+                          <td style={{ padding: '9px 16px', textAlign: 'right' }}>{ing.presentationQty}</td>
+                          <td style={{ padding: '9px 16px', textAlign: 'right', color: '#059669', fontWeight: 600 }}>
+                            ${(ing.costCents / 100).toFixed(4)}/{ing.unit}
+                          </td>
+                          <td style={{ padding: '9px 16px', textAlign: 'right', fontWeight: 700, color: (ing.stock || 0) <= 0 ? '#dc2626' : '#374151' }}>
+                            {ing.stock ?? 0} {ing.unit}
+                          </td>
+                          <td style={{ padding: '9px 16px', textAlign: 'right', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                            <button onClick={() => editingId === ing.id ? setEditingId(null) : startEdit(ing)}
+                              style={{ fontSize: 11, padding: '3px 10px', border: '1px solid #93c5fd', borderRadius: 5, background: editingId === ing.id ? '#dbeafe' : '#fff', color: '#2563eb', cursor: 'pointer' }}>
+                              {editingId === ing.id ? 'Cancel' : 'Edit'}
+                            </button>
+                            <button onClick={() => deleteIngredient(ing.id)}
+                              style={{ fontSize: 11, padding: '3px 8px', border: '1px solid #fca5a5', borderRadius: 5, background: '#fff', color: '#dc2626', cursor: 'pointer' }}>
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                        {editingId === ing.id && (
+                          <tr style={{ background: '#eff6ff', borderTop: '1px solid #bfdbfe' }}>
+                            <td colSpan={6} style={{ padding: '12px 16px' }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr auto', gap: 8, alignItems: 'end' }}>
+                                <div>
+                                  <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 3 }}>Name</div>
+                                  <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} style={inp} />
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 3 }}>Category</div>
+                                  <select value={editForm.category} onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))} style={inp}>
+                                    <option value="ingredient">Ingredient</option>
+                                    <option value="Packaging">Packaging</option>
+                                    <option value="disposables">Disposables</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 3 }}>Unit</div>
+                                  <input value={editForm.unit} onChange={e => setEditForm(f => ({ ...f, unit: e.target.value }))} style={inp} />
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 3 }}>Stock</div>
+                                  <input type="number" step="any" value={editForm.stock} onChange={e => setEditForm(f => ({ ...f, stock: e.target.value }))} style={{ ...inp, textAlign: 'right' }} />
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 3 }}>Cost (cents/unit)</div>
+                                  <input type="number" value={editForm.costCents} onChange={e => setEditForm(f => ({ ...f, costCents: e.target.value }))} style={{ ...inp, textAlign: 'right' }} />
+                                </div>
+                                <button onClick={() => saveEdit(ing.id)} disabled={editSaving}
+                                  style={{ padding: '8px 16px', background: editSaving ? '#6ee7b7' : '#059669', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                                  {editSaving ? '...' : 'Save'}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -221,10 +302,9 @@ export default function BOM() {
         </div>
       )}
 
-      {/* ── BOM Editor ── */}
+      {/* BOM Editor */}
       {activeTab === 'bom' && (
         <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '260px 1fr', overflow: 'hidden' }}>
-          {/* Left: menu items */}
           <div style={{ borderRight: '1px solid #e5e7eb', background: '#f9fafb', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div style={{ padding: '14px 16px 10px', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid #e5e7eb' }}>Menu Items</div>
             <div style={{ overflowY: 'auto', flex: 1 }}>
@@ -243,7 +323,6 @@ export default function BOM() {
             </div>
           </div>
 
-          {/* Right: BOM */}
           <div style={{ overflow: 'hidden', background: '#fff', display: 'flex', flexDirection: 'column' }}>
             {!selectedItem ? (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: 14 }}>
@@ -255,7 +334,6 @@ export default function BOM() {
                   <span style={{ fontSize: 18, fontWeight: 700 }}>{selectedItem.name}</span>
                   <span style={{ fontSize: 13, color: '#6b7280' }}>Sell price: ${(selectedItem.priceCents / 100).toFixed(2)}</span>
                 </div>
-
                 <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px' }}>
                   {loadingBom ? <div style={{ color: '#9ca3af' }}>Loading...</div> : (
                     <>
@@ -277,8 +355,6 @@ export default function BOM() {
                       ))}
                     </>
                   )}
-
-                  {/* Add ingredient to recipe */}
                   <div style={{ marginTop: 20, padding: '16px', background: '#f9fafb', borderRadius: 8, border: '1px solid #e5e7eb' }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Add to Recipe</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px auto', gap: 8, alignItems: 'end' }}>
@@ -313,7 +389,6 @@ export default function BOM() {
                     })()}
                   </div>
                 </div>
-
                 <div style={{ padding: '12px 24px', borderTop: '1px solid #e5e7eb', background: '#f9fafb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Total Recipe Cost</span>
                   {totalBomCents > 0 ? (
@@ -331,4 +406,4 @@ export default function BOM() {
       )}
     </div>
   );
-                       }
+                         }
