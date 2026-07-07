@@ -18,38 +18,35 @@ model Item {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  saleItems SaleItem[]
-  bomLines  BomLine[]
+  saleItems  SaleItem[]
+  bomLines   ItemBOM[]
 }
 
-model BomLine {
-  id              Int            @id @default(autoincrement())
-  itemId          Int
-  ingredient      String
-  costCents       Int
-  type            String         @default("ingredient")
-  quantity        Float          @default(1)
-  unit            String         @default("each")
-  inventoryItemId Int?
+model Ingredient {
+  id               Int      @id @default(autoincrement())
+  name             String   @unique
+  category         String
+  unit             String
+  presentationQty  Float    @default(1)
+  presentationUnit String   @default("unit")
+  stock            Float    @default(0)
+  costCents        Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  item          Item           @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  inventoryItem InventoryItem? @relation(fields: [inventoryItemId], references: [id])
+  bomLines   ItemBOM[]
 }
 
-model InventoryItem {
-  id             Int      @id @default(autoincrement())
-  name           String   @unique
-  category       String   @default("ingredient")
-  presentation   String   @default("each")
-  unit           String   @default("each")
-  unitsPurchased Int      @default(1)
-  costCents      Int      @default(0)
-  salesTax       Boolean  @default(false)
-  stock          Float    @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+model ItemBOM {
+  id           Int        @id @default(autoincrement())
+  itemId       Int
+  ingredientId Int
+  quantity     Float
 
-  bomLines BomLine[]
+  item         Item       @relation(fields: [itemId], references: [id])
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@unique([itemId, ingredientId])
 }
 
 model PackagingMaterial {
@@ -61,20 +58,20 @@ model PackagingMaterial {
 }
 
 model Sale {
-  id                  Int      @id @default(autoincrement())
-  createdAt           DateTime @default(now())
-  paymentMethod       String
-  subtotalCents       Int
-  taxCents            Int
-  totalCents          Int
-  amountTenderedCents Int?
-  changeDueCents      Int?
+  id                   Int        @id @default(autoincrement())
+  createdAt            DateTime   @default(now())
+  paymentMethod        String
+  subtotalCents        Int
+  taxCents             Int
+  totalCents           Int
+  amountTenderedCents  Int?
+  changeDueCents       Int?
 
   items SaleItem[]
 }
 
 model SaleItem {
-  id             Int @id @default(autoincrement())
+  id             Int   @id @default(autoincrement())
   saleId         Int
   itemId         Int
   quantity       Int
@@ -86,14 +83,35 @@ model SaleItem {
 }
 
 model Purchase {
-  id          Int      @id @default(autoincrement())
-  amountCents Int
-  description String
-  createdAt   DateTime @default(now())
+  id              Int      @id @default(autoincrement())
+  amountCents     Int
+  description     String
+  paymentMethod   String   @default("cash")
+  receiptUrl      String?
+  createdAt       DateTime @default(now())
 }
 
-model ClockEntry {
-  id        Int      @id @default(autoincrement())
-  action    String
-  createdAt DateTime @default(now())
+model TimeEntry {
+  id           Int      @id @default(autoincrement())
+  employeeName String
+  type         String
+  timestamp    DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model AccountingEntry {
+  id              Int      @id @default(autoincrement())
+  date            DateTime @unique
+  cashSales       Int      @default(0)
+  creditSales     Int      @default(0)
+  squareFees      Int      @default(0)
+  salesTax        Int      @default(0)
+  deposits        Int      @default(0)
+  taxPayments     Int      @default(0)
+  netCash         Int      @default(0)
+  netCredit       Int      @default(0)
+  balance         Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
