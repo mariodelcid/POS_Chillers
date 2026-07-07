@@ -1,20 +1,20 @@
 import React, { useState, useEffect, useMemo } from 'react';
 
-const CAT_COLOR = { ingredient: '#059669', packaging: '#2563eb', disposable: '#7c3aed' };
-const CAT_LABEL = { ingredient: 'Ingredient', packaging: 'Packaging', disposable: 'Disposable' };
+const CAT_COLOR = { ingredient: '#059669', Packaging: '#2563eb', disposables: '#7c3aed' };
+const CAT_LABEL = { ingredient: 'Ingredients', Packaging: 'Packaging', disposables: 'Disposables' };
 
 export default function Inventory() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterCat, setFilterCat] = useState('all');
   const [search, setSearch] = useState('');
-  const [adding, setAdding] = useState({}); // { [id]: amountStr }
+  const [adding, setAdding] = useState({});
   const [saving, setSaving] = useState(null);
 
   const loadItems = () => {
-    fetch('/api/inventory-items')
+    fetch('/api/ingredients')
       .then(r => r.json())
-      .then(data => { setItems(data); setLoading(false); })
+      .then(data => { setItems(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => setLoading(false));
   };
 
@@ -36,17 +36,17 @@ export default function Inventory() {
     return map;
   }, [filtered]);
 
-  const categoryOrder = filterCat === 'all' ? ['ingredient', 'packaging', 'disposable'] : [filterCat];
+  const categoryOrder = filterCat === 'all' ? ['ingredient', 'Packaging', 'disposables'] : [filterCat];
 
   const handleAddStock = async (item) => {
     const amt = parseFloat(adding[item.id]);
     if (!amt || isNaN(amt)) return;
     setSaving(item.id);
     try {
-      await fetch('/api/inventory-items/' + item.id + '/stock', {
-        method: 'PATCH',
+      await fetch('/api/ingredients/' + item.id + '/restock', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ add: amt }),
+        body: JSON.stringify({ quantity: amt }),
       });
       setAdding(a => ({ ...a, [item.id]: '' }));
       loadItems();
@@ -65,14 +65,14 @@ export default function Inventory() {
       </p>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
-        {['all', 'ingredient', 'packaging', 'disposable'].map(c => (
-          <button key={c} onClick={() => setFilterCat(c)} style={{
+        {[['all', 'All'], ['ingredient', 'Ingredients'], ['Packaging', 'Packaging'], ['disposables', 'Disposables']].map(([val, label]) => (
+          <button key={val} onClick={() => setFilterCat(val)} style={{
             padding: '6px 16px', border: '1px solid #d1d5db', borderRadius: 20, cursor: 'pointer',
-            fontSize: '0.85em', fontWeight: filterCat === c ? 700 : 400,
-            background: filterCat === c ? '#1e293b' : 'white',
-            color: filterCat === c ? 'white' : '#374151'
+            fontSize: '0.85em', fontWeight: filterCat === val ? 700 : 400,
+            background: filterCat === val ? '#1e293b' : 'white',
+            color: filterCat === val ? 'white' : '#374151'
           }}>
-            {c === 'all' ? 'All' : CAT_LABEL[c]}
+            {label}
           </button>
         ))}
         <input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)}
@@ -98,10 +98,7 @@ export default function Inventory() {
               gap: 12, padding: '8px 14px', fontWeight: 700, fontSize: '0.78em',
               color: '#374151', borderBottom: '2px solid #e5e7eb', background: '#f8fafc', borderRadius: '6px 6px 0 0'
             }}>
-              <div>Name</div>
-              <div>Unit</div>
-              <div style={{ textAlign: 'center' }}>In Stock</div>
-              <div>Add to Stock</div>
+              <div>Name</div><div>Unit</div><div style={{ textAlign: 'center' }}>In Stock</div><div>Add to Stock</div>
             </div>
 
             {grouped[cat].map((item, idx) => (
@@ -113,16 +110,15 @@ export default function Inventory() {
               }}>
                 <div style={{ fontWeight: 600, fontSize: '0.92em' }}>{item.name}</div>
                 <div style={{ fontSize: '0.85em', color: '#6b7280' }}>{item.unit}</div>
-                <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '1em',
-                  color: (item.stock || 0) <= 0 ? '#dc2626' : (item.stock || 0) < 5 ? '#f59e0b' : '#059669' }}>
+                <div style={{
+                  textAlign: 'center', fontWeight: 700, fontSize: '1em',
+                  color: (item.stock || 0) <= 0 ? '#dc2626' : (item.stock || 0) < 5 ? '#f59e0b' : '#059669'
+                }}>
                   {(item.stock || 0) % 1 === 0 ? (item.stock || 0) : (item.stock || 0).toFixed(2)}
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <input
-                    type="number"
-                    min="0"
-                    step="any"
-                    placeholder="qty"
+                    type="number" min="0" step="any" placeholder="qty"
                     value={adding[item.id] || ''}
                     onChange={e => setAdding(a => ({ ...a, [item.id]: e.target.value }))}
                     onKeyDown={e => e.key === 'Enter' && handleAddStock(item)}
