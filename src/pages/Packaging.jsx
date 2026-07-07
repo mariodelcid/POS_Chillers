@@ -40,7 +40,7 @@ export default function Inventory() {
     <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto' }}>
       <h2 style={{ margin: '0 0 4px 0' }}>Inventory</h2>
       <p style={{ color: '#6b7280', marginTop: 0, marginBottom: 20 }}>
-        All ingredients, packaging, and disposables. Add or edit items in the <strong>Edit</strong> page. Cost per unit = Cost ÷ Units Purchased.
+        All ingredients, packaging, and disposables. Add or edit items in the <strong>Edit</strong> page.
       </p>
 
       {/* Filters */}
@@ -70,7 +70,6 @@ export default function Inventory() {
       ) : (
         categoryOrder.filter(cat => grouped[cat] && grouped[cat].length > 0).map(cat => (
           <div key={cat} style={{ marginBottom: 32 }}>
-            {/* Category header */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8,
               padding: '8px 14px', background: (CAT_COLOR[cat] || '#374151') + '15',
@@ -82,9 +81,8 @@ export default function Inventory() {
               <span style={{ fontSize: '0.8em', color: '#6b7280' }}>({grouped[cat].length} items)</span>
             </div>
 
-            {/* Table header */}
             <div style={{
-              display: 'grid', gridTemplateColumns: '2.5fr 80px 160px 110px 100px',
+              display: 'grid', gridTemplateColumns: '2.5fr 120px 160px',
               gap: 12, padding: '8px 14px', fontWeight: 700, fontSize: '0.78em',
               color: '#374151', borderBottom: '2px solid #e5e7eb', background: '#f8fafc',
               borderRadius: '6px 6px 0 0'
@@ -92,18 +90,13 @@ export default function Inventory() {
               <div>Name</div>
               <div>Unit</div>
               <div>Units Purchased</div>
-              <div>Cost</div>
-              <div>Cost / Unit</div>
             </div>
 
-            {/* Rows */}
             {grouped[cat].map((item, idx) => {
-              const cost = item.costCents / 100;
               const qty = item.unitsPurchased || 1;
-              const costPerUnit = qty > 0 ? cost / qty : 0;
               return (
                 <div key={item.id} style={{
-                  display: 'grid', gridTemplateColumns: '2.5fr 80px 160px 110px 100px',
+                  display: 'grid', gridTemplateColumns: '2.5fr 120px 160px',
                   gap: 12, padding: '10px 14px', alignItems: 'center',
                   borderBottom: '1px solid #f3f4f6',
                   background: idx % 2 === 0 ? 'white' : '#fafafa'
@@ -113,41 +106,21 @@ export default function Inventory() {
                   <div style={{ fontSize: '0.85em' }}>
                     {qty}{item.presentation && item.presentation !== item.unit ? <span style={{ color: '#6b7280' }}> ({item.presentation})</span> : ''}
                   </div>
-                  <div style={{ fontSize: '0.88em', fontWeight: 600 }}>${cost.toFixed(2)}</div>
-                  <div style={{ fontSize: '0.88em', fontWeight: 700, color: CAT_COLOR[cat] || '#374151' }}>
-                    ${costPerUnit.toFixed(3)}
-                  </div>
                 </div>
               );
             })}
-
-            {/* Category subtotal */}
-            <div style={{
-              display: 'grid', gridTemplateColumns: '2.5fr 80px 160px 110px 100px',
-              gap: 12, padding: '8px 14px', borderTop: '2px solid #e5e7eb',
-              background: '#f8fafc', fontSize: '0.82em'
-            }}>
-              <div style={{ fontWeight: 700, color: '#374151' }}>Subtotal</div>
-              <div></div><div></div>
-              <div style={{ fontWeight: 700, color: '#374151' }}>
-                ${grouped[cat].reduce((s, i) => s + i.costCents / 100, 0).toFixed(2)}
-              </div>
-              <div></div>
-            </div>
           </div>
         ))
       )}
 
-      {/* Grand total */}
       {filtered.length > 0 && (
         <div style={{
           display: 'flex', justifyContent: 'flex-end', gap: 24, padding: '14px 20px',
           background: '#1e293b', color: 'white', borderRadius: 8, fontWeight: 700, fontSize: '0.92em'
         }}>
           <span>Total Items: {filtered.length}</span>
-          <span>Total Cost: ${filtered.reduce((s, i) => s + i.costCents / 100, 0).toFixed(2)}</span>
         </div>
       )}
     </div>
   );
-}
+      }
