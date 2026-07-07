@@ -1,19 +1,15 @@
 import { execSync } from 'child_process';
-console.log('🚀 Starting Chillers POS...');
 
-const run = (cmd) => {
-  try {
-    console.log('▶ ' + cmd);
-    execSync(cmd, { stdio: 'inherit' });
-  } catch (err) {
-    console.error('⚠️ Failed: ' + cmd + '\n' + err.message);
-  }
-};
+console.log('Starting Chillers POS...');
 
-run('npx prisma generate');
-run('npx prisma db push --accept-data-loss');
-run('node prisma/seed.js');
-run('node prisma/seed-packaging.js');
+try {
+  console.log('Setting up database...');
+  execSync('npx prisma generate', { stdio: 'inherit' });
+  execSync('npx prisma db push', { stdio: 'inherit' });
+  console.log('Database ready - existing data preserved!');
+} catch (error) {
+  console.log('Database setup failed, starting server anyway...', error.message);
+}
 
-console.log('🌐 Starting server...');
+console.log('Starting server...');
 execSync('node server/index.js', { stdio: 'inherit' });
