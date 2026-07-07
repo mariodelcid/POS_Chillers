@@ -8,18 +8,18 @@ datasource db {
 }
 
 model Item {
-  id          Int       @id @default(autoincrement())
-  name        String    @unique
-  category    String
-  priceCents  Int
-  stock       Int       @default(0)
-  imageUrl    String?
-  packaging   String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  category   String
+  priceCents Int
+  stock      Int      @default(0)
+  imageUrl   String?
+  packaging  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  saleItems   SaleItem[]
-  bomLines    BomLine[]
+  saleItems SaleItem[]
+  bomLines  BomLine[]
 }
 
 model BomLine {
@@ -32,8 +32,24 @@ model BomLine {
   unit            String         @default("each")
   inventoryItemId Int?
 
-  item            Item           @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  inventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id])
+  item          Item           @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem? @relation(fields: [inventoryItemId], references: [id])
+}
+
+model InventoryItem {
+  id             Int      @id @default(autoincrement())
+  name           String   @unique
+  category       String   @default("ingredient")
+  presentation   String   @default("each")
+  unit           String   @default("each")
+  unitsPurchased Int      @default(1)
+  costCents      Int      @default(0)
+  salesTax       Boolean  @default(false)
+  stock          Float    @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  bomLines BomLine[]
 }
 
 model PackagingMaterial {
@@ -58,7 +74,7 @@ model Sale {
 }
 
 model SaleItem {
-  id             Int  @id @default(autoincrement())
+  id             Int @id @default(autoincrement())
   saleId         Int
   itemId         Int
   quantity       Int
@@ -76,17 +92,8 @@ model Purchase {
   createdAt   DateTime @default(now())
 }
 
-model InventoryItem {
-  id             Int       @id @default(autoincrement())
-  name           String    @unique
-  category       String
-  presentation   String    @default("")
-  unit           String    @default("each")
-  unitsPurchased Float     @default(1)
-  costCents      Int       @default(0)
-  salesTax       Boolean   @default(false)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  bomLines BomLine[]
+model ClockEntry {
+  id        Int      @id @default(autoincrement())
+  action    String
+  createdAt DateTime @default(now())
 }
