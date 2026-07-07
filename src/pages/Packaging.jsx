@@ -9,6 +9,7 @@ export default function Inventory() {
   const [filterCat, setFilterCat] = useState('all');
   const [search, setSearch] = useState('');
   const [adding, setAdding] = useState({});
+  const [setting, setSetting] = useState({});
   const [saving, setSaving] = useState(null);
 
   const loadItems = () => {
@@ -38,17 +39,37 @@ export default function Inventory() {
 
   const categoryOrder = filterCat === 'all' ? ['ingredient', 'Packaging', 'disposables'] : [filterCat];
 
+  // Add to existing stock
   const handleAddStock = async (item) => {
     const amt = parseFloat(adding[item.id]);
     if (!amt || isNaN(amt)) return;
-    setSaving(item.id);
+    setSaving(item.id + '_add');
     try {
-      await fetch('/api/ingredients/' + item.id + '/restock', {
-        method: 'POST',
+      const newStock = (item.stock || 0) + amt;
+      await fetch('/api/ingredients/' + item.id, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quantity: amt }),
+        body: JSON.stringify({ stock: newStock }),
       });
       setAdding(a => ({ ...a, [item.id]: '' }));
+      loadItems();
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  // Set stock to exact value (for corrections)
+  const handleSetStock = async (item) => {
+    const val = parseFloat(setting[item.id]);
+    if (val === undefined || isNaN(val) || val < 0) return;
+    setSaving(item.id + '_set');
+    try {
+      await fetch('/api/ingredients/' + item.id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stock: val }),
+      });
+      setSetting(s => ({ ...s, [item.id]: '' }));
       loadItems();
     } finally {
       setSaving(null);
@@ -61,7 +82,7 @@ export default function Inventory() {
     <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
       <h2 style={{ margin: '0 0 4px 0' }}>Inventory</h2>
       <p style={{ color: '#6b7280', marginTop: 0, marginBottom: 20 }}>
-        Track stock levels. Enter an amount and click + to add to stock.
+        Use <b>+</b> to add to stock, or <b>Set</b> to correct to an exact value.
       </p>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -94,17 +115,17 @@ export default function Inventory() {
             </div>
 
             <div style={{
-              display: 'grid', gridTemplateColumns: '2fr 80px 100px 180px',
-              gap: 12, padding: '8px 14px', fontWeight: 700, fontSize: '0.78em',
+              display: 'grid', gridTemplateColumns: '2fr 70px 90px 170px 170px',
+              gap: 8, padding: '8px 14px', fontWeight: 700, fontSize: '0.78em',
               color: '#374151', borderBottom: '2px solid #e5e7eb', background: '#f8fafc', borderRadius: '6px 6px 0 0'
             }}>
-              <div>Name</div><div>Unit</div><div style={{ textAlign: 'center' }}>In Stock</div><div>Add to Stock</div>
+              <div>Name</div><div>Unit</div><div style={{ textAlign: 'center' }}>In Stock</div><div>Add to Stock</div><div>Set to Exact</div>
             </div>
 
             {grouped[cat].map((item, idx) => (
               <div key={item.id} style={{
-                display: 'grid', gridTemplateColumns: '2fr 80px 100px 180px',
-                gap: 12, padding: '10px 14px', alignItems: 'center',
+                display: 'grid', gridTemplateColumns: '2fr 70px 90px 170px 170px',
+                gap: 8, padding: '10px 14px', alignItems: 'center',
                 borderBottom: '1px solid #f3f4f6',
                 background: idx % 2 === 0 ? 'white' : '#fafafa'
               }}>
@@ -114,27 +135,43 @@ export default function Inventory() {
                   textAlign: 'center', fontWeight: 700, fontSize: '1em',
                   color: (item.stock || 0) <= 0 ? '#dc2626' : (item.stock || 0) < 5 ? '#f59e0b' : '#059669'
                 }}>
-                  {(item.stock || 0) % 1 === 0 ? (item.stock || 0) : (item.stock || 0).toFixed(2)}
+                  {(item.stock || 0) % 1 === 0 ? (item.stock || 0) : Number((item.stock || 0).toFixed(2))}
                 </div>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                   <input
-                    type="number" min="0" step="any" placeholder="qty"
+                    type="number" min="0" step="any" placeholder="add qty"
                     value={adding[item.id] || ''}
                     onChange={e => setAdding(a => ({ ...a, [item.id]: e.target.value }))}
                     onKeyDown={e => e.key === 'Enter' && handleAddStock(item)}
-                    style={{ width: 70, padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: '0.85em' }}
+                    style={{ width: 70, padding: '5px 6px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: '0.82em' }}
                   />
                   <button
                     onClick={() => handleAddStock(item)}
-                    disabled={saving === item.id || !adding[item.id]}
+                    disabled={saving === item.id + '_add' || !adding[item.id]}
                     style={{
-                      padding: '5px 12px', background: '#059669', color: 'white',
-                      border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: '0.85em',
-                      opacity: saving === item.id ? 0.6 : 1
+                      padding: '5px 10px', background: '#059669', color: 'white',
+                      border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: '0.82em',
+                      opacity: saving === item.id + '_add' ? 0.6 : 1
                     }}
-                  >
-                    {saving === item.id ? '...' : '+'}
-                  </button>
+                  >+</button>
+                </div>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <input
+                    type="number" min="0" step="any" placeholder="set to"
+                    value={setting[item.id] || ''}
+                    onChange={e => setSetting(s => ({ ...s, [item.id]: e.target.value }))}
+                    onKeyDown={e => e.key === 'Enter' && handleSetStock(item)}
+                    style={{ width: 70, padding: '5px 6px', border: '1px solid #fbbf24', borderRadius: 6, fontSize: '0.82em' }}
+                  />
+                  <button
+                    onClick={() => handleSetStock(item)}
+                    disabled={saving === item.id + '_set' || setting[item.id] === undefined || setting[item.id] === ''}
+                    style={{
+                      padding: '5px 8px', background: '#f59e0b', color: 'white',
+                      border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: '0.82em',
+                      opacity: saving === item.id + '_set' ? 0.6 : 1
+                    }}
+                  >Set</button>
                 </div>
               </div>
             ))}
@@ -150,4 +187,4 @@ export default function Inventory() {
       )}
     </div>
   );
-}
+      }
