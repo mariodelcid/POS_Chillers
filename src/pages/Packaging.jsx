@@ -1,224 +1,153 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 
-export default function Packaging() {
-  const [packaging, setPackaging] = useState([]);
+const CAT_COLOR = { ingredient: '#059669', packaging: '#2563eb', disposable: '#7c3aed' };
+const CAT_LABEL = { ingredient: 'Ingredient', packaging: 'Packaging', disposable: 'Disposable' };
+
+export default function Inventory() {
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState(null);
-  const [editValue, setEditValue] = useState('');
+  const [filterCat, setFilterCat] = useState('all');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
-    fetchPackaging();
+    fetch('/api/ingredients')
+      .then(r => r.json())
+      .then(data => { setItems(data); setLoading(false); })
+      .catch(() => setLoading(false));
   }, []);
 
-  const fetchPackaging = async () => {
-    try {
-      const response = await fetch('/api/packaging');
-      const data = await response.json();
-      
-      // Define the order for packaging materials
-      const packagingOrder = [
-        'elote chico',
-        'elote grande', 
-        'charolas',
-        '16clear',
-        '20clear',
-        '24clear'
-      ];
-      
-      // Sort the packaging materials according to the specified order
-      const sortedPackaging = data.sort((a, b) => {
-        const aIndex = packagingOrder.indexOf(a.name);
-        const bIndex = packagingOrder.indexOf(b.name);
-        
-        // If both items are in the order list, sort by their position
-        if (aIndex !== -1 && bIndex !== -1) {
-          return aIndex - bIndex;
-        }
-        // If only one is in the order list, prioritize it
-        if (aIndex !== -1) return -1;
-        if (bIndex !== -1) return 1;
-        // If neither is in the order list, sort alphabetically
-        return a.name.localeCompare(b.name);
-      });
-      
-      setPackaging(sortedPackaging);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching packaging:', error);
-      setLoading(false);
-    }
-  };
+  const filtered = useMemo(() => {
+    let list = filterCat === 'all' ? items : items.filter(i => i.category === filterCat);
+    if (search.trim()) list = list.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  }, [items, filterCat, search]);
 
-  const startEditing = (item) => {
-    setEditingId(item.id);
-    setEditValue(item.stock.toString());
-  };
+  const grouped = useMemo(() => {
+    const map = {};
+    filtered.forEach(i => {
+      const c = i.category || 'ingredient';
+      if (!map[c]) map[c] = [];
+      map[c].push(i);
+    });
+    return map;
+  }, [filtered]);
 
-  const cancelEditing = () => {
-    setEditingId(null);
-    setEditValue('');
-  };
+  const categoryOrder = filterCat === 'all' ? ['ingredient', 'packaging', 'disposable'] : [filterCat];
 
-  const saveEdit = async (id) => {
-    try {
-      const stock = parseInt(editValue);
-      if (isNaN(stock) || stock < 0) {
-        alert('Please enter a valid stock number');
-        return;
-      }
-
-      const response = await fetch(`/api/packaging/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stock }),
-      });
-
-      if (response.ok) {
-        await fetchPackaging(); // Refresh the list
-        setEditingId(null);
-        setEditValue('');
-      } else {
-        alert('Failed to update stock');
-      }
-    } catch (error) {
-      console.error('Error updating stock:', error);
-      alert('Failed to update stock');
-    }
-  };
-
-  if (loading) return <div style={{ padding: 16 }}>Loading packaging inventory...</div>;
+  if (loading) return <div style={{ padding: 24 }}>Loading inventory...</div>;
 
   return (
-    <div style={{ padding: 16 }}>
-      <h3 style={{ marginTop: 0 }}>Packaging Materials Inventory</h3>
-      <p style={{ opacity: 0.7, marginBottom: 24 }}>
-        Track containers and packaging materials. Stock automatically decreases when items are sold.
+    <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto' }}>
+      <h2 style={{ margin: '0 0 4px 0' }}>Inventory</h2>
+      <p style={{ color: '#6b7280', marginTop: 0, marginBottom: 20 }}>
+        All ingredients, packaging, and disposables entered in the Edit page. Cost per unit is calculated automatically.
       </p>
-      
-      <div style={{ display: 'grid', gap: 8 }}>
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: '2fr 1fr auto', 
-          gap: 16, 
-          padding: '12px 16px', 
-          fontWeight: 600, 
-          borderBottom: '2px solid #eee',
-          background: '#f9fafb'
-        }}>
-          <div>Packaging Material</div>
-          <div style={{ textAlign: 'center' }}>Current Stock</div>
-          <div style={{ textAlign: 'center' }}>Actions</div>
-        </div>
-        
-        {packaging.map((item) => (
-          <div key={item.id} style={{ 
-            display: 'grid', 
-            gridTemplateColumns: '2fr 1fr auto', 
-            gap: 16, 
-            padding: '12px 16px', 
-            alignItems: 'center', 
-            borderBottom: '1px solid #f3f4f6',
-            background: (item.name === 'sopas' && item.stock <= 3) || (item.name !== 'sopas' && item.stock <= 10) ? '#fef2f2' : '#fff'
+
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+        {['all', 'ingredient', 'packaging', 'disposable'].map(c => (
+          <button key={c} onClick={() => setFilterCat(c)} style={{
+            padding: '6px 16px', border: '1px solid #d1d5db', borderRadius: 20, cursor: 'pointer',
+            fontSize: '0.85em', fontWeight: filterCat === c ? 700 : 400,
+            background: filterCat === c ? '#1e293b' : 'white',
+            color: filterCat === c ? 'white' : '#374151'
           }}>
-            <div>
-              <div style={{ fontWeight: 600, textTransform: 'capitalize' }}>{item.name}</div>
-              {((item.name === 'sopas' && item.stock <= 3) || (item.name !== 'sopas' && item.stock <= 10)) && (
-                <div style={{ fontSize: '0.8em', color: '#dc2626', fontWeight: 500 }}>
-                  ⚠️ Low Stock Alert
-                </div>
-              )}
+            {c === 'all' ? 'All' : CAT_LABEL[c]}
+          </button>
+        ))}
+        <input
+          placeholder="Search..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{ padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: 20, fontSize: '0.85em', marginLeft: 'auto', width: 180 }}
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>
+          No items found. Add ingredients in the <strong>Edit</strong> page.
+        </div>
+      ) : (
+        categoryOrder.filter(cat => grouped[cat] && grouped[cat].length > 0).map(cat => (
+          <div key={cat} style={{ marginBottom: 32 }}>
+            {/* Category header */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8,
+              padding: '8px 14px', background: (CAT_COLOR[cat] || '#374151') + '15',
+              borderLeft: `4px solid ${CAT_COLOR[cat] || '#374151'}`, borderRadius: '0 6px 6px 0'
+            }}>
+              <span style={{ fontWeight: 700, color: CAT_COLOR[cat] || '#374151', fontSize: '0.95em' }}>
+                {CAT_LABEL[cat] || cat}
+              </span>
+              <span style={{ fontSize: '0.8em', color: '#6b7280' }}>({grouped[cat].length} items)</span>
             </div>
-            
-            <div style={{ textAlign: 'center' }}>
-              {editingId === item.id ? (
-                <input
-                  type="number"
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  style={{
-                    width: '80px',
-                    padding: '4px 8px',
-                    border: '1px solid #ddd',
-                    borderRadius: 4,
-                    textAlign: 'center'
-                  }}
-                  min="0"
-                />
-              ) : (
-                <span style={{
-                  fontWeight: 600,
-                  color: (item.name === 'sopas' && item.stock <= 3) || (item.name !== 'sopas' && item.stock <= 10) ? '#dc2626' : 
-                         (item.name === 'sopas' && item.stock <= 10) || (item.name !== 'sopas' && item.stock <= 25) ? '#f59e0b' : '#059669'
+
+            {/* Table header */}
+            <div style={{
+              display: 'grid', gridTemplateColumns: '2.5fr 80px 140px 120px 90px',
+              gap: 12, padding: '8px 14px', fontWeight: 700, fontSize: '0.78em',
+              color: '#374151', borderBottom: '2px solid #e5e7eb', background: '#f8fafc',
+              borderRadius: '6px 6px 0 0'
+            }}>
+              <div>Name</div>
+              <div>Unit</div>
+              <div>Units Purchased</div>
+              <div>Cost</div>
+              <div>Cost / Unit</div>
+            </div>
+
+            {/* Rows */}
+            {grouped[cat].map((item, idx) => {
+              const cost = item.costCents / 100;
+              const qty = item.presentationQty || 1;
+              const costPerUnit = qty > 0 ? cost / qty : 0;
+              return (
+                <div key={item.id} style={{
+                  display: 'grid', gridTemplateColumns: '2.5fr 80px 140px 120px 90px',
+                  gap: 12, padding: '10px 14px', alignItems: 'center',
+                  borderBottom: '1px solid #f3f4f6',
+                  background: idx % 2 === 0 ? 'white' : '#fafafa'
                 }}>
-                  {item.stock}
-                </span>
-              )}
-            </div>
-            
-            <div style={{ textAlign: 'center' }}>
-              {editingId === item.id ? (
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    onClick={() => saveEdit(item.id)}
-                    style={{
-                      padding: '4px 8px',
-                      background: '#059669',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: 4,
-                      cursor: 'pointer',
-                      fontSize: '0.8em'
-                    }}
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={cancelEditing}
-                    style={{
-                      padding: '4px 8px',
-                      background: '#6b7280',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: 4,
-                      cursor: 'pointer',
-                      fontSize: '0.8em'
-                    }}
-                  >
-                    Cancel
-                  </button>
+                  <div style={{ fontWeight: 600, fontSize: '0.92em' }}>{item.name}</div>
+                  <div style={{ fontSize: '0.85em', color: '#6b7280' }}>{item.unit}</div>
+                  <div style={{ fontSize: '0.85em' }}>
+                    {qty} {item.presentationUnit ? <span style={{ color: '#6b7280' }}>({item.presentationUnit})</span> : ''}
+                  </div>
+                  <div style={{ fontSize: '0.88em', fontWeight: 600 }}>${cost.toFixed(2)}</div>
+                  <div style={{ fontSize: '0.88em', fontWeight: 700, color: CAT_COLOR[cat] || '#374151' }}>
+                    ${costPerUnit.toFixed(3)}
+                  </div>
                 </div>
-              ) : (
-                <button
-                  onClick={() => startEditing(item)}
-                  style={{
-                    padding: '6px 12px',
-                    background: '#2563eb',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: 4,
-                    cursor: 'pointer',
-                    fontSize: '0.8em'
-                  }}
-                >
-                  Edit Stock
-                </button>
-              )}
+              );
+            })}
+
+            {/* Category subtotal */}
+            <div style={{
+              display: 'grid', gridTemplateColumns: '2.5fr 80px 140px 120px 90px',
+              gap: 12, padding: '8px 14px', borderTop: '2px solid #e5e7eb',
+              background: '#f8fafc', fontSize: '0.82em', color: '#6b7280'
+            }}>
+              <div style={{ fontWeight: 700, color: '#374151' }}>Subtotal</div>
+              <div></div><div></div>
+              <div style={{ fontWeight: 700, color: '#374151' }}>
+                ${grouped[cat].reduce((s, i) => s + i.costCents / 100, 0).toFixed(2)}
+              </div>
+              <div></div>
             </div>
           </div>
-        ))}
-      </div>
-      
-      <div style={{ marginTop: 24, padding: 16, background: '#f0f9ff', borderRadius: 8, border: '1px solid #0ea5e9' }}>
-        <h4 style={{ margin: '0 0 8px 0', color: '#0369a1' }}>How it works:</h4>
-        <ul style={{ margin: 0, paddingLeft: 20, color: '#0369a1' }}>
-          <li>When customers buy items, the corresponding packaging stock automatically decreases</li>
-          <li>Red background = critically low stock (≤10 units, sopas ≤3 units)</li>
-          <li>Yellow numbers = low stock (≤25 units, sopas ≤10 units)</li>
-          <li>Green numbers = good stock levels</li>
-          <li>Click "Edit Stock" to manually adjust quantities when restocking</li>
-        </ul>
-      </div>
+        ))
+      )}
+
+      {/* Grand total */}
+      {filtered.length > 0 && (
+        <div style={{
+          display: 'flex', justifyContent: 'flex-end', gap: 24, padding: '14px 14px',
+          background: '#1e293b', color: 'white', borderRadius: 8, fontWeight: 700, fontSize: '0.92em'
+        }}>
+          <span>Total Items: {filtered.length}</span>
+          <span>Total Cost: ${filtered.reduce((s, i) => s + i.costCents / 100, 0).toFixed(2)}</span>
+        </div>
+      )}
     </div>
   );
 }
-
