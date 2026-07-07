@@ -9,11 +9,8 @@ export default function App() {
         <NavLink to="/" style={{ textDecoration: 'none' }} end>POS</NavLink>
         <NavLink to="/inventory" style={{ textDecoration: 'none' }}>Inventory</NavLink>
         <NavLink to="/sales" style={{ textDecoration: 'none' }}>Sales</NavLink>
-        <NavLink to="/edit" style={{ textDecoration: 'none' }}>Recipes</NavLink>
       </header>
-      <main style={{ flex: 1, overflow: 'auto' }}>
-        <Outlet />
-      </main>
+      <main style={{ flex: 1, overflow: 'auto' }}><Outlet /></main>
     </div>
   );
 }
