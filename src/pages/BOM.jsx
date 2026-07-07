@@ -5,6 +5,12 @@ const inp = {
   fontSize: 13, background: '#f9fafb', width: '100%', color: '#111827', boxSizing: 'border-box',
 };
 
+function fmt(cents) { return '$' + (cents / 100).toFixed(2); }
+function fmtDate(d) {
+  const dt = new Date(d);
+  return dt.toLocaleDateString() + ' ' + dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
 export default function BOM() {
   const [activeTab, setActiveTab] = useState('library');
 
@@ -25,7 +31,15 @@ export default function BOM() {
   const [newLine, setNewLine] = useState({ ingredientId: '', quantity: '' });
   const [addingLine, setAddingLine] = useState(false);
 
+  // Transactions
+  const [sales, setSales] = useState([]);
+  const [loadingSales, setLoadingSales] = useState(false);
+  const [editingSaleId, setEditingSaleId] = useState(null);
+  const [saleEditForm, setSaleEditForm] = useState({ totalCents: '', paymentMethod: '' });
+  const [saleSaving, setSaleSaving] = useState(false);
+
   useEffect(() => { fetchIngredients(); fetchMenuItems(); }, []);
+  useEffect(() => { if (activeTab === 'transactions') fetchSales(); }, [activeTab]);
   useEffect(() => {
     if (selectedItemId) fetchBomForItem(selectedItemId);
     else setBomLines([]);
@@ -59,6 +73,16 @@ export default function BOM() {
     finally { setLoadingBom(false); }
   };
 
+  const fetchSales = async () => {
+    setLoadingSales(true);
+    try {
+      const res = await fetch('/api/sales');
+      const data = await res.json();
+      setSales(Array.isArray(data) ? data : []);
+    } catch (e) { setSales([]); }
+    finally { setLoadingSales(false); }
+  };
+
   const addIngredient = async () => {
     if (!addForm.name.trim() || !addForm.presentationQty || !addForm.totalCostDollars) {
       alert('Fill in all fields'); return;
@@ -71,11 +95,7 @@ export default function BOM() {
       const res = await fetch('/api/ingredients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: addForm.name.trim(), category: addForm.category,
-          unit: addForm.unit, presentationQty, presentationUnit: addForm.unit,
-          costCents, stock: 0,
-        }),
+        body: JSON.stringify({ name: addForm.name.trim(), category: addForm.category, unit: addForm.unit, presentationQty, presentationUnit: addForm.unit, costCents, stock: 0 }),
       });
       if (!res.ok) { const e = await res.json(); alert(e.error || 'Failed'); return; }
       setAddForm({ name: '', category: 'ingredient', unit: 'oz', presentationQty: '', totalCostDollars: '' });
@@ -86,14 +106,7 @@ export default function BOM() {
 
   const startEdit = (ing) => {
     setEditingId(ing.id);
-    setEditForm({
-      name: ing.name,
-      category: ing.category,
-      unit: ing.unit,
-      stock: ing.stock,
-      presentationQty: ing.presentationQty,
-      costCents: ing.costCents,
-    });
+    setEditForm({ name: ing.name, category: ing.category, unit: ing.unit, stock: ing.stock, presentationQty: ing.presentationQty, costCents: ing.costCents });
   };
 
   const saveEdit = async (id) => {
@@ -102,14 +115,7 @@ export default function BOM() {
       const res = await fetch('/api/ingredients/' + id, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: editForm.name,
-          category: editForm.category,
-          unit: editForm.unit,
-          stock: parseFloat(editForm.stock) || 0,
-          presentationQty: parseFloat(editForm.presentationQty) || 1,
-          costCents: parseInt(editForm.costCents) || 0,
-        }),
+        body: JSON.stringify({ name: editForm.name, category: editForm.category, unit: editForm.unit, stock: parseFloat(editForm.stock) || 0, presentationQty: parseFloat(editForm.presentationQty) || 1, costCents: parseInt(editForm.costCents) || 0 }),
       });
       if (!res.ok) { const e = await res.json(); alert(e.error || 'Failed'); return; }
       setEditingId(null);
@@ -129,12 +135,8 @@ export default function BOM() {
     setAddingLine(true);
     try {
       const res = await fetch('/api/bom/' + selectedItemId, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ingredientId: parseInt(newLine.ingredientId),
-          quantity: parseFloat(newLine.quantity),
-        }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ingredientId: parseInt(newLine.ingredientId), quantity: parseFloat(newLine.quantity) }),
       });
       if (!res.ok) { const e = await res.json(); alert(e.error || 'Failed'); return; }
       setNewLine({ ingredientId: '', quantity: '' });
@@ -149,20 +151,49 @@ export default function BOM() {
     await fetchBomForItem(selectedItemId);
   };
 
+  const startEditSale = (sale) => {
+    setEditingSaleId(sale.id);
+    setSaleEditForm({ totalCents: (sale.totalCents / 100).toFixed(2), paymentMethod: sale.paymentMethod });
+  };
+
+  const saveEditSale = async (id) => {
+    setSaleSaving(true);
+    try {
+      const res = await fetch('/api/sales/' + id, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ totalCents: Math.round(parseFloat(saleEditForm.totalCents) * 100), paymentMethod: saleEditForm.paymentMethod }),
+      });
+      if (!res.ok) { const e = await res.json(); alert(e.error || 'Failed'); return; }
+      setEditingSaleId(null);
+      await fetchSales();
+    } catch (e) { alert('Failed to save'); }
+    finally { setSaleSaving(false); }
+  };
+
+  const deleteSale = async (id) => {
+    if (!confirm('Delete this transaction? This cannot be undone.')) return;
+    await fetch('/api/sales/' + id, { method: 'DELETE' });
+    await fetchSales();
+  };
+
   const selectedItem = menuItems.find(i => i.id === selectedItemId);
   const totalBomCents = bomLines.reduce((sum, l) => sum + Math.round(l.quantity * l.ingredient.costCents), 0);
-
   const ingByCategory = {
     ingredient: ingredients.filter(i => i.category === 'ingredient'),
     Packaging: ingredients.filter(i => i.category === 'Packaging'),
     disposables: ingredients.filter(i => i.category === 'disposables'),
   };
 
+  const TABS = [
+    { id: 'library', label: 'Ingredient Library' },
+    { id: 'bom', label: 'Recipe / BOM Editor' },
+    { id: 'transactions', label: 'Transactions' },
+  ];
+
   return (
     <div style={{ height: 'calc(100vh - 56px)', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui, sans-serif' }}>
-      {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: '2px solid #e5e7eb', background: '#fff', padding: '0 8px' }}>
-        {[{ id: 'library', label: 'Ingredient Library' }, { id: 'bom', label: 'Recipe / BOM Editor' }].map(tab => (
+        {TABS.map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
             padding: '10px 20px', border: 'none', background: 'transparent',
             borderBottom: activeTab === tab.id ? '2px solid #2563eb' : '2px solid transparent',
@@ -175,7 +206,6 @@ export default function BOM() {
       {/* Ingredient Library */}
       {activeTab === 'library' && (
         <div style={{ flex: 1, overflowY: 'auto', padding: 24, background: '#f9fafb' }}>
-          {/* Add form */}
           <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '20px 24px', marginBottom: 24 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 14 }}>Add Ingredient / Supply</div>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr auto', gap: 10, alignItems: 'end' }}>
@@ -215,7 +245,6 @@ export default function BOM() {
             )}
           </div>
 
-          {/* Tables by category */}
           {[['ingredient', 'Ingredients'], ['Packaging', 'Packaging'], ['disposables', 'Disposables']].map(([cat, label]) => (
             <div key={cat} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
               <div style={{ padding: '10px 16px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb', fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -239,21 +268,19 @@ export default function BOM() {
                           <td style={{ padding: '9px 16px', fontWeight: 500 }}>{ing.name}</td>
                           <td style={{ padding: '9px 16px', textAlign: 'right' }}>{ing.unit}</td>
                           <td style={{ padding: '9px 16px', textAlign: 'right' }}>{ing.presentationQty}</td>
-                          <td style={{ padding: '9px 16px', textAlign: 'right', color: '#059669', fontWeight: 600 }}>
-                            ${(ing.costCents / 100).toFixed(4)}/{ing.unit}
-                          </td>
-                          <td style={{ padding: '9px 16px', textAlign: 'right', fontWeight: 700, color: (ing.stock || 0) <= 0 ? '#dc2626' : '#374151' }}>
-                            {ing.stock ?? 0} {ing.unit}
-                          </td>
-                          <td style={{ padding: '9px 16px', textAlign: 'right', display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                            <button onClick={() => editingId === ing.id ? setEditingId(null) : startEdit(ing)}
-                              style={{ fontSize: 11, padding: '3px 10px', border: '1px solid #93c5fd', borderRadius: 5, background: editingId === ing.id ? '#dbeafe' : '#fff', color: '#2563eb', cursor: 'pointer' }}>
-                              {editingId === ing.id ? 'Cancel' : 'Edit'}
-                            </button>
-                            <button onClick={() => deleteIngredient(ing.id)}
-                              style={{ fontSize: 11, padding: '3px 8px', border: '1px solid #fca5a5', borderRadius: 5, background: '#fff', color: '#dc2626', cursor: 'pointer' }}>
-                              Delete
-                            </button>
+                          <td style={{ padding: '9px 16px', textAlign: 'right', color: '#059669', fontWeight: 600 }}>${(ing.costCents / 100).toFixed(4)}/{ing.unit}</td>
+                          <td style={{ padding: '9px 16px', textAlign: 'right', fontWeight: 700, color: (ing.stock || 0) <= 0 ? '#dc2626' : '#374151' }}>{ing.stock ?? 0} {ing.unit}</td>
+                          <td style={{ padding: '9px 16px', textAlign: 'right' }}>
+                            <span style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                              <button onClick={() => editingId === ing.id ? setEditingId(null) : startEdit(ing)}
+                                style={{ fontSize: 11, padding: '3px 10px', border: '1px solid #93c5fd', borderRadius: 5, background: editingId === ing.id ? '#dbeafe' : '#fff', color: '#2563eb', cursor: 'pointer' }}>
+                                {editingId === ing.id ? 'Cancel' : 'Edit'}
+                              </button>
+                              <button onClick={() => deleteIngredient(ing.id)}
+                                style={{ fontSize: 11, padding: '3px 8px', border: '1px solid #fca5a5', borderRadius: 5, background: '#fff', color: '#dc2626', cursor: 'pointer' }}>
+                                Delete
+                              </button>
+                            </span>
                           </td>
                         </tr>
                         {editingId === ing.id && (
@@ -322,12 +349,9 @@ export default function BOM() {
               ))}
             </div>
           </div>
-
           <div style={{ overflow: 'hidden', background: '#fff', display: 'flex', flexDirection: 'column' }}>
             {!selectedItem ? (
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: 14 }}>
-                ← Select a menu item to edit its recipe
-              </div>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: 14 }}>← Select a menu item to edit its recipe</div>
             ) : (
               <>
                 <div style={{ padding: '14px 24px 12px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
@@ -337,42 +361,31 @@ export default function BOM() {
                 <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px' }}>
                   {loadingBom ? <div style={{ color: '#9ca3af' }}>Loading...</div> : (
                     <>
-                      {bomLines.length === 0 && (
-                        <div style={{ color: '#9ca3af', fontSize: 13, marginBottom: 16, fontStyle: 'italic' }}>No ingredients in recipe yet.</div>
-                      )}
+                      {bomLines.length === 0 && <div style={{ color: '#9ca3af', fontSize: 13, marginBottom: 16, fontStyle: 'italic' }}>No ingredients in recipe yet.</div>}
                       {bomLines.map(line => (
                         <div key={line.id} style={{ display: 'grid', gridTemplateColumns: '1fr 100px 110px 50px', gap: 8, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f3f4f6' }}>
                           <span style={{ fontSize: 13, fontWeight: 500 }}>{line.ingredient.name}</span>
                           <span style={{ fontSize: 12, color: '#6b7280', textAlign: 'right' }}>{line.quantity} {line.ingredient.unit}</span>
-                          <span style={{ fontSize: 13, fontWeight: 600, textAlign: 'right', color: '#374151' }}>
-                            ${(line.quantity * line.ingredient.costCents / 100).toFixed(4)}
-                          </span>
+                          <span style={{ fontSize: 13, fontWeight: 600, textAlign: 'right' }}>${(line.quantity * line.ingredient.costCents / 100).toFixed(4)}</span>
                           <button onClick={() => deleteBomLine(line.id)}
-                            style={{ fontSize: 11, padding: '3px 7px', border: '1px solid #fca5a5', borderRadius: 5, background: '#fff', color: '#dc2626', cursor: 'pointer' }}>
-                            x
-                          </button>
+                            style={{ fontSize: 11, padding: '3px 7px', border: '1px solid #fca5a5', borderRadius: 5, background: '#fff', color: '#dc2626', cursor: 'pointer' }}>x</button>
                         </div>
                       ))}
                     </>
                   )}
-                  <div style={{ marginTop: 20, padding: '16px', background: '#f9fafb', borderRadius: 8, border: '1px solid #e5e7eb' }}>
+                  <div style={{ marginTop: 20, padding: 16, background: '#f9fafb', borderRadius: 8, border: '1px solid #e5e7eb' }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Add to Recipe</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px auto', gap: 8, alignItems: 'end' }}>
                       <div>
                         <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>Ingredient</div>
                         <select value={newLine.ingredientId} onChange={e => setNewLine(l => ({ ...l, ingredientId: e.target.value }))} style={inp}>
                           <option value="">Select ingredient...</option>
-                          {ingredients.map(ing => (
-                            <option key={ing.id} value={ing.id}>
-                              {ing.name} (${(ing.costCents / 100).toFixed(4)}/{ing.unit})
-                            </option>
-                          ))}
+                          {ingredients.map(ing => <option key={ing.id} value={ing.id}>{ing.name} (${(ing.costCents / 100).toFixed(4)}/{ing.unit})</option>)}
                         </select>
                       </div>
                       <div>
                         <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 4 }}>Quantity used</div>
-                        <input type="number" value={newLine.quantity} onChange={e => setNewLine(l => ({ ...l, quantity: e.target.value }))}
-                          placeholder="e.g. 8" style={{ ...inp, textAlign: 'right' }} min="0.001" step="any" />
+                        <input type="number" value={newLine.quantity} onChange={e => setNewLine(l => ({ ...l, quantity: e.target.value }))} placeholder="e.g. 8" style={{ ...inp, textAlign: 'right' }} min="0.001" step="any" />
                       </div>
                       <button onClick={addBomLine} disabled={addingLine}
                         style={{ padding: '8px 18px', background: addingLine ? '#93c5fd' : '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', height: 36, alignSelf: 'flex-end' }}>
@@ -381,29 +394,109 @@ export default function BOM() {
                     </div>
                     {newLine.ingredientId && newLine.quantity && (() => {
                       const ing = ingredients.find(i => i.id === parseInt(newLine.ingredientId));
-                      return ing ? (
-                        <div style={{ marginTop: 6, fontSize: 12, color: '#059669' }}>
-                          Cost for this line: ${(ing.costCents * parseFloat(newLine.quantity) / 100).toFixed(4)}
-                        </div>
-                      ) : null;
+                      return ing ? <div style={{ marginTop: 6, fontSize: 12, color: '#059669' }}>Cost: ${(ing.costCents * parseFloat(newLine.quantity) / 100).toFixed(4)}</div> : null;
                     })()}
                   </div>
                 </div>
                 <div style={{ padding: '12px 24px', borderTop: '1px solid #e5e7eb', background: '#f9fafb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>Total Recipe Cost</span>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>Total Recipe Cost</span>
                   {totalBomCents > 0 ? (
                     <span style={{ fontSize: 14, fontWeight: 700, color: (selectedItem.priceCents - totalBomCents) >= 0 ? '#059669' : '#dc2626' }}>
-                      ${(totalBomCents / 100).toFixed(4)} &middot; Margin: ${((selectedItem.priceCents - totalBomCents) / 100).toFixed(2)} ({Math.round((selectedItem.priceCents - totalBomCents) / selectedItem.priceCents * 100)}%)
+                      ${(totalBomCents / 100).toFixed(4)} · Margin: ${((selectedItem.priceCents - totalBomCents) / 100).toFixed(2)} ({Math.round((selectedItem.priceCents - totalBomCents) / selectedItem.priceCents * 100)}%)
                     </span>
-                  ) : (
-                    <span style={{ fontSize: 13, color: '#9ca3af' }}>No recipe cost yet</span>
-                  )}
+                  ) : <span style={{ fontSize: 13, color: '#9ca3af' }}>No recipe cost yet</span>}
                 </div>
               </>
             )}
           </div>
         </div>
       )}
+
+      {/* Transactions */}
+      {activeTab === 'transactions' && (
+        <div style={{ flex: 1, overflowY: 'auto', padding: 24, background: '#f9fafb' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>Recent Transactions</div>
+            <button onClick={fetchSales} style={{ padding: '6px 14px', background: '#fff', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>Refresh</button>
+          </div>
+          {loadingSales ? (
+            <div style={{ color: '#9ca3af', padding: 24 }}>Loading...</div>
+          ) : sales.length === 0 ? (
+            <div style={{ color: '#9ca3af', padding: 24 }}>No transactions found.</div>
+          ) : (
+            <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: '#f9fafb' }}>
+                    {['Date', 'Items', 'Payment', 'Total', 'Actions'].map(h => (
+                      <th key={h} style={{ padding: '10px 16px', textAlign: h === 'Date' || h === 'Items' ? 'left' : 'right', color: '#6b7280', fontWeight: 600, fontSize: 12 }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sales.map((sale, i) => (
+                    <React.Fragment key={sale.id}>
+                      <tr style={{ borderTop: '1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                        <td style={{ padding: '10px 16px', color: '#6b7280', fontSize: 12 }}>{fmtDate(sale.createdAt)}</td>
+                        <td style={{ padding: '10px 16px' }}>
+                          {sale.items && sale.items.map(si => (
+                            <span key={si.id} style={{ display: 'inline-block', marginRight: 6, background: '#f3f4f6', borderRadius: 4, padding: '2px 6px', fontSize: 12 }}>
+                              {si.quantity}× {si.item?.name || '?'}
+                            </span>
+                          ))}
+                        </td>
+                        <td style={{ padding: '10px 16px', textAlign: 'right' }}>
+                          <span style={{ background: sale.paymentMethod === 'cash' ? '#d1fae5' : '#dbeafe', color: sale.paymentMethod === 'cash' ? '#065f46' : '#1e40af', borderRadius: 4, padding: '2px 8px', fontSize: 12, fontWeight: 600 }}>
+                            {sale.paymentMethod}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 700 }}>{fmt(sale.totalCents)}</td>
+                        <td style={{ padding: '10px 16px', textAlign: 'right' }}>
+                          <span style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                            <button onClick={() => editingSaleId === sale.id ? setEditingSaleId(null) : startEditSale(sale)}
+                              style={{ fontSize: 11, padding: '3px 10px', border: '1px solid #93c5fd', borderRadius: 5, background: editingSaleId === sale.id ? '#dbeafe' : '#fff', color: '#2563eb', cursor: 'pointer' }}>
+                              {editingSaleId === sale.id ? 'Cancel' : 'Edit'}
+                            </button>
+                            <button onClick={() => deleteSale(sale.id)}
+                              style={{ fontSize: 11, padding: '3px 8px', border: '1px solid #fca5a5', borderRadius: 5, background: '#fff', color: '#dc2626', cursor: 'pointer' }}>
+                              Delete
+                            </button>
+                          </span>
+                        </td>
+                      </tr>
+                      {editingSaleId === sale.id && (
+                        <tr style={{ background: '#eff6ff', borderTop: '1px solid #bfdbfe' }}>
+                          <td colSpan={5} style={{ padding: '12px 16px' }}>
+                            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
+                              <div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 3 }}>Total ($)</div>
+                                <input type="number" step="0.01" value={saleEditForm.totalCents}
+                                  onChange={e => setSaleEditForm(f => ({ ...f, totalCents: e.target.value }))}
+                                  style={{ ...inp, width: 120, textAlign: 'right' }} />
+                              </div>
+                              <div>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 3 }}>Payment Method</div>
+                                <select value={saleEditForm.paymentMethod} onChange={e => setSaleEditForm(f => ({ ...f, paymentMethod: e.target.value }))} style={{ ...inp, width: 130 }}>
+                                  <option value="cash">Cash</option>
+                                  <option value="credit">Credit</option>
+                                </select>
+                              </div>
+                              <button onClick={() => saveEditSale(sale.id)} disabled={saleSaving}
+                                style={{ padding: '8px 20px', background: saleSaving ? '#6ee7b7' : '#059669', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                                {saleSaving ? '...' : 'Save'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
-                         }
+            }
