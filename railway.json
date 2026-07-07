@@ -7,7 +7,7 @@
           "nixPkgs": ["nodejs_20"]
         },
         "install": {
-          "cmds": ["npm ci"]
+          "cmds": ["npm install"]
         },
         "build": {
           "cmds": ["npm run build"]
@@ -19,8 +19,6 @@
     }
   },
   "deploy": {
-    "preDeployCommand": "npx prisma db push --accept-data-loss"
+    "preDeployCommand": "npx prisma db push"
   }
 }
-
-
