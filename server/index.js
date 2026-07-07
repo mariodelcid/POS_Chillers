@@ -9,24 +9,13 @@ dotenv.config();
 
 const prisma = new PrismaClient();
 const app = express();
-
 app.use(express.json());
-app.use(cors({
-  origin: process.env.CLIENT_ORIGIN?.split(',') || '*',
-}));
+app.use(cors({ origin: process.env.CLIENT_ORIGIN?.split(',') || '*' }));
 
-// Health
-app.get('/api/health', (_req, res) => {
-  res.json({ ok: true });
-});
+app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
-// Items
+// Items (menu)
 app.get('/api/items', async (_req, res) => {
-  const items = await prisma.item.findMany({ orderBy: [{ category: 'asc' }, { name: 'asc' }] });
-  res.json(items);
-});
-
-app.get('/api/inventory', async (_req, res) => {
   const items = await prisma.item.findMany({ orderBy: [{ category: 'asc' }, { name: 'asc' }] });
   res.json(items);
 });
@@ -34,35 +23,50 @@ app.get('/api/inventory', async (_req, res) => {
 app.post('/api/items/bulk', async (req, res) => {
   const { items } = req.body;
   if (!Array.isArray(items)) return res.status(400).json({ error: 'items must be an array' });
-  const ops = items.map((it) =>
-    prisma.item.upsert({
-      where: { name: it.name },
-      update: { category: it.category, priceCents: it.priceCents, stock: typeof it.stock === 'number' ? it.stock : undefined, imageUrl: it.imageUrl || null },
-      create: { name: it.name, category: it.category, priceCents: it.priceCents, stock: typeof it.stock === 'number' ? it.stock : 0, imageUrl: it.imageUrl || null },
-    })
-  );
+  const ops = items.map(it => prisma.item.upsert({
+    where: { name: it.name },
+    update: { category: it.category, priceCents: it.priceCents, stock: typeof it.stock === 'number' ? it.stock : undefined, imageUrl: it.imageUrl || null },
+    create: { name: it.name, category: it.category, priceCents: it.priceCents, stock: typeof it.stock === 'number' ? it.stock : 0, imageUrl: it.imageUrl || null },
+  }));
   await prisma.$transaction(ops);
   res.json({ ok: true });
 });
 
-app.put('/api/items/:id', async (req, res) => {
+// Inventory items (ingredients/packaging/disposables)
+app.get('/api/inventory-items', async (_req, res) => {
   try {
-    const { id } = req.params;
-    const { name, category, priceCents, stock } = req.body;
-    const data = {};
-    if (name !== undefined) data.name = name;
-    if (category !== undefined) data.category = category;
-    if (priceCents !== undefined) data.priceCents = Math.round(Number(priceCents));
-    if (stock !== undefined) data.stock = Math.round(Number(stock));
-    const item = await prisma.item.update({ where: { id: parseInt(id) }, data });
-    res.json(item);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to update item' });
-  }
+    const items = await prisma.inventoryItem.findMany({ orderBy: [{ category: 'asc' }, { name: 'asc' }] });
+    res.json(items);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Packaging
+app.post('/api/inventory-items', async (req, res) => {
+  try {
+    const { name, category, presentation, unit, unitsPurchased, costCents, salesTax } = req.body;
+    const item = await prisma.inventoryItem.upsert({
+      where: { name },
+      update: { category, presentation, unit, unitsPurchased, costCents, salesTax },
+      create: { name, category: category || 'ingredient', presentation: presentation || unit || 'each', unit: unit || 'each', unitsPurchased: unitsPurchased || 1, costCents: costCents || 0, salesTax: salesTax || false },
+    });
+    res.status(201).json(item);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Update stock for an inventory item
+app.patch('/api/inventory-items/:id/stock', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { add } = req.body; // positive = add stock, negative = remove
+    if (typeof add !== 'number') return res.status(400).json({ error: 'add must be a number' });
+    const item = await prisma.inventoryItem.update({
+      where: { id },
+      data: { stock: { increment: add } },
+    });
+    res.json(item);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Packaging materials
 app.get('/api/packaging', async (_req, res) => {
   const packaging = await prisma.packagingMaterial.findMany({ orderBy: { name: 'asc' } });
   res.json(packaging);
@@ -75,268 +79,74 @@ app.put('/api/packaging/:id', async (req, res) => {
   try {
     const updated = await prisma.packagingMaterial.update({ where: { id: parseInt(id) }, data: { stock } });
     res.json(updated);
-  } catch (error) {
-    res.status(404).json({ error: 'Packaging material not found' });
-  }
-});
-
-// BOM
-app.get('/api/bom', async (_req, res) => {
-  try {
-    const items = await prisma.item.findMany({
-      orderBy: [{ category: 'asc' }, { name: 'asc' }],
-      include: { bomLines: true },
-    });
-    res.json(items);
-  } catch (error) {
-    console.error('Error fetching BOM:', error);
-    res.status(500).json({ error: 'Failed to fetch BOM data' });
-  }
-});
-
-app.post('/api/bom', async (req, res) => {
-  try {
-    const { itemId, ingredient, costCents, type, quantity, unit, inventoryItemId } = req.body;
-    if (!itemId || !ingredient || typeof costCents !== 'number' || costCents < 0) {
-      return res.status(400).json({ error: 'Invalid BOM line data' });
-    }
-    const bomLine = await prisma.bomLine.create({
-      data: {
-        itemId: parseInt(itemId),
-        ingredient: ingredient.trim(),
-        costCents,
-        type: type || 'ingredient',
-        quantity: quantity ? parseFloat(quantity) : 1,
-        unit: unit || 'each',
-        ...(inventoryItemId && { inventoryItemId: parseInt(inventoryItemId) }),
-      },
-    });
-    res.json(bomLine);
-  } catch (error) {
-    console.error('Error creating BOM line:', error);
-    res.status(500).json({ error: 'Failed to create BOM line' });
-  }
-});
-
-app.put('/api/bom/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { ingredient, costCents, type, quantity, unit, inventoryItemId } = req.body;
-    if (!ingredient || typeof costCents !== 'number' || costCents < 0) {
-      return res.status(400).json({ error: 'Invalid BOM line data' });
-    }
-    const bomLine = await prisma.bomLine.update({
-      where: { id: parseInt(id) },
-      data: {
-        ingredient: ingredient.trim(),
-        costCents,
-        ...(type && { type }),
-        quantity: quantity ? parseFloat(quantity) : 1,
-        ...(unit && { unit }),
-        ...(inventoryItemId !== undefined && { inventoryItemId: inventoryItemId ? parseInt(inventoryItemId) : null }),
-      },
-    });
-    res.json(bomLine);
-  } catch (error) {
-    console.error('Error updating BOM line:', error);
-    res.status(500).json({ error: 'Failed to update BOM line' });
-  }
-});
-
-app.delete('/api/bom/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    await prisma.bomLine.delete({ where: { id: parseInt(id) } });
-    res.json({ ok: true });
-  } catch (error) {
-    console.error('Error deleting BOM line:', error);
-    res.status(500).json({ error: 'Failed to delete BOM line' });
-  }
-});
-
-// Daily P&L
-app.get('/api/daily-pnl', async (req, res) => {
-  try {
-    const { date } = req.query;
-    const day = date ? new Date(date + 'T00:00:00') : new Date();
-    const start = new Date(day); start.setHours(0, 0, 0, 0);
-    const end = new Date(day); end.setHours(23, 59, 59, 999);
-    const sales = await prisma.sale.findMany({
-      where: { createdAt: { gte: start, lte: end } },
-      include: { items: { include: { item: { include: { bomLines: true } } } } },
-    });
-    let revenueCents = 0, cogsCents = 0;
-    const itemBreakdown = {};
-    for (const sale of sales) {
-      revenueCents += sale.totalCents;
-      for (const si of sale.items) {
-        const unitBomCost = si.item.bomLines.reduce((s, l) => s + l.costCents, 0);
-        const itemCogs = unitBomCost * si.quantity;
-        cogsCents += itemCogs;
-        const name = si.item.name;
-        if (!itemBreakdown[name]) itemBreakdown[name] = { qty: 0, revenue: 0, cogs: 0 };
-        itemBreakdown[name].qty += si.quantity;
-        itemBreakdown[name].revenue += si.lineTotalCents;
-        itemBreakdown[name].cogs += itemCogs;
-      }
-    }
-    const profitCents = revenueCents - cogsCents;
-    const marginPct = revenueCents > 0 ? Math.round((profitCents / revenueCents) * 100) : 0;
-    res.json({
-      date: day.toISOString().split('T')[0],
-      revenueCents, cogsCents, profitCents, marginPct,
-      transactions: sales.length,
-      itemBreakdown: Object.entries(itemBreakdown).map(([name, d]) => ({ name, ...d })),
-    });
-  } catch (err) {
-    console.error('Error fetching daily P&L:', err);
-    res.status(500).json({ error: 'Failed to calculate P&L' });
-  }
-});
-
-// Inventory Items
-app.get('/api/inventory-items', async (req, res) => {
-  try {
-    const { category } = req.query;
-    const where = category ? { category } : {};
-    const items = await prisma.inventoryItem.findMany({ where, orderBy: [{ category: 'asc' }, { name: 'asc' }] });
-    res.json(items);
-  } catch (error) {
-    console.error('Error fetching inventory items:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/api/inventory-items', async (req, res) => {
-  try {
-    const { name, category, presentation, unit, unitsPurchased, costCents, salesTax } = req.body;
-    if (!name || !category) return res.status(400).json({ error: 'name and category are required' });
-    const item = await prisma.inventoryItem.create({
-      data: {
-        name,
-        category,
-        presentation: presentation || '',
-        unit: unit || 'each',
-        unitsPurchased: parseFloat(unitsPurchased) || 1,
-        costCents: parseInt(costCents) || 0,
-        salesTax: salesTax === true || salesTax === 'true',
-      },
-    });
-    res.status(201).json(item);
-  } catch (error) {
-    if (error.code === 'P2002') return res.status(409).json({ error: 'An item with that name already exists' });
-    console.error('Error creating inventory item:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.put('/api/inventory-items/:id', async (req, res) => {
-  try {
-    const id = parseInt(req.params.id);
-    const { name, category, presentation, unit, unitsPurchased, costCents, salesTax } = req.body;
-    const item = await prisma.inventoryItem.update({
-      where: { id },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(category !== undefined && { category }),
-        ...(presentation !== undefined && { presentation }),
-        ...(unit !== undefined && { unit }),
-        ...(unitsPurchased !== undefined && { unitsPurchased: parseFloat(unitsPurchased) }),
-        ...(costCents !== undefined && { costCents: parseInt(costCents) }),
-        ...(salesTax !== undefined && { salesTax: salesTax === true || salesTax === 'true' }),
-      },
-    });
-    res.json(item);
-  } catch (error) {
-    console.error('Error updating inventory item:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.delete('/api/inventory-items/:id', async (req, res) => {
-  try {
-    const id = parseInt(req.params.id);
-    await prisma.inventoryItem.delete({ where: { id } });
-    res.json({ ok: true });
-  } catch (error) {
-    console.error('Error deleting inventory item:', error);
-    res.status(500).json({ error: error.message });
-  }
+  } catch { res.status(404).json({ error: 'Not found' }); }
 });
 
 // Sales
 app.get('/api/sales', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    let whereClause = {};
+    const where = {};
     if (startDate || endDate) {
-      whereClause.createdAt = {};
-      if (startDate) whereClause.createdAt.gte = new Date(startDate);
-      if (endDate) { const e = new Date(endDate); e.setHours(23, 59, 59, 999); whereClause.createdAt.lte = e; }
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = new Date(startDate);
+      if (endDate) { const e = new Date(endDate); e.setHours(23,59,59,999); where.createdAt.lte = e; }
     }
-    const sales = await prisma.sale.findMany({ where: whereClause, include: { items: { include: { item: true } } }, orderBy: { createdAt: 'desc' } });
+    const sales = await prisma.sale.findMany({ where, include: { items: { include: { item: true } } }, orderBy: { createdAt: 'desc' } });
     res.json(sales);
-  } catch (error) {
-    console.error('Error fetching sales:', error);
-    res.status(500).json({ error: 'Failed to fetch sales' });
-  }
+  } catch (e) { res.status(500).json({ error: 'Failed to fetch sales' }); }
 });
 
 app.get('/api/sales/stats', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    let whereClause = {};
+    const where = {};
     if (startDate || endDate) {
-      whereClause.createdAt = {};
-      if (startDate) whereClause.createdAt.gte = new Date(startDate);
-      if (endDate) { const e = new Date(endDate); e.setHours(23, 59, 59, 999); whereClause.createdAt.lte = e; }
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = new Date(startDate);
+      if (endDate) { const e = new Date(endDate); e.setHours(23,59,59,999); where.createdAt.lte = e; }
     }
     const [sales, purchases] = await Promise.all([
-      prisma.sale.findMany({ where: whereClause, include: { items: { include: { item: true } } }, orderBy: { createdAt: 'desc' } }),
-      prisma.purchase.findMany({ where: whereClause, orderBy: { createdAt: 'desc' } }),
+      prisma.sale.findMany({ where, include: { items: { include: { item: true } } }, orderBy: { createdAt: 'desc' } }),
+      prisma.purchase.findMany({ where, orderBy: { createdAt: 'desc' } }),
     ]);
-    const totalSales = sales.reduce((sum, s) => sum + s.totalCents, 0);
-    const cashSales = sales.filter(s => s.paymentMethod === 'cash').reduce((sum, s) => sum + s.totalCents, 0);
-    const creditSales = sales.filter(s => s.paymentMethod === 'credit').reduce((sum, s) => sum + s.totalCents, 0);
-    const totalPurchases = purchases.reduce((sum, p) => sum + p.amountCents, 0);
+    const totalSales = sales.reduce((s, x) => s + x.totalCents, 0);
+    const cashSales = sales.filter(x => x.paymentMethod === 'cash').reduce((s, x) => s + x.totalCents, 0);
+    const creditSales = sales.filter(x => x.paymentMethod === 'credit').reduce((s, x) => s + x.totalCents, 0);
+    const totalPurchases = purchases.reduce((s, x) => s + x.amountCents, 0);
     const itemStats = {};
-    sales.forEach(sale => {
-      sale.items.forEach(item => {
-        const n = item.item.name;
-        if (!itemStats[n]) itemStats[n] = { quantity: 0, revenue: 0, category: item.item.category };
-        itemStats[n].quantity += item.quantity;
-        itemStats[n].revenue += item.lineTotalCents;
-      });
-    });
+    sales.forEach(sale => sale.items.forEach(si => {
+      const n = si.item.name;
+      if (!itemStats[n]) itemStats[n] = { quantity: 0, revenue: 0, category: si.item.category };
+      itemStats[n].quantity += si.quantity;
+      itemStats[n].revenue += si.lineTotalCents;
+    }));
     const topItems = Object.entries(itemStats).map(([name, s]) => ({ name, ...s })).sort((a, b) => b.quantity - a.quantity).slice(0, 10);
     res.json({ summary: { totalSales, cashSales, creditSales, totalPurchases, netCash: cashSales - totalPurchases, totalTransactions: sales.length }, topItems, sales, purchases });
-  } catch (error) {
-    console.error('Error fetching sales stats:', error);
-    res.status(500).json({ error: 'Failed to fetch sales statistics' });
-  }
+  } catch (e) { res.status(500).json({ error: 'Failed to fetch stats' }); }
 });
 
 app.post('/api/sales', async (req, res) => {
   try {
     const { items, paymentMethod, amountTenderedCents } = req.body;
-    if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'No items in sale' });
+    if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'No items' });
     if (!['cash', 'credit'].includes(paymentMethod)) return res.status(400).json({ error: 'Invalid payment method' });
     const dbItems = await prisma.item.findMany({ where: { id: { in: items.map(i => i.itemId) } } });
     const idToItem = new Map(dbItems.map(i => [i.id, i]));
     let subtotalCents = 0;
     for (const line of items) {
       const dbItem = idToItem.get(line.itemId);
-      if (!dbItem) return res.status(400).json({ error: `Item not found: ${line.itemId}` });
-      subtotalCents += Math.round(dbItem.priceCents * line.quantity);
+      if (!dbItem) return res.status(400).json({ error: 'Item not found' });
+      subtotalCents += dbItem.priceCents * line.quantity;
     }
     const totalCents = subtotalCents;
     let changeDueCents = 0;
     if (paymentMethod === 'cash') {
-      if (typeof amountTenderedCents !== 'number') return res.status(400).json({ error: 'amountTenderedCents required for cash' });
-      if (amountTenderedCents < totalCents) return res.status(400).json({ error: 'Insufficient cash tendered' });
+      if (typeof amountTenderedCents !== 'number') return res.status(400).json({ error: 'amountTenderedCents required' });
+      if (amountTenderedCents < totalCents) return res.status(400).json({ error: 'Insufficient cash' });
       changeDueCents = amountTenderedCents - totalCents;
     }
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async tx => {
       const sale = await tx.sale.create({ data: { paymentMethod, subtotalCents, taxCents: 0, totalCents, amountTenderedCents: paymentMethod === 'cash' ? amountTenderedCents : null, changeDueCents: paymentMethod === 'cash' ? changeDueCents : null } });
       const packagingUsage = new Map();
       for (const line of items) {
@@ -349,28 +159,22 @@ app.post('/api/sales', async (req, res) => {
       return sale;
     });
     res.json({ ok: true, saleId: result.id, totalCents, changeDueCents });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Server error' }); }
 });
 
 // Purchases
 app.get('/api/purchases', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    let whereClause = {};
+    const where = {};
     if (startDate || endDate) {
-      whereClause.createdAt = {};
-      if (startDate) whereClause.createdAt.gte = new Date(startDate);
-      if (endDate) { const e = new Date(endDate); e.setHours(23, 59, 59, 999); whereClause.createdAt.lte = e; }
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = new Date(startDate);
+      if (endDate) { const e = new Date(endDate); e.setHours(23,59,59,999); where.createdAt.lte = e; }
     }
-    const purchases = await prisma.purchase.findMany({ where: whereClause, orderBy: { createdAt: 'desc' } });
+    const purchases = await prisma.purchase.findMany({ where, orderBy: { createdAt: 'desc' } });
     res.json(purchases);
-  } catch (error) {
-    console.error('Error fetching purchases:', error);
-    res.status(500).json({ error: 'Failed to fetch purchases' });
-  }
+  } catch (e) { res.status(500).json({ error: 'Failed' }); }
 });
 
 app.post('/api/purchases', async (req, res) => {
@@ -378,11 +182,25 @@ app.post('/api/purchases', async (req, res) => {
     const { amountCents, description } = req.body;
     if (typeof amountCents !== 'number' || amountCents <= 0) return res.status(400).json({ error: 'Invalid amount' });
     const purchase = await prisma.purchase.create({ data: { amountCents, description: description || 'Daily purchase' } });
-    res.json({ ok: true, purchaseId: purchase.id, amountCents });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
+    res.json({ ok: true, purchaseId: purchase.id });
+  } catch (e) { res.status(500).json({ error: 'Server error' }); }
+});
+
+// Clock
+app.post('/api/clock', async (req, res) => {
+  try {
+    const { action } = req.body;
+    if (!['in', 'out'].includes(action)) return res.status(400).json({ error: 'Invalid action' });
+    const entry = await prisma.clockEntry.create({ data: { action } });
+    res.json({ ok: true, entry });
+  } catch (e) { res.status(500).json({ error: 'Server error' }); }
+});
+
+app.get('/api/clock', async (_req, res) => {
+  try {
+    const entries = await prisma.clockEntry.findMany({ orderBy: { createdAt: 'desc' }, take: 100 });
+    res.json(entries);
+  } catch (e) { res.status(500).json({ error: 'Server error' }); }
 });
 
 // Serve frontend
@@ -396,4 +214,4 @@ app.get('*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => { console.log(`Server listening on ${PORT}`); });
+app.listen(PORT, () => console.log('Server listening on ' + PORT));
