@@ -1,38 +1,36 @@
 import React, { useEffect, useState, useMemo } from 'react';
 
+// Always use Central Time (America/Chicago) for dates
+function getCTDate(date) {
+  return new Date(date).toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+}
+function getTodayCT() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+}
+function getYesterdayCT() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+}
 function centsToUSD(cents) {
-  return `$${(cents / 100).toFixed(2)}`;
+  return '$' + (cents / 100).toFixed(2);
 }
-
 function formatDateTime(dateString) {
-  return new Date(dateString).toLocaleString();
+  return new Date(dateString).toLocaleString('en-US', { timeZone: 'America/Chicago' });
 }
-
-function formatDate(dateString) {
-  return new Date(dateString).toLocaleDateString();
-}
-
-function getTodayLocal() {
-  return new Date().toISOString().split('T')[0];
+function formatDateDisplay(ctDateStr) {
+  // ctDateStr is YYYY-MM-DD in CT; display nicely
+  const [y, m, d] = ctDateStr.split('-');
+  return m + '/' + d + '/' + y;
 }
 
 export default function Sales() {
   const [sales, setSales] = useState([]);
   const [purchases, setPurchases] = useState([]);
-  const [bomItems, setBomItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('summary');
-  const [startDate, setStartDate] = useState(getTodayLocal);
-  const [endDate, setEndDate] = useState(getTodayLocal);
-
-  const itemCostMap = useMemo(() => {
-    const map = new Map();
-    bomItems.forEach(item => {
-      const total = (item.bomLines || []).reduce((sum, l) => sum + (l.costCents || 0), 0);
-      map.set(item.id, total);
-    });
-    return map;
-  }, [bomItems]);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const fetchData = async () => {
     setLoading(true);
@@ -40,27 +38,17 @@ export default function Sales() {
       const params = new URLSearchParams();
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
-
-      const [salesRes, purchasesRes, bomRes] = await Promise.all([
-        fetch(`/api/sales?${params.toString()}`),
-        fetch(`/api/purchases?${params.toString()}`),
-        fetch('/api/bom'),
+      const [salesResp, purchasesResp] = await Promise.all([
+        fetch('/api/sales?' + params.toString()),
+        fetch('/api/purchases?' + params.toString())
       ]);
-
-      const salesData = await salesRes.json();
-      const purchasesData = await purchasesRes.json();
-
-      // BOM is optional: if endpoint fails or returns non-JSON, degrade gracefully
-      let bomData = [];
-      try {
-        if (bomRes.ok) bomData = await bomRes.json();
-      } catch (e) {}
-
+      const [salesData, purchasesData] = await Promise.all([
+        salesResp.json(), purchasesResp.json()
+      ]);
       setSales(Array.isArray(salesData) ? salesData : []);
       setPurchases(Array.isArray(purchasesData) ? purchasesData : []);
-      setBomItems(Array.isArray(bomData) ? bomData : []);
     } catch (err) {
-      console.error('Sales fetch error:', err);
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -68,75 +56,42 @@ export default function Sales() {
 
   useEffect(() => { fetchData(); }, [startDate, endDate]);
 
-  const handleDateChange = (type, value) => {
-    if (type === 'start') setStartDate(value);
-    else setEndDate(value);
-  };
-
   const resetFilters = () => { setStartDate(''); setEndDate(''); };
 
-  const today = getTodayLocal();
+  const today = getTodayCT();
 
   const dailySummary = useMemo(() => {
-    const dailyTotals = new Map();
-    sales.forEach((sale) => {
-      const date = formatDate(sale.createdAt);
-      if (!dailyTotals.has(date)) {
-        dailyTotals.set(date, { cash: 0, credit: 0, totalSales: 0, purchases: 0, costOfSales: 0, isToday: false });
-      }
-      const day = dailyTotals.get(date);
-      if (sale.paymentMethod === 'cash') day.cash += sale.totalCents;
-      else day.credit += sale.totalCents;
-      day.totalSales += 1;
-      if (date === new Date().toLocaleDateString()) day.isToday = true;
-      (sale.items || []).forEach(si => {
-        const bomCost = itemCostMap.get(si.itemId) || 0;
-        day.costOfSales += bomCost * si.quantity;
-      });
+    const map = new Map();
+    sales.forEach(sale => {
+      const date = getCTDate(sale.createdAt);
+      if (!map.has(date)) map.set(date, { cash: 0, credit: 0, totalSales: 0, purchases: 0 });
+      const d = map.get(date);
+      if (sale.paymentMethod === 'cash') d.cash += sale.totalCents;
+      else d.credit += sale.totalCents;
+      d.totalSales += 1;
     });
-    purchases.forEach((purchase) => {
-      const date = formatDate(purchase.createdAt);
-      if (!dailyTotals.has(date)) {
-        dailyTotals.set(date, { cash: 0, credit: 0, totalSales: 0, purchases: 0, costOfSales: 0, isToday: false });
-      }
-      dailyTotals.get(date).purchases += purchase.amountCents;
+    purchases.forEach(purchase => {
+      const date = getCTDate(purchase.createdAt);
+      if (!map.has(date)) map.set(date, { cash: 0, credit: 0, totalSales: 0, purchases: 0 });
+      map.get(date).purchases += purchase.amountCents;
     });
-    return Array.from(dailyTotals.entries())
-      .map(([date, data]) => ({
-        date, ...data,
-        total: data.cash + data.credit,
-        netCash: data.cash - data.purchases,
-        grossProfit: (data.cash + data.credit) - data.costOfSales,
-      }))
-      .sort((a, b) => {
-        if (a.isToday) return -1;
-        if (b.isToday) return 1;
-        return new Date(b.date) - new Date(a.date);
-      });
-  }, [sales, purchases, itemCostMap]);
-
-  const todayStr = new Date().toLocaleDateString();
-  const todayRow = dailySummary.find(d => d.date === todayStr);
+    return Array.from(map.entries())
+      .map(([date, d]) => ({ date, ...d, total: d.cash + d.credit, netCash: d.cash - d.purchases }))
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [sales, purchases]);
 
   const itemSummary = useMemo(() => {
-    const itemTotals = new Map();
-    sales.forEach((sale) => {
-      (sale.items || []).forEach((si) => {
+    const map = new Map();
+    sales.forEach(sale => {
+      sale.items.forEach(si => {
         const name = si.item.name;
-        if (!itemTotals.has(name)) {
-          itemTotals.set(name, { name, category: si.item.category, itemId: si.itemId, quantity: 0, revenue: 0 });
-        }
-        const d = itemTotals.get(name);
-        d.quantity += si.quantity;
-        d.revenue += si.lineTotalCents;
+        if (!map.has(name)) map.set(name, { name, category: si.item.category, quantity: 0, revenue: 0 });
+        map.get(name).quantity += si.quantity;
+        map.get(name).revenue += si.lineTotalCents;
       });
     });
-    return Array.from(itemTotals.values()).sort((a, b) => b.quantity - a.quantity);
+    return Array.from(map.values()).sort((a, b) => b.quantity - a.quantity);
   }, [sales]);
-
-  const totalCostOfSales = dailySummary.reduce((s, d) => s + d.costOfSales, 0);
-  const totalRevenue = dailySummary.reduce((s, d) => s + d.total, 0);
-  const bomConfigured = bomItems.some(i => (i.bomLines || []).length > 0);
 
   if (loading) return <div style={{ padding: 16 }}>Loading sales...</div>;
 
@@ -144,86 +99,125 @@ export default function Sales() {
     <div style={{ padding: 16 }}>
       <h3 style={{ marginTop: 0 }}>Sales Reports</h3>
 
-      {todayRow && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 24, padding: 16, background: 'linear-gradient(135deg, #1e40af 0%, #2563eb 100%)', borderRadius: 10, color: 'white' }}>
-          <div><div style={{ fontSize: '0.75em', opacity: 0.8, marginBottom: 2 }}>TODAY SALES</div><div style={{ fontSize: '1.5em', fontWeight: 700 }}>{centsToUSD(todayRow.total)}</div></div>
-          <div><div style={{ fontSize: '0.75em', opacity: 0.8, marginBottom: 2 }}>CASH</div><div style={{ fontSize: '1.5em', fontWeight: 700 }}>{centsToUSD(todayRow.cash)}</div></div>
-          <div><div style={{ fontSize: '0.75em', opacity: 0.8, marginBottom: 2 }}>CREDIT</div><div style={{ fontSize: '1.5em', fontWeight: 700 }}>{centsToUSD(todayRow.credit)}</div></div>
-          <div><div style={{ fontSize: '0.75em', opacity: 0.8, marginBottom: 2 }}>COMPRAS</div><div style={{ fontSize: '1.5em', fontWeight: 700, color: '#fca5a5' }}>{centsToUSD(todayRow.purchases)}</div></div>
-          <div><div style={{ fontSize: '0.75em', opacity: 0.8, marginBottom: 2 }}>NET CASH</div><div style={{ fontSize: '1.5em', fontWeight: 700, color: todayRow.netCash >= 0 ? '#4ade80' : '#f87171' }}>{centsToUSD(todayRow.netCash)}</div></div>
-          <div><div style={{ fontSize: '0.75em', opacity: 0.8, marginBottom: 2 }}>TRANSACTIONS</div><div style={{ fontSize: '1.5em', fontWeight: 700 }}>{todayRow.totalSales}</div></div>
+      {/* Date Filters */}
+      <div style={{ display: 'flex', gap: 16, marginBottom: 24, padding: 16, backgroundColor: '#f8fafc', borderRadius: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label style={{ fontWeight: 600, fontSize: '0.9em' }}>From:</label>
+          <input type="date" value={startDate} max={today}
+            onChange={e => setStartDate(e.target.value)}
+            style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: '0.9em' }} />
         </div>
-      )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label style={{ fontWeight: 600, fontSize: '0.9em' }}>To:</label>
+          <input type="date" value={endDate} max={today} min={startDate}
+            onChange={e => setEndDate(e.target.value)}
+            style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: '0.9em' }} />
+        </div>
+        <button onClick={resetFilters}
+          style={{ padding: '8px 16px', backgroundColor: '#6b7280', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: '0.9em' }}>
+          Reset
+        </button>
 
-      <div style={{ display: 'flex', gap: 16, marginBottom: 24, padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label htmlFor="startDate" style={{ fontWeight: 600, fontSize: '0.9em' }}>From:</label>
-          <input id="startDate" type="date" value={startDate} onChange={(e) => handleDateChange('start', e.target.value)} max={today} style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '0.9em' }} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label htmlFor="endDate" style={{ fontWeight: 600, fontSize: '0.9em' }}>To:</label>
-          <input id="endDate" type="date" value={endDate} onChange={(e) => handleDateChange('end', e.target.value)} max={today} min={startDate} style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '0.9em' }} />
-        </div>
-        <button onClick={resetFilters} style={{ padding: '8px 16px', backgroundColor: '#6b7280', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9em' }}>Reset Filters</button>
-        <div style={{ display: 'flex', gap: 8, marginLeft: 'auto', flexWrap: 'wrap' }}>
+        {/* Quick presets — all use Central Time */}
+        <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
           {[
-            { label: 'Today', color: '#3b82f6', fn: () => { const t = getTodayLocal(); setStartDate(t); setEndDate(t); } },
-            { label: 'Yesterday', color: '#8b5cf6', fn: () => { const d = new Date(); d.setDate(d.getDate() - 1); const s = d.toISOString().split('T')[0]; setStartDate(s); setEndDate(s); } },
-            { label: 'This Week', color: '#10b981', fn: () => { const n = new Date(); const s = new Date(n); s.setDate(n.getDate() - n.getDay()); const e = new Date(n); e.setDate(n.getDate() + (6 - n.getDay())); setStartDate(s.toISOString().split('T')[0]); setEndDate(e.toISOString().split('T')[0]); } },
-            { label: 'This Month', color: '#f59e0b', fn: () => { const n = new Date(); setStartDate(new Date(n.getFullYear(), n.getMonth(), 1).toISOString().split('T')[0]); setEndDate(new Date(n.getFullYear(), n.getMonth() + 1, 0).toISOString().split('T')[0]); } },
-          ].map(btn => (
-            <button key={btn.label} onClick={btn.fn} style={{ padding: '6px 12px', backgroundColor: btn.color, color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8em' }}>{btn.label}</button>
+            { label: 'Today', action: () => { const t = getTodayCT(); setStartDate(t); setEndDate(t); }, color: '#3b82f6' },
+            { label: 'Yesterday', action: () => { const y = getYesterdayCT(); setStartDate(y); setEndDate(y); }, color: '#8b5cf6' },
+            { label: 'This Week', action: () => {
+              const now = new Date();
+              const day = now.getDay();
+              const start = new Date(now); start.setDate(now.getDate() - day);
+              const end = new Date(now); end.setDate(now.getDate() + (6 - day));
+              setStartDate(start.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }));
+              setEndDate(end.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }));
+            }, color: '#10b981' },
+            { label: 'This Month', action: () => {
+              const now = new Date();
+              const start = new Date(now.getFullYear(), now.getMonth(), 1);
+              const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+              setStartDate(start.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }));
+              setEndDate(end.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }));
+            }, color: '#f59e0b' },
+          ].map(({ label, action, color }) => (
+            <button key={label} onClick={action}
+              style={{ padding: '6px 12px', backgroundColor: color, color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.8em' }}>
+              {label}
+            </button>
           ))}
         </div>
       </div>
 
+      {/* Filtered summary banner */}
       {(startDate || endDate) && (
-        <div style={{ marginBottom: 24, padding: '16px', backgroundColor: '#eff6ff', borderRadius: '8px', border: '1px solid #dbeafe' }}>
-          <h4 style={{ margin: '0 0 12px 0', color: '#1e40af' }}>Filtered Summary</h4>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '16px' }}>
-            {[
-              { label: 'Date Range', value: startDate && endDate ? `${startDate} to ${endDate}` : startDate ? `From ${startDate}` : `Until ${endDate}`, color: '#1e40af' },
-              { label: 'Total Sales', value: centsToUSD(totalRevenue), color: '#059669' },
-              { label: 'Transactions', value: sales.length, color: '#7c3aed' },
-              { label: 'Total Purchases', value: centsToUSD(purchases.reduce((s, p) => s + p.amountCents, 0)), color: '#dc2626' },
-              ...(bomConfigured ? [{ label: 'Gross Profit', value: centsToUSD(totalRevenue - totalCostOfSales), color: totalRevenue - totalCostOfSales >= 0 ? '#059669' : '#dc2626' }] : []),
-            ].map(stat => (
-              <div key={stat.label} style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '0.85em', color: '#6b7280', marginBottom: 4 }}>{stat.label}</div>
-                <div style={{ fontWeight: 600, color: stat.color }}>{stat.value}</div>
-              </div>
-            ))}
+        <div style={{ marginBottom: 24, padding: 16, backgroundColor: '#eff6ff', borderRadius: 8, border: '1px solid #dbeafe' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.85em', color: '#6b7280' }}>Range</div>
+              <div style={{ fontWeight: 600, color: '#1e40af' }}>{startDate && endDate ? startDate + ' → ' + endDate : startDate || endDate}</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.85em', color: '#6b7280' }}>Total Sales</div>
+              <div style={{ fontWeight: 700, color: '#059669' }}>{centsToUSD(sales.reduce((s, x) => s + x.totalCents, 0))}</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.85em', color: '#6b7280' }}>Transactions</div>
+              <div style={{ fontWeight: 700, color: '#7c3aed' }}>{sales.length}</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.85em', color: '#6b7280' }}>Purchases</div>
+              <div style={{ fontWeight: 700, color: '#dc2626' }}>{centsToUSD(purchases.reduce((s, x) => s + x.amountCents, 0))}</div>
+            </div>
           </div>
         </div>
       )}
 
+      {/* Tabs */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 24, borderBottom: '1px solid #eee' }}>
         {[{ id: 'summary', label: 'Daily Summary' }, { id: 'items', label: 'Item Sales' }, { id: 'transactions', label: 'All Transactions' }].map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ padding: '8px 16px', border: 'none', background: 'none', borderBottom: activeTab === tab.id ? '2px solid #2563eb' : '2px solid transparent', color: activeTab === tab.id ? '#2563eb' : '#666', fontWeight: activeTab === tab.id ? 600 : 400, cursor: 'pointer' }}>{tab.label}</button>
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+            padding: '8px 16px', border: 'none', background: 'none',
+            borderBottom: activeTab === tab.id ? '2px solid #2563eb' : '2px solid transparent',
+            color: activeTab === tab.id ? '#2563eb' : '#666',
+            fontWeight: activeTab === tab.id ? 600 : 400, cursor: 'pointer'
+          }}>{tab.label}</button>
         ))}
       </div>
 
-      {sales.length === 0 && <div style={{ opacity: 0.7 }}>No sales yet for this period</div>}
+      {sales.length === 0 && !loading && <div style={{ opacity: 0.7 }}>No sales yet for this period.</div>}
 
+      {/* Daily Summary */}
       {activeTab === 'summary' && (
         <div>
-          <h4>Daily Sales Summary</h4>
-          {dailySummary.length === 0 ? <div style={{ opacity: 0.7 }}>No sales data</div> : (
+          <h4>Daily Sales Summary (Central Time)</h4>
+          {dailySummary.length === 0 ? <div style={{ opacity: 0.7 }}>No data</div> : (
             <div style={{ display: 'grid', gap: 12 }}>
-              {dailySummary.map((day) => (
-                <div key={day.date} style={{ border: '1px solid #ddd', borderRadius: 8, padding: 16, backgroundColor: day.isToday ? '#f0f9ff' : 'white', borderLeft: day.isToday ? '4px solid #2563eb' : '1px solid #ddd' }}>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center' }}>
-                    <div style={{ minWidth: 120 }}>
-                      <strong>{day.date}</strong>
-                      {day.isToday && <span style={{ fontSize: '0.75em', color: '#2563eb', fontWeight: 600, backgroundColor: '#dbeafe', padding: '2px 6px', borderRadius: 4, marginLeft: 8 }}>TODAY</span>}
-                      <div style={{ fontSize: '0.85em', opacity: 0.7 }}>{day.totalSales} transaction{day.totalSales !== 1 ? 's' : ''}</div>
+              {dailySummary.map(day => (
+                <div key={day.date} style={{ border: '1px solid #ddd', borderRadius: 8, padding: 16 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto auto auto', gap: 12, alignItems: 'center' }}>
+                    <div>
+                      <strong>{formatDateDisplay(day.date)}</strong>
+                      <div style={{ fontSize: '0.85em', opacity: 0.7 }}>{day.totalSales} transactions</div>
                     </div>
-                    <div style={{ textAlign: 'center' }}><div style={{ fontSize: '0.75em', fontWeight: 600, color: '#059669' }}>Cash In</div><div style={{ fontWeight: 600 }}>{centsToUSD(day.cash)}</div></div>
-                    <div style={{ textAlign: 'center' }}><div style={{ fontSize: '0.75em', fontWeight: 600, color: '#7c3aed' }}>Credit</div><div style={{ fontWeight: 600 }}>{centsToUSD(day.credit)}</div></div>
-                    <div style={{ textAlign: 'center' }}><div style={{ fontSize: '0.75em', fontWeight: 600 }}>Total Sales</div><div style={{ fontSize: '1.1em', fontWeight: 700 }}>{centsToUSD(day.total)}</div></div>
-                    <div style={{ textAlign: 'center' }}><div style={{ fontSize: '0.75em', fontWeight: 600, color: '#dc2626' }}>Compras</div><div style={{ fontWeight: 600 }}>{centsToUSD(day.purchases)}</div></div>
-                    <div style={{ textAlign: 'center' }}><div style={{ fontSize: '0.75em', fontWeight: 600, color: '#059669' }}>Net Cash</div><div style={{ fontWeight: 700, color: day.netCash >= 0 ? '#059669' : '#dc2626' }}>{centsToUSD(day.netCash)}</div></div>
-                    {bomConfigured && <div style={{ textAlign: 'center' }}><div style={{ fontSize: '0.75em', fontWeight: 600, color: '#059669' }}>Gross Profit</div><div style={{ fontWeight: 700, color: day.grossProfit >= 0 ? '#059669' : '#dc2626' }}>{centsToUSD(day.grossProfit)}</div></div>}
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontWeight: 600, color: '#059669', fontSize: '0.85em' }}>Cash</div>
+                      <div>{centsToUSD(day.cash)}</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontWeight: 600, color: '#7c3aed', fontSize: '0.85em' }}>Credit</div>
+                      <div>{centsToUSD(day.credit)}</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontWeight: 600, color: '#dc2626', fontSize: '0.85em' }}>Compras</div>
+                      <div>{centsToUSD(day.purchases)}</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.85em' }}>Net Cash</div>
+                      <div style={{ fontWeight: 700, color: day.netCash >= 0 ? '#059669' : '#dc2626' }}>{centsToUSD(day.netCash)}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.85em' }}>Total</div>
+                      <div style={{ fontSize: '1.1em', fontWeight: 700 }}>{centsToUSD(day.total)}</div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -232,16 +226,17 @@ export default function Sales() {
         </div>
       )}
 
+      {/* Item Sales */}
       {activeTab === 'items' && (
         <div>
           <h4>Item Sales Summary</h4>
-          {itemSummary.length === 0 ? <div style={{ opacity: 0.7 }}>No item data</div> : (
-            <div style={{ display: 'grid', gap: 8 }}>
+          {itemSummary.length === 0 ? <div style={{ opacity: 0.7 }}>No data</div> : (
+            <div>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto auto', gap: 16, padding: '8px 16px', fontWeight: 600, borderBottom: '1px solid #eee' }}>
-                <div>Item</div><div>Category</div><div style={{ textAlign: 'center' }}>Qty Sold</div><div style={{ textAlign: 'right' }}>Revenue</div>
+                <div>Item</div><div>Category</div><div style={{ textAlign: 'center' }}>Qty</div><div style={{ textAlign: 'right' }}>Revenue</div>
               </div>
-              {itemSummary.map((item) => (
-                <div key={item.name} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto auto', gap: 16, padding: '8px 16px', alignItems: 'center', borderBottom: '1px solid #f3f4f6' }}>
+              {itemSummary.map(item => (
+                <div key={item.name} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto auto', gap: 16, padding: '8px 16px', borderBottom: '1px solid #f3f4f6' }}>
                   <div>{item.name}</div>
                   <div style={{ opacity: 0.7 }}>{item.category}</div>
                   <div style={{ textAlign: 'center', fontWeight: 600 }}>{item.quantity}</div>
@@ -253,26 +248,36 @@ export default function Sales() {
         </div>
       )}
 
+      {/* All Transactions */}
       {activeTab === 'transactions' && (
         <div>
           <h4>All Transactions</h4>
-          {sales.length === 0 && <div style={{ opacity: 0.7 }}>No transactions for this period</div>}
-          {sales.map((sale) => (
-            <div key={sale.id} style={{ border: '1px solid #ddd', borderRadius: 8, padding: 16, marginBottom: 16 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 12 }}>
-                <div><strong>Sale #{sale.id}</strong><div style={{ fontSize: '0.9em', opacity: 0.7 }}>{formatDateTime(sale.createdAt)}</div></div>
-                <div><strong>Payment: {sale.paymentMethod}</strong>{sale.paymentMethod === 'cash' && sale.amountTenderedCents && <div style={{ fontSize: '0.9em', opacity: 0.7 }}>Tendered: {centsToUSD(sale.amountTenderedCents)} | Change: {centsToUSD(sale.changeDueCents)}</div>}</div>
+          {sales.map(sale => (
+            <div key={sale.id} style={{ border: '1px solid #ddd', borderRadius: 8, padding: 16, marginBottom: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 10 }}>
+                <div>
+                  <strong>Sale #{sale.id}</strong>
+                  <div style={{ fontSize: '0.85em', opacity: 0.7 }}>{formatDateTime(sale.createdAt)}</div>
+                </div>
+                <div>
+                  <strong>Payment: {sale.paymentMethod}</strong>
+                  {sale.paymentMethod === 'cash' && (
+                    <div style={{ fontSize: '0.85em', opacity: 0.7 }}>
+                      Tendered: {centsToUSD(sale.amountTenderedCents)} | Change: {centsToUSD(sale.changeDueCents)}
+                    </div>
+                  )}
+                </div>
                 <div style={{ textAlign: 'right' }}><strong>Total: {centsToUSD(sale.totalCents)}</strong></div>
               </div>
               <div style={{ borderTop: '1px solid #eee', paddingTop: 8 }}>
-                <strong>Items:</strong>
-                <div style={{ marginTop: 8 }}>
-                  {(sale.items || []).map((si) => (
-                    <div key={si.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 8, alignItems: 'center', padding: '4px 0' }}>
-                      <div>{si.item.name}</div><div>{centsToUSD(si.unitPriceCents)}</div><div>x {si.quantity}</div><div style={{ textAlign: 'right', fontWeight: 600 }}>{centsToUSD(si.lineTotalCents)}</div>
-                    </div>
-                  ))}
-                </div>
+                {sale.items.map(si => (
+                  <div key={si.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 8, padding: '4px 0' }}>
+                    <div>{si.item.name}</div>
+                    <div>{centsToUSD(si.unitPriceCents)}</div>
+                    <div>× {si.quantity}</div>
+                    <div style={{ textAlign: 'right', fontWeight: 600 }}>{centsToUSD(si.lineTotalCents)}</div>
+                  </div>
+                ))}
               </div>
             </div>
           ))}
@@ -280,4 +285,4 @@ export default function Sales() {
       )}
     </div>
   );
-}
+        }
